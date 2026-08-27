@@ -1,5 +1,7 @@
 # Environment
 .env
+.env.*
+!.env.example
 
 # Python
 __pycache__/
@@ -12,9 +14,17 @@ venv/
 *.sqlite3
 staticfiles/
 
-# Node
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node / Vite
 node_modules/
 dist/
+
+# Logs
+*.log
 
 # IDE
 .vscode/
@@ -22,6 +32,10 @@ dist/
 
 # OS
 .DS_Store
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
 
 # SAST temporary files
 storage/*
