@@ -5,3 +5,4 @@ psycopg[binary]
 celery
 redis
 semgrep
+djangorestframework-simplejwt

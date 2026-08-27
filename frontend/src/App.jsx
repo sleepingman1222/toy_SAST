@@ -1,122 +1,210 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+} from "react-router-dom";
+
+import Login
+  from "./pages/Login/Login";
+
+import Dashboard
+  from "./pages/Dashboard/Dashboard";
+
+import {
+  authFetch,
+  initializeCsrf,
+} from "./api/api";
+
 
 function App() {
-  const [count, setCount] = useState(0)
+
+  // 로그인 사용자
+  const [user, setUser] =
+    useState(null);
+
+  // Access Token
+  // 브라우저 저장소가 아니라
+  // React 메모리에만 저장
+  const [
+    accessToken,
+    setAccessToken,
+  ] = useState(null);
+
+  // 로그인 상태 복구 중인지
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+
+  useEffect(() => {
+
+    const restoreUser =
+      async () => {
+
+        try {
+
+          // CSRF Cookie 초기화
+          await initializeCsrf();
+
+
+          // accessToken이 null이어도
+          // authFetch가 refresh를 시도
+          const response =
+            await authFetch(
+              "/api/me/",
+              accessToken,
+              setAccessToken
+            );
+
+
+          if (!response.ok) {
+
+            setUser(null);
+
+            setAccessToken(null);
+
+            return;
+          }
+
+
+          const data =
+            await response.json();
+
+
+          setUser({
+            username:
+              data.username,
+
+            role:
+              data.role,
+          });
+
+        } catch (error) {
+
+          console.error(
+            "로그인 복구 실패:",
+            error
+          );
+
+          setUser(null);
+
+          setAccessToken(null);
+
+        } finally {
+
+          setLoading(false);
+
+        }
+      };
+
+
+    restoreUser();
+
+  }, []);
+
+
+  if (loading) {
+    return (
+      <div>
+        Loading...
+      </div>
+    );
+  }
+
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <BrowserRouter>
 
-      <div className="ticks"></div>
+      <Routes>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <Route
+          path="/"
+          element={
+            <Navigate
+              to={
+                user
+                  ? "/dashboard"
+                  : "/login"
+              }
+              replace
+            />
+          }
+        />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+
+        <Route
+          path="/login"
+          element={
+            user ? (
+
+              <Navigate
+                to="/dashboard"
+                replace
+              />
+
+            ) : (
+
+              <Login
+                setUser={
+                  setUser
+                }
+
+                setAccessToken={
+                  setAccessToken
+                }
+              />
+
+            )
+          }
+        />
+
+
+        <Route
+          path="/dashboard"
+          element={
+            user ? (
+
+              <Dashboard
+                user={
+                  user
+                }
+
+                setUser={
+                  setUser
+                }
+
+                accessToken={
+                  accessToken
+                }
+
+                setAccessToken={
+                  setAccessToken
+                }
+              />
+
+            ) : (
+
+              <Navigate
+                to="/login"
+                replace
+              />
+
+            )
+          }
+        />
+
+      </Routes>
+
+    </BrowserRouter>
+  );
 }
 
-export default App
+
+export default App;
