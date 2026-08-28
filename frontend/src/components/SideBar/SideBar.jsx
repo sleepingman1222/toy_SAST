@@ -11,7 +11,7 @@ function SideBar({ role }) {
       <nav className="sidebar-menu">
 
         <button className="sidebar-menu-item">
-          대시보드
+          요약
         </button>
 
         {role === "admin" && (

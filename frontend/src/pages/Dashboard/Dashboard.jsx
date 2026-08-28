@@ -19,14 +19,18 @@ import {
 } from "../../api/api";
 
 import "./Dashboard.css";
-
+import {
+  useAuth,
+} from "../../auth/useAuth";
 
 function Dashboard({
-  user,
-  setUser,
-  accessToken,
-  setAccessToken,
+
 }) {
+
+  const {
+    user,
+    logout,
+  } = useAuth();
 
   const navigate =
     useNavigate();
@@ -35,43 +39,13 @@ function Dashboard({
   const handleLogout =
     async () => {
 
-      try {
+      await logout();
 
-        const response =
-          await logoutRequest();
-
-
-        if (!response.ok) {
-
-          console.error(
-            "서버 로그아웃 실패:",
-            response.status
-          );
-
-        }
-
-      } catch (error) {
-
-        console.error(
-          "로그아웃 요청 실패:",
-          error
-        );
-
-      } finally {
-
-        // Access Token 메모리 제거
-        setAccessToken(null);
-
-        // 사용자 제거
-        setUser(null);
-
-        // 로그인 화면 이동
-        navigate(
-          "/login"
-        );
-      }
+      navigate(
+        "/login"
+      );
     };
-
+  
 
   return (
     <div className="dashboard-layout">
