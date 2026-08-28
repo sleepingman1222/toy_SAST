@@ -1,0 +1,325 @@
+/* ========================================
+   Project Edit
+======================================== */
+
+.project-edit {
+  width: 100%;
+  max-width: 900px;
+
+  margin: 0 auto;
+}
+
+
+/* ========================================
+   상단
+======================================== */
+
+.project-edit-header {
+  margin-bottom: 26px;
+}
+
+
+.project-edit-title {
+  margin-top: 18px;
+}
+
+
+.project-edit-title h2 {
+  margin: 0 0 7px;
+
+  font-size: 22px;
+  font-weight: 700;
+
+  color: #111827;
+}
+
+
+.project-edit-title p {
+  margin: 0;
+
+  font-size: 14px;
+  line-height: 1.5;
+
+  color: #6b7280;
+}
+
+
+/* ========================================
+   상세로 돌아가기
+======================================== */
+
+.project-edit .back-button {
+  padding: 0;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  color: #64748b;
+
+  background: none;
+
+  border: none;
+
+  cursor: pointer;
+}
+
+
+.project-edit .back-button:hover {
+  color: #405b84;
+}
+
+
+/* ========================================
+   Form
+======================================== */
+
+.project-edit-form {
+  padding: 30px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
+}
+
+
+/* ========================================
+   입력 영역
+======================================== */
+
+.project-edit-form-group {
+  display: flex;
+
+  flex-direction: column;
+
+  margin-bottom: 24px;
+}
+
+
+.project-edit-form-group label {
+  margin-bottom: 8px;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  color: #374151;
+}
+
+
+.project-edit-form-group input,
+.project-edit-form-group textarea,
+.project-edit-form-group select {
+  width: 100%;
+
+  padding: 11px 13px;
+
+  font-size: 14px;
+
+  color: #1f2937;
+
+  background-color: #ffffff;
+
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+
+  outline: none;
+
+  box-sizing: border-box;
+
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+
+.project-edit-form-group textarea {
+  min-height: 115px;
+
+  resize: vertical;
+}
+
+
+.project-edit-form-group select {
+  cursor: pointer;
+}
+
+
+.project-edit-form-group input:focus,
+.project-edit-form-group textarea:focus,
+.project-edit-form-group select:focus {
+  border-color: #405b84;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(64, 91, 132, 0.1);
+}
+
+
+/* ========================================
+   필수 표시
+======================================== */
+
+.project-edit .required {
+  margin-left: 4px;
+
+  color: #b42318;
+}
+
+
+/* ========================================
+   오류
+======================================== */
+
+.project-edit-error {
+  margin: 0 0 20px;
+
+  padding: 11px 13px;
+
+  font-size: 13px;
+
+  color: #b42318;
+
+  background-color: #fff5f5;
+
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+}
+
+
+/* ========================================
+   버튼
+======================================== */
+
+.project-edit-actions {
+  display: flex;
+
+  justify-content: flex-end;
+
+  gap: 9px;
+
+  padding-top: 4px;
+}
+
+
+.project-edit-cancel-button {
+  padding: 9px 18px;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  color: #374151;
+
+  background-color: #ffffff;
+
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+
+  cursor: pointer;
+}
+
+
+.project-edit-cancel-button:hover {
+  background-color: #f9fafb;
+}
+
+
+.project-edit-save-button {
+  padding: 9px 18px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  color: #ffffff;
+
+  background-color: #405b84;
+
+  border: none;
+  border-radius: 6px;
+
+  cursor: pointer;
+}
+
+
+.project-edit-save-button:hover {
+  background-color: #334b70;
+}
+
+/* ========================================
+   현재 소스 파일
+======================================== */
+
+.current-source-file {
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  margin-bottom: 10px;
+
+  padding: 11px 13px;
+
+  background-color: #f8fafc;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+
+.current-source-label {
+  flex-shrink: 0;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  color: #6b7280;
+}
+
+
+.current-source-value {
+  font-size: 13px;
+
+  color: #1f2937;
+
+  word-break: break-all;
+}
+
+
+/* ========================================
+   파일 선택
+======================================== */
+
+.project-edit-form-group
+input[type="file"] {
+  padding: 9px;
+
+  background-color: #f9fafb;
+
+  cursor: pointer;
+}
+
+
+/* 새로 선택한 파일 */
+.new-source-file {
+  margin: 8px 0 0;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  color: #405b84;
+}
+
+
+/* 도움말 */
+.source-help-text {
+  margin: 8px 0 0;
+
+  font-size: 12px;
+  line-height: 1.5;
+
+  color: #6b7280;
+}

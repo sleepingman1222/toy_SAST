@@ -1,51 +1,100 @@
 import "./SideBar.css";
 
-function SideBar({ role }) {
+
+function SideBar({
+  role,
+  selectedMenu,
+  onMenuChange,
+}) {
+
   return (
     <aside className="sidebar">
 
-      <div className="sidebar-logo">
+      <button
+        type="button"
+        className="sidebar-logo"
+        onClick={() =>
+          onMenuChange("summary")
+        }
+      >
         MySAST
-      </div>
+      </button>
+
 
       <nav className="sidebar-menu">
 
-        <button className="sidebar-menu-item">
+        <button
+          className={
+            selectedMenu === "summary"
+              ? "sidebar-button active"
+              : "sidebar-button"
+          }
+
+          onClick={() =>
+            onMenuChange("summary")
+          }
+        >
           요약
         </button>
 
-        {role === "admin" && (
-          <>
-            <button className="sidebar-menu-item">
-              사용자 관리
-            </button>
 
-            <button className="sidebar-menu-item">
-              프로젝트 관리
-            </button>
+        {
+          role === "admin" && (
+            <>
 
-            <button className="sidebar-menu-item">
-              시스템 설정
-            </button>
-          </>
-        )}
+              <button
+                className={
+                  selectedMenu === "users"
+                    ? "sidebar-button active"
+                    : "sidebar-button"
+                }
 
-        {role === "user" && (
-          <>
-            <button className="sidebar-menu-item">
-              내 프로젝트
-            </button>
+                onClick={() =>
+                  onMenuChange("users")
+                }
+              >
+                사용자 관리
+              </button>
 
-            <button className="sidebar-menu-item">
-              내 정보
-            </button>
-          </>
-        )}
+
+              <button
+                className={
+                  selectedMenu === "projects"
+                    ? "sidebar-button active"
+                    : "sidebar-button"
+                }
+
+                onClick={() =>
+                  onMenuChange("projects")
+                }
+              >
+                프로젝트 관리
+              </button>
+
+
+              <button
+                className={
+                  selectedMenu === "mypage"
+                    ? "sidebar-button active"
+                    : "sidebar-button"
+                }
+
+                onClick={() =>
+                  onMenuChange("mypage")
+                }
+              >
+                마이페이지
+              </button>
+
+            </>
+          )
+        }
 
       </nav>
 
     </aside>
   );
 }
+
 
 export default SideBar;

@@ -1,0 +1,284 @@
+/* ========================================
+   계정 등록 전체 영역
+======================================== */
+
+.user-create {
+  width: 100%;
+  max-width: 900px;
+
+  margin: 0 auto;
+}
+
+
+/* ========================================
+   목록으로 버튼
+======================================== */
+
+.user-create-back-button {
+  padding: 0;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  color: #64748b;
+
+  background: none;
+
+  border: none;
+
+  cursor: pointer;
+
+  transition:
+    color 0.15s;
+}
+
+
+.user-create-back-button:hover {
+  color: #405b84;
+
+  text-decoration: underline;
+
+  text-underline-offset: 3px;
+}
+
+
+/* ========================================
+   Header
+======================================== */
+
+.user-create-header {
+  margin-top: 18px;
+  margin-bottom: 24px;
+}
+
+
+.user-create-header h2 {
+  margin: 0 0 7px;
+
+  font-size: 22px;
+  font-weight: 700;
+
+  color: #111827;
+}
+
+
+.user-create-header p {
+  margin: 0;
+
+  font-size: 14px;
+  line-height: 1.5;
+
+  color: #6b7280;
+}
+
+
+/* ========================================
+   Form
+======================================== */
+
+.user-create-form {
+  padding: 28px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
+}
+
+
+/* ========================================
+   Form Group
+======================================== */
+
+.user-create .user-form-group {
+  margin-bottom: 22px;
+}
+
+
+.user-create .user-form-group label {
+  display: block;
+
+  margin-bottom: 8px;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  color: #374151;
+}
+
+
+.user-create .user-form-group label span {
+  margin-left: 3px;
+
+  color: #dc2626;
+}
+
+
+/* ========================================
+   Input / Select
+======================================== */
+
+.user-create .user-form-group input,
+.user-create .user-form-group select {
+  width: 100%;
+  height: 42px;
+
+  padding: 0 13px;
+
+  font-size: 14px;
+
+  color: #1f2937;
+
+  background-color: #ffffff;
+
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+
+  box-sizing: border-box;
+
+  outline: none;
+
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+
+.user-create .user-form-group input:focus,
+.user-create .user-form-group select:focus {
+  border-color: #405b84;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(64, 91, 132, 0.1);
+}
+
+
+.user-create .user-form-group input::placeholder {
+  color: #9ca3af;
+}
+
+
+/* ========================================
+   Error
+======================================== */
+
+.user-create-error {
+  margin-bottom: 20px;
+
+  padding: 12px 14px;
+
+  font-size: 13px;
+
+  color: #b91c1c;
+
+  background-color: #fef2f2;
+
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+}
+
+
+/* ========================================
+   Action
+======================================== */
+
+.user-create-actions {
+  display: flex;
+
+  justify-content: flex-end;
+  align-items: center;
+
+  gap: 9px;
+
+  margin-top: 28px;
+}
+
+
+/* ========================================
+   취소 버튼
+======================================== */
+
+.user-create-cancel-button {
+  padding: 9px 17px;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  color: #374151;
+
+  background-color: #ffffff;
+
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+
+  cursor: pointer;
+}
+
+
+.user-create-cancel-button:hover {
+  background-color: #f9fafb;
+
+  border-color: #9ca3af;
+}
+
+
+/* ========================================
+   등록 버튼
+======================================== */
+
+.user-create-submit-button {
+  padding: 9px 17px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  color: #ffffff;
+
+  background-color: #405b84;
+
+  border: none;
+  border-radius: 6px;
+
+  cursor: pointer;
+}
+
+
+.user-create-submit-button:hover {
+  background-color: #334b70;
+}
+
+
+/* ========================================
+   반응형
+======================================== */
+
+@media (max-width: 700px) {
+
+  .user-create {
+    max-width: 100%;
+  }
+
+
+  .user-create-form {
+    padding: 22px 20px;
+  }
+
+
+  .user-create-actions {
+    flex-direction: column-reverse;
+
+    align-items: stretch;
+  }
+
+
+  .user-create-cancel-button,
+  .user-create-submit-button {
+    width: 100%;
+  }
+
+}

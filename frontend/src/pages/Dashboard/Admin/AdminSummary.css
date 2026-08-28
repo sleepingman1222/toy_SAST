@@ -1,0 +1,218 @@
+/* ========================================
+   관리자 요약 전체
+======================================== */
+
+.admin-summary {
+  width: 100%;
+  max-width: 1200px;
+
+  margin: 0 auto;
+}
+
+
+/* ========================================
+   설명
+======================================== */
+
+.admin-summary-description {
+  margin-bottom: 24px;
+
+  font-size: 14px;
+  line-height: 1.6;
+
+  color: #6b7280;
+}
+
+
+/* ========================================
+   공통 Section
+======================================== */
+
+.summary-section {
+  margin-bottom: 32px;
+}
+
+
+.summary-section h2 {
+  margin: 0 0 14px;
+
+  font-size: 16px;
+  font-weight: 700;
+
+  color: #1f2937;
+}
+
+
+/* ========================================
+   요약 Card Grid
+======================================== */
+
+.summary-card-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, 1fr);
+
+  gap: 16px;
+}
+
+
+/* ========================================
+   요약 Card
+======================================== */
+
+.summary-card {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 14px;
+
+  padding: 22px 24px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
+}
+
+
+/* ========================================
+   Card Label
+======================================== */
+
+.summary-card-label {
+  font-size: 13px;
+  font-weight: 500;
+
+  color: #6b7280;
+}
+
+
+/* ========================================
+   Card Value
+======================================== */
+
+.summary-card-value {
+  font-size: 28px;
+  font-weight: 700;
+
+  color: #1f2937;
+}
+
+
+/* ========================================
+   프로젝트 상태 전체 Card
+======================================== */
+
+.project-status-summary {
+  overflow: hidden;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
+}
+
+
+/* ========================================
+   프로젝트 상태 Row
+======================================== */
+
+.project-status-summary-row {
+  display: flex;
+
+  justify-content: space-between;
+  align-items: center;
+
+  min-height: 62px;
+
+  padding: 0 22px;
+
+  border-bottom: 1px solid #f0f1f3;
+}
+
+
+.project-status-summary-row:last-child {
+  border-bottom: none;
+}
+
+
+.project-status-summary-row strong {
+  font-size: 17px;
+  font-weight: 700;
+
+  color: #1f2937;
+}
+
+
+/* ========================================
+   상태 Label 영역
+======================================== */
+
+.project-status-summary-label {
+  display: flex;
+
+  align-items: center;
+}
+
+
+/* ========================================
+   반응형
+======================================== */
+
+@media (max-width: 900px) {
+
+  .summary-card-grid {
+    grid-template-columns:
+      repeat(2, 1fr);
+  }
+
+}
+
+
+@media (max-width: 500px) {
+
+  .summary-card-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .summary-card {
+    padding: 20px;
+  }
+
+
+  .project-status-summary-row {
+    padding: 0 18px;
+  }
+
+}
+
+.project-status {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  min-width: 92px;
+
+  padding: 6px 11px;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  border-radius: 20px;
+
+  white-space: nowrap;
+}
+

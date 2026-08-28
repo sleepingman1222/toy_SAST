@@ -47,11 +47,6 @@ export async function refreshAccessToken() {
     const csrfToken =
       getCookie("csrftoken");
 
-    console.log(
-      "CSRF Token:",
-      csrfToken
-    );
-
     const response = await fetch(
       "/api/token/refresh/",
       {
@@ -63,11 +58,6 @@ export async function refreshAccessToken() {
           "X-CSRFToken": csrfToken,
         },
       }
-    );
-
-    console.log(
-      "Refresh status:",
-      response.status
     );
 
     if (!response.ok) {
