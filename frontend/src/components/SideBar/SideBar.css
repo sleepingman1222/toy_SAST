@@ -3,12 +3,18 @@
 ======================================== */
 
 .sidebar {
+  display: flex;
+  flex-direction: column;
+
+  flex-shrink: 0;
+
   width: 240px;
   min-width: 240px;
   height: 100vh;
 
-  display: flex;
-  flex-direction: column;
+  box-sizing: border-box;
+
+  overflow: hidden;
 
   background-color: #1f2937;
 
@@ -21,27 +27,30 @@
 ======================================== */
 
 .sidebar-logo {
+  flex-shrink: 0;
+
   width: 100%;
 
-  padding: 28px 24px 26px;
+  padding: 24px;
+
+  box-sizing: border-box;
+
+  color: #ffffff;
+
+  background: transparent;
+
+  border: none;
 
   font-size: 23px;
   font-weight: 700;
 
-  color: #ffffff;
-
-  background: none;
-
-  border: none;
+  letter-spacing: 0.3px;
 
   text-align: left;
 
   cursor: pointer;
 
-  letter-spacing: 0.3px;
-
-  transition:
-    opacity 0.15s;
+  transition: opacity 0.15s;
 }
 
 
@@ -51,37 +60,48 @@
 
 
 /* ========================================
-   Menu 전체
+   Menu
 ======================================== */
 
 .sidebar-menu {
   display: flex;
+  flex: 1;
   flex-direction: column;
 
   gap: 6px;
 
-  padding: 10px 14px;
+  min-height: 0;
+
+  padding: 8px 14px 20px;
+
+  box-sizing: border-box;
+
+  overflow-y: auto;
 }
 
 
 /* ========================================
-   Menu 버튼
+   Menu Button
 ======================================== */
 
 .sidebar-button {
   width: 100%;
 
-  padding: 13px 16px;
+  padding: 12px 16px;
+
+  box-sizing: border-box;
+
+  color: #d1d5db;
+
+  background-color: transparent;
+
+  border: none;
+  border-radius: 7px;
 
   font-size: 14px;
   font-weight: 500;
 
-  color: #d1d5db;
-
-  background: transparent;
-
-  border: none;
-  border-radius: 7px;
+  line-height: 1.4;
 
   text-align: left;
 
@@ -100,11 +120,68 @@
 }
 
 
-/* 선택된 메뉴 */
+/* ========================================
+   Active Menu
+======================================== */
+
 .sidebar-button.active {
   color: #ffffff;
 
   background-color: #405b84;
 
   font-weight: 600;
+}
+
+
+/* ========================================
+   Scrollbar
+======================================== */
+
+.sidebar-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+
+.sidebar-menu::-webkit-scrollbar-thumb {
+  background-color: #4b5563;
+
+  border-radius: 999px;
+}
+
+
+.sidebar-menu::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+
+/* ========================================
+   Responsive
+======================================== */
+
+@media (max-width: 900px) {
+
+  .sidebar {
+    width: 210px;
+    min-width: 210px;
+  }
+
+
+  .sidebar-logo {
+    padding: 22px 20px;
+
+    font-size: 21px;
+  }
+
+
+  .sidebar-menu {
+    padding: 8px 12px 20px;
+  }
+
+
+  .sidebar-button {
+    padding: 11px 14px;
+
+    font-size: 13px;
+  }
+
 }

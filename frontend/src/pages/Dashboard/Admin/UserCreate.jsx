@@ -1,4 +1,6 @@
-import { useState } from "react";
+import {
+  useState,
+} from "react";
 
 import "./UserCreate.css";
 
@@ -9,20 +11,36 @@ function UserCreate({
   onCreate,
 }) {
 
-  const [formData, setFormData] =
-    useState({
-      username: "",
-      password: "",
-      passwordConfirm: "",
-      role: "user",
-    });
+  const [
+    formData,
+    setFormData,
+  ] = useState({
+    username: "",
+    password: "",
+    passwordConfirm: "",
+    role: "user",
+  });
 
 
-  const [error, setError] =
-    useState("");
+  const [
+    error,
+    setError,
+  ] = useState("");
 
 
-  const handleChange = (event) => {
+  const [
+    submitting,
+    setSubmitting,
+  ] = useState(false);
+
+
+  /* ========================================
+     입력 변경
+  ======================================== */
+
+  const handleChange = (
+    event
+  ) => {
 
     const {
       name,
@@ -30,129 +48,165 @@ function UserCreate({
     } = event.target;
 
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData(
+      (prev) => ({
+
+        ...prev,
+
+        [name]:
+          value,
+      })
+    );
   };
 
 
-  const handleSubmit = (event) => {
+  /* ========================================
+     계정 등록
+  ======================================== */
 
-    event.preventDefault();
+  const handleSubmit =
+    async (
+      event
+    ) => {
+
+      event.preventDefault();
 
 
-    const username =
-      formData.username.trim();
+      if (submitting) {
+        return;
+      }
 
 
-    if (!username) {
+      const username =
+        formData.username
+          .trim();
+
+
+      if (!username) {
+
+        setError(
+          "아이디를 입력해주세요."
+        );
+
+        return;
+      }
+
+
+      // ------------------------------------
+      // 빠른 Frontend 중복 검사
+      //
+      // 최종 중복 검사는 Backend가 수행
+      // ------------------------------------
+
+      const duplicated =
+        users.some(
+          (user) =>
+            user.username
+              .toLowerCase() ===
+            username
+              .toLowerCase()
+        );
+
+
+      if (duplicated) {
+
+        setError(
+          "이미 존재하는 아이디입니다."
+        );
+
+        return;
+      }
+
+
+      if (
+        !formData.password
+      ) {
+
+        setError(
+          "초기 비밀번호를 입력해주세요."
+        );
+
+        return;
+      }
+
+
+      if (
+        formData.password !==
+        formData.passwordConfirm
+      ) {
+
+        setError(
+          "비밀번호가 일치하지 않습니다."
+        );
+
+        return;
+      }
+
 
       setError(
-        "아이디를 입력해주세요."
-      );
-
-      return;
-    }
-
-
-    const duplicated =
-      users.some(
-        (user) =>
-          user.username.toLowerCase() ===
-          username.toLowerCase()
+        ""
       );
 
 
-    if (duplicated) {
-
-      setError(
-        "이미 존재하는 아이디입니다."
+      setSubmitting(
+        true
       );
 
-      return;
-    }
+
+      try {
+
+        await onCreate({
+          username,
+
+          password:
+            formData.password,
+
+          role:
+            formData.role,
+        });
+
+      } catch (error) {
+
+        console.error(
+          "사용자 등록 실패:",
+          error
+        );
 
 
-    if (!formData.password) {
+        setError(
+          error.message ||
+          "사용자 등록에 실패했습니다."
+        );
 
-      setError(
-        "초기 비밀번호를 입력해주세요."
-      );
+      } finally {
 
-      return;
-    }
-
-
-    if (
-      formData.password !==
-      formData.passwordConfirm
-    ) {
-
-      setError(
-        "비밀번호가 일치하지 않습니다."
-      );
-
-      return;
-    }
-
-
-    const now =
-      new Date();
-
-
-    const formattedDate =
-      `${now.getFullYear()}-` +
-      `${String(
-        now.getMonth() + 1
-      ).padStart(2, "0")}-` +
-      `${String(
-        now.getDate()
-      ).padStart(2, "0")} ` +
-      `${String(
-        now.getHours()
-      ).padStart(2, "0")}:` +
-      `${String(
-        now.getMinutes()
-      ).padStart(2, "0")}`;
-
-
-    const newUser = {
-
-      id:
-        users.length > 0
-          ? Math.max(
-              ...users.map(
-                (user) => user.id
-              )
-            ) + 1
-          : 1,
-
-      username,
-
-      role:
-        formData.role,
-
-      isActive: true,
-
-      createdAt:
-        formattedDate,
-
-      assignedProjects: [],
+        setSubmitting(
+          false
+        );
+      }
     };
 
 
-    onCreate(newUser);
-  };
-
+  /* ========================================
+     화면
+  ======================================== */
 
   return (
 
     <div className="user-create">
 
       <button
+        type="button"
+
         className="user-create-back-button"
-        onClick={onCancel}
+
+        onClick={
+          onCancel
+        }
+
+        disabled={
+          submitting
+        }
       >
         ← 목록으로
       </button>
@@ -174,27 +228,45 @@ function UserCreate({
 
       <form
         className="user-create-form"
-        onSubmit={handleSubmit}
+
+        onSubmit={
+          handleSubmit
+        }
       >
 
         <div className="user-form-group">
 
           <label htmlFor="username">
+
             아이디
-            <span>*</span>
+
+            <span>
+              *
+            </span>
+
           </label>
+
 
           <input
             id="username"
+
             name="username"
+
             type="text"
+
             value={
               formData.username
             }
+
             onChange={
               handleChange
             }
+
             placeholder="사용자 아이디"
+
+            disabled={
+              submitting
+            }
           />
 
         </div>
@@ -203,21 +275,36 @@ function UserCreate({
         <div className="user-form-group">
 
           <label htmlFor="password">
+
             초기 비밀번호
-            <span>*</span>
+
+            <span>
+              *
+            </span>
+
           </label>
+
 
           <input
             id="password"
+
             name="password"
+
             type="password"
+
             value={
               formData.password
             }
+
             onChange={
               handleChange
             }
+
             placeholder="초기 비밀번호"
+
+            disabled={
+              submitting
+            }
           />
 
         </div>
@@ -226,21 +313,36 @@ function UserCreate({
         <div className="user-form-group">
 
           <label htmlFor="passwordConfirm">
+
             비밀번호 확인
-            <span>*</span>
+
+            <span>
+              *
+            </span>
+
           </label>
+
 
           <input
             id="passwordConfirm"
+
             name="passwordConfirm"
+
             type="password"
+
             value={
               formData.passwordConfirm
             }
+
             onChange={
               handleChange
             }
+
             placeholder="비밀번호 확인"
+
+            disabled={
+              submitting
+            }
           />
 
         </div>
@@ -249,18 +351,31 @@ function UserCreate({
         <div className="user-form-group">
 
           <label htmlFor="role">
+
             역할
-            <span>*</span>
+
+            <span>
+              *
+            </span>
+
           </label>
+
 
           <select
             id="role"
+
             name="role"
+
             value={
               formData.role
             }
+
             onChange={
               handleChange
+            }
+
+            disabled={
+              submitting
             }
           >
 
@@ -281,7 +396,11 @@ function UserCreate({
           error && (
 
             <div className="user-create-error">
-              {error}
+
+              {
+                error
+              }
+
             </div>
 
           )
@@ -292,8 +411,16 @@ function UserCreate({
 
           <button
             type="button"
+
             className="user-create-cancel-button"
-            onClick={onCancel}
+
+            onClick={
+              onCancel
+            }
+
+            disabled={
+              submitting
+            }
           >
             취소
           </button>
@@ -301,9 +428,20 @@ function UserCreate({
 
           <button
             type="submit"
+
             className="user-create-submit-button"
+
+            disabled={
+              submitting
+            }
           >
-            등록
+
+            {
+              submitting
+                ? "등록 중..."
+                : "등록"
+            }
+
           </button>
 
         </div>
@@ -311,7 +449,6 @@ function UserCreate({
       </form>
 
     </div>
-
   );
 }
 

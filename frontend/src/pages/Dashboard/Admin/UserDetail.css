@@ -1,5 +1,5 @@
 /* ========================================
-   사용자 상세 전체 영역
+   User Detail
 ======================================== */
 
 .user-detail {
@@ -11,30 +11,32 @@
 
 
 /* ========================================
-   목록으로
+   Back Button
 ======================================== */
 
 .user-detail-back-button {
   padding: 0;
 
-  font-size: 13px;
-  font-weight: 500;
-
   color: #64748b;
 
-  background: none;
+  background-color: transparent;
 
   border: none;
 
+  font-size: 13px;
+  font-weight: 500;
+
   cursor: pointer;
+
+  transition:
+    color 0.15s;
 }
 
 
 .user-detail-back-button:hover {
-  color: #405b84;
+  color: #2563eb;
 
   text-decoration: underline;
-
   text-underline-offset: 3px;
 }
 
@@ -52,20 +54,20 @@
 .user-detail-header h2 {
   margin: 0 0 7px;
 
+  color: #111827;
+
   font-size: 22px;
   font-weight: 700;
-
-  color: #111827;
 }
 
 
 .user-detail-header p {
   margin: 0;
 
-  font-size: 14px;
-  line-height: 1.5;
-
   color: #6b7280;
+
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 
@@ -78,6 +80,15 @@
 }
 
 
+.user-detail-section:last-child {
+  margin-bottom: 0;
+}
+
+
+/* ========================================
+   Section Header
+======================================== */
+
 .user-detail-section-header {
   margin-bottom: 12px;
 }
@@ -86,36 +97,38 @@
 .user-detail-section-header h3 {
   margin: 0;
 
+  color: #1f2937;
+
   font-size: 16px;
   font-weight: 700;
-
-  color: #1f2937;
 }
 
 
 .user-detail-section-header h3 span {
-  font-weight: 500;
-
   color: #6b7280;
+
+  font-weight: 500;
 }
 
 
 .user-detail-section-header p {
   margin: 5px 0 0;
 
-  font-size: 13px;
-  line-height: 1.5;
-
   color: #6b7280;
+
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 
 /* ========================================
-   계정 정보 Card
+   User Information Card
 ======================================== */
 
 .user-detail-card {
   padding: 7px 26px;
+
+  box-sizing: border-box;
 
   background-color: #ffffff;
 
@@ -129,14 +142,12 @@
 
 
 /* ========================================
-   계정 정보 Row
+   User Information Row
 ======================================== */
 
 .user-detail-row {
   display: grid;
-
-  grid-template-columns:
-    180px 1fr;
+  grid-template-columns: 180px minmax(0, 1fr);
 
   align-items: center;
 
@@ -153,81 +164,115 @@
 }
 
 
+/* ========================================
+   User Information Label
+======================================== */
+
 .user-detail-label {
+  color: #6b7280;
+
   font-size: 13px;
   font-weight: 600;
-
-  color: #6b7280;
-}
-
-
-.user-detail-value {
-  font-size: 14px;
-
-  color: #1f2937;
 }
 
 
 /* ========================================
-   역할 Badge
+   User Information Value
 ======================================== */
 
-.user-role {
-  display: inline-flex;
+.user-detail-value {
+  min-width: 0;
 
+  color: #1f2937;
+
+  font-size: 14px;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* ========================================
+   Role Badge
+======================================== */
+
+.user-detail .user-role {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  padding: 5px 10px;
+  min-width: 58px;
+  height: 28px;
+
+  padding: 0 10px;
+
+  box-sizing: border-box;
+
+  border-radius: 999px;
 
   font-size: 12px;
   font-weight: 600;
 
-  border-radius: 20px;
+  line-height: 1;
+
+  white-space: nowrap;
 }
 
 
-.user-role.admin {
-  color: #3730a3;
+/* 관리자 */
 
-  background-color: #eef2ff;
+.user-detail .user-role.admin {
+  color: #2563eb;
+
+  background-color: #eff6ff;
 }
 
 
-.user-role.user {
-  color: #374151;
+/* 일반 사용자 */
+
+.user-detail .user-role.user {
+  color: #4b5563;
 
   background-color: #f3f4f6;
 }
 
 
 /* ========================================
-   사용자 상태 Badge
+   User Status Badge
 ======================================== */
 
 .user-detail-status {
   display: inline-flex;
-
   align-items: center;
   justify-content: center;
 
   min-width: 58px;
+  height: 28px;
 
-  padding: 5px 10px;
+  padding: 0 10px;
+
+  box-sizing: border-box;
+
+  border-radius: 999px;
 
   font-size: 12px;
   font-weight: 600;
 
-  border-radius: 20px;
+  line-height: 1;
+
+  white-space: nowrap;
 }
 
+
+/* 활성 */
 
 .user-detail-status.active {
-  color: #166534;
+  color: #047857;
 
-  background-color: #dcfce7;
+  background-color: #ecfdf5;
 }
 
+
+/* 비활성 */
 
 .user-detail-status.inactive {
   color: #6b7280;
@@ -237,10 +282,12 @@
 
 
 /* ========================================
-   할당 프로젝트 Card
+   Assigned Project Card
 ======================================== */
 
 .assigned-project-card {
+  overflow: hidden;
+
   background-color: #ffffff;
 
   border: 1px solid #e5e7eb;
@@ -249,13 +296,11 @@
   box-shadow:
     0 1px 2px
     rgba(0, 0, 0, 0.03);
-
-  overflow: hidden;
 }
 
 
 /* ========================================
-   할당 프로젝트
+   Assigned Project List
 ======================================== */
 
 .assigned-project-list {
@@ -263,14 +308,19 @@
 }
 
 
+/* ========================================
+   Assigned Project Item
+======================================== */
+
 .assigned-project-item {
   display: flex;
-
   align-items: center;
 
   min-height: 56px;
 
   padding: 0 22px;
+
+  box-sizing: border-box;
 
   border-bottom: 1px solid #f0f1f3;
 }
@@ -281,42 +331,49 @@
 }
 
 
+/* ========================================
+   Assigned Project Name
+======================================== */
+
 .assigned-project-name {
+  color: #1f2937;
+
   font-size: 14px;
   font-weight: 500;
 
-  color: #1f2937;
+  overflow-wrap: anywhere;
 }
 
 
 /* ========================================
-   프로젝트 없음
+   Empty Assigned Project
 ======================================== */
 
 .assigned-project-empty {
   padding: 32px 20px;
 
+  color: #9ca3af;
+
   font-size: 14px;
 
   text-align: center;
-
-  color: #9ca3af;
 }
 
 
 /* ========================================
-   계정 상태 관리
+   Account Control
 ======================================== */
 
 .user-account-control {
   display: flex;
-
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 
-  gap: 20px;
+  gap: 24px;
 
   padding: 22px 24px;
+
+  box-sizing: border-box;
 
   background-color: #ffffff;
 
@@ -329,64 +386,80 @@
 }
 
 
+.user-account-control > div {
+  min-width: 0;
+}
+
+
 .user-account-control strong {
   display: block;
 
   margin-bottom: 5px;
 
-  font-size: 14px;
-
   color: #1f2937;
+
+  font-size: 14px;
+  font-weight: 600;
 }
 
 
 .user-account-control p {
   margin: 0;
 
-  font-size: 13px;
-  line-height: 1.5;
-
   color: #6b7280;
+
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 
 /* ========================================
-   활성화 버튼
+   Enable Button
 ======================================== */
 
 .user-enable-button {
-  padding: 9px 17px;
+  flex-shrink: 0;
 
-  font-size: 14px;
-  font-weight: 600;
+  padding: 9px 17px;
 
   color: #ffffff;
 
-  background-color: #405b84;
+  background-color: #2563eb;
 
   border: none;
   border-radius: 6px;
 
-  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
 
   white-space: nowrap;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.15s,
+    transform 0.1s;
 }
 
 
 .user-enable-button:hover {
-  background-color: #334b70;
+  background-color: #1d4ed8;
+}
+
+
+.user-enable-button:active {
+  transform: translateY(1px);
 }
 
 
 /* ========================================
-   비활성화 버튼
+   Disable Button
 ======================================== */
 
 .user-disable-button {
-  padding: 9px 17px;
+  flex-shrink: 0;
 
-  font-size: 14px;
-  font-weight: 600;
+  padding: 9px 17px;
 
   color: #92400e;
 
@@ -395,9 +468,17 @@
   border: 1px solid #fde68a;
   border-radius: 6px;
 
-  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
 
   white-space: nowrap;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    transform 0.1s;
 }
 
 
@@ -406,8 +487,13 @@
 }
 
 
+.user-disable-button:active {
+  transform: translateY(1px);
+}
+
+
 /* ========================================
-   Disabled
+   Disabled Button
 ======================================== */
 
 .user-enable-button:disabled,
@@ -416,56 +502,237 @@
 
   background-color: #f3f4f6;
 
-  border-color: #e5e7eb;
+  border: 1px solid #e5e7eb;
+
+  cursor: not-allowed;
+
+  transform: none;
+}
+
+
+/* ========================================
+   Current User Notice
+======================================== */
+
+.current-user-notice {
+  margin-top: 9px;
+
+  color: #6b7280;
+
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+
+/* ========================================
+   Danger Card
+======================================== */
+
+.user-danger-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 24px;
+
+  padding: 22px 24px;
+
+  box-sizing: border-box;
+
+  background-color: #ffffff;
+
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
+}
+
+
+.user-danger-card > div {
+  min-width: 0;
+}
+
+
+.user-danger-card strong {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #991b1b;
+
+  font-size: 14px;
+  font-weight: 700;
+}
+
+
+.user-danger-card p {
+  margin: 0;
+
+  color: #6b7280;
+
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+
+/* ========================================
+   Delete Button
+======================================== */
+
+.user-delete-button {
+  flex-shrink: 0;
+
+  padding: 9px 17px;
+
+  color: #ffffff;
+
+  background-color: #dc2626;
+
+  border: none;
+  border-radius: 6px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  white-space: nowrap;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.15s,
+    opacity 0.15s,
+    transform 0.1s;
+}
+
+
+.user-delete-button:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+
+.user-delete-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+
+.user-delete-button:disabled {
+  opacity: 0.45;
 
   cursor: not-allowed;
 }
 
 
 /* ========================================
-   현재 로그인 계정 안내
+   Delete Modal Notice
 ======================================== */
 
-.current-user-notice {
-  margin-top: 9px;
+.user-delete-modal-notice {
+  padding: 13px 14px;
 
-  font-size: 12px;
+  box-sizing: border-box;
 
-  color: #6b7280;
+  color: #991b1b;
+
+  background-color: #fef2f2;
+
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 
 /* ========================================
-   상태 변경 Modal Overlay
+   Delete Error
+======================================== */
+
+.user-delete-error {
+  margin-top: 12px;
+
+  padding: 11px 13px;
+
+  box-sizing: border-box;
+
+  color: #b91c1c;
+
+  background-color: #fef2f2;
+
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+
+/* ========================================
+   Delete Modal Confirm Button
+======================================== */
+
+.user-delete-modal-confirm {
+  min-width: 82px;
+
+  padding: 9px 17px;
+
+  color: #ffffff;
+
+  background-color: #dc2626;
+
+  border: none;
+  border-radius: 6px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.15s,
+    opacity 0.15s;
+}
+
+
+.user-delete-modal-confirm:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+
+.user-delete-modal-confirm:disabled,
+.user-status-modal-cancel:disabled {
+  opacity: 0.5;
+
+  cursor: not-allowed;
+}
+
+
+/* ========================================
+   Status Modal Overlay
 ======================================== */
 
 .user-status-modal-overlay {
   position: fixed;
+  inset: 0;
 
-  top: 0;
-  left: 0;
-
-  width: 100%;
-  height: 100%;
+  z-index: 1000;
 
   display: flex;
-
-  justify-content: center;
   align-items: center;
+  justify-content: center;
 
   padding: 24px;
 
-  background-color:
-    rgba(17, 24, 39, 0.45);
-
   box-sizing: border-box;
 
-  z-index: 1000;
+  background-color:
+    rgba(17, 24, 39, 0.45);
 }
 
 
 /* ========================================
-   Modal
+   Status Modal
 ======================================== */
 
 .user-status-modal {
@@ -474,13 +741,15 @@
 
   padding: 24px;
 
+  box-sizing: border-box;
+
   background-color: #ffffff;
 
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border-radius: 12px;
 
   box-shadow:
-    0 12px 30px
+    0 20px 40px
     rgba(0, 0, 0, 0.16);
 }
 
@@ -497,10 +766,10 @@
 .user-status-modal-header h2 {
   margin: 0;
 
+  color: #111827;
+
   font-size: 20px;
   font-weight: 700;
-
-  color: #111827;
 }
 
 
@@ -516,10 +785,10 @@
 .user-status-modal-content p {
   margin: 0 0 14px;
 
+  color: #374151;
+
   font-size: 14px;
   line-height: 1.6;
-
-  color: #374151;
 }
 
 
@@ -528,11 +797,14 @@
 }
 
 
+/* ========================================
+   Modal Notice
+======================================== */
+
 .user-status-modal-notice {
   padding: 13px 14px;
 
-  font-size: 13px;
-  line-height: 1.6;
+  box-sizing: border-box;
 
   color: #6b7280;
 
@@ -540,6 +812,9 @@
 
   border: 1px solid #e5e7eb;
   border-radius: 6px;
+
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 
@@ -549,22 +824,21 @@
 
 .user-status-modal-actions {
   display: flex;
-
+  align-items: center;
   justify-content: flex-end;
 
-  gap: 9px;
+  gap: 10px;
 }
 
 
 /* ========================================
-   Modal 취소
+   Modal Cancel Button
 ======================================== */
 
 .user-status-modal-cancel {
-  padding: 9px 17px;
+  min-width: 72px;
 
-  font-size: 14px;
-  font-weight: 500;
+  padding: 9px 17px;
 
   color: #374151;
 
@@ -573,24 +847,35 @@
   border: 1px solid #d1d5db;
   border-radius: 6px;
 
+  font-size: 14px;
+  font-weight: 500;
+
   cursor: pointer;
+
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 
 .user-status-modal-cancel:hover {
+  color: #111827;
+
   background-color: #f9fafb;
+
+  border-color: #9ca3af;
 }
 
 
 /* ========================================
-   Modal 비활성화
+   Modal Disable Button
 ======================================== */
 
 .user-status-modal-disable {
-  padding: 9px 17px;
+  min-width: 82px;
 
-  font-size: 14px;
-  font-weight: 600;
+  padding: 9px 17px;
 
   color: #92400e;
 
@@ -599,43 +884,57 @@
   border: 1px solid #fde68a;
   border-radius: 6px;
 
+  font-size: 14px;
+  font-weight: 600;
+
   cursor: pointer;
+
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
 }
 
 
 .user-status-modal-disable:hover {
   background-color: #fde68a;
+
+  border-color: #fcd34d;
 }
 
 
 /* ========================================
-   Modal 활성화
+   Modal Enable Button
 ======================================== */
 
 .user-status-modal-enable {
-  padding: 9px 17px;
+  min-width: 82px;
 
-  font-size: 14px;
-  font-weight: 600;
+  padding: 9px 17px;
 
   color: #ffffff;
 
-  background-color: #405b84;
+  background-color: #2563eb;
 
   border: none;
   border-radius: 6px;
 
+  font-size: 14px;
+  font-weight: 600;
+
   cursor: pointer;
+
+  transition:
+    background-color 0.15s;
 }
 
 
 .user-status-modal-enable:hover {
-  background-color: #334b70;
+  background-color: #1d4ed8;
 }
 
 
 /* ========================================
-   반응형
+   Responsive - Tablet / Mobile
 ======================================== */
 
 @media (max-width: 700px) {
@@ -645,9 +944,24 @@
   }
 
 
+  .user-detail-header {
+    margin-top: 14px;
+    margin-bottom: 22px;
+  }
+
+
+  .user-detail-header h2 {
+    font-size: 20px;
+  }
+
+
+  .user-detail-card {
+    padding: 6px 20px;
+  }
+
+
   .user-detail-row {
-    grid-template-columns:
-      1fr;
+    grid-template-columns: 1fr;
 
     gap: 6px;
 
@@ -655,21 +969,40 @@
   }
 
 
-  .user-account-control {
-    flex-direction: column;
-
+  .user-account-control,
+  .user-danger-card {
     align-items: stretch;
+    flex-direction: column;
   }
 
 
   .user-enable-button,
-  .user-disable-button {
+  .user-disable-button,
+  .user-delete-button {
     width: 100%;
   }
 
 
   .user-status-modal {
     max-width: 100%;
+
+    padding: 22px 20px;
+  }
+
+
+  .user-status-modal-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+
+    gap: 8px;
+  }
+
+
+  .user-status-modal-cancel,
+  .user-status-modal-disable,
+  .user-status-modal-enable,
+  .user-delete-modal-confirm {
+    width: 100%;
   }
 
 }

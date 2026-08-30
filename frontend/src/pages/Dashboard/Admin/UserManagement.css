@@ -1,5 +1,5 @@
 /* ========================================
-   사용자 관리 전체 영역
+   User Management
 ======================================== */
 
 .user-management {
@@ -11,14 +11,13 @@
 
 
 /* ========================================
-   상단 영역
+   Toolbar
 ======================================== */
 
 .user-management-toolbar {
   display: flex;
-
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 
   gap: 20px;
 
@@ -27,33 +26,35 @@
 
 
 .user-management-description {
+  color: #6b7280;
+
   font-size: 14px;
   line-height: 1.6;
-
-  color: #6b7280;
 }
 
 
 /* ========================================
-   계정 등록 버튼
+   Create Button
 ======================================== */
 
 .user-create-button {
-  padding: 10px 18px;
+  flex-shrink: 0;
 
-  font-size: 14px;
-  font-weight: 600;
+  padding: 9px 16px;
 
   color: #ffffff;
 
-  background-color: #405b84;
+  background-color: #2563eb;
 
   border: none;
   border-radius: 6px;
 
-  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
 
   white-space: nowrap;
+
+  cursor: pointer;
 
   transition:
     background-color 0.15s,
@@ -62,7 +63,7 @@
 
 
 .user-create-button:hover {
-  background-color: #334b70;
+  background-color: #1d4ed8;
 }
 
 
@@ -72,7 +73,7 @@
 
 
 /* ========================================
-   검색
+   Search
 ======================================== */
 
 .user-search-area {
@@ -83,12 +84,11 @@
 .user-search-area input {
   width: 100%;
   max-width: 360px;
-
   height: 40px;
 
   padding: 0 13px;
 
-  font-size: 14px;
+  box-sizing: border-box;
 
   color: #1f2937;
 
@@ -97,9 +97,9 @@
   border: 1px solid #d1d5db;
   border-radius: 6px;
 
-  box-sizing: border-box;
-
   outline: none;
+
+  font-size: 14px;
 
   transition:
     border-color 0.15s,
@@ -113,16 +113,16 @@
 
 
 .user-search-area input:focus {
-  border-color: #405b84;
+  border-color: #2563eb;
 
   box-shadow:
     0 0 0 3px
-    rgba(64, 91, 132, 0.1);
+    rgba(37, 99, 235, 0.1);
 }
 
 
 /* ========================================
-   사용자 Table Wrapper
+   Table Wrapper
 ======================================== */
 
 .user-table-wrapper {
@@ -142,7 +142,7 @@
 
 
 /* ========================================
-   사용자 Table
+   Table
 ======================================== */
 
 .user-table {
@@ -154,39 +154,57 @@
 }
 
 
+/* ========================================
+   Table Header
+======================================== */
+
 .user-table th {
   height: 48px;
 
   padding: 0 18px;
-
-  font-size: 13px;
-  font-weight: 600;
-
-  text-align: left;
 
   color: #6b7280;
 
   background-color: #f8fafc;
 
   border-bottom: 1px solid #e5e7eb;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  text-align: left;
+
+  white-space: nowrap;
 }
 
+
+/* ========================================
+   Table Body
+======================================== */
 
 .user-table td {
   height: 62px;
 
   padding: 0 18px;
 
-  font-size: 14px;
-
   color: #374151;
 
   border-bottom: 1px solid #f0f1f3;
+
+  font-size: 14px;
+
+  vertical-align: middle;
 }
 
 
 .user-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+
+.user-table tbody tr {
+  transition:
+    background-color 0.15s;
 }
 
 
@@ -196,7 +214,7 @@
 
 
 /* ========================================
-   Column 너비
+   Column Width
 ======================================== */
 
 .user-table th:nth-child(1),
@@ -230,24 +248,31 @@
 
 
 /* ========================================
-   사용자 아이디 버튼
+   Username Button
 ======================================== */
 
 .user-name-button {
+  max-width: 100%;
+
   padding: 0;
+
+  overflow: hidden;
+
+  color: #1f2937;
+
+  background-color: transparent;
+
+  border: none;
 
   font-size: 14px;
   font-weight: 600;
 
-  color: #1f2937;
+  text-align: left;
+  text-overflow: ellipsis;
 
-  background: none;
-
-  border: none;
+  white-space: nowrap;
 
   cursor: pointer;
-
-  text-align: left;
 
   transition:
     color 0.15s;
@@ -255,41 +280,50 @@
 
 
 .user-name-button:hover {
-  color: #405b84;
+  color: #2563eb;
 
   text-decoration: underline;
-
   text-underline-offset: 3px;
 }
 
 
 /* ========================================
-   사용자 상태 Badge
+   User Status
 ======================================== */
 
 .user-status {
   display: inline-flex;
-
   align-items: center;
   justify-content: center;
 
   min-width: 58px;
+  height: 28px;
 
-  padding: 5px 10px;
+  padding: 0 10px;
+
+  box-sizing: border-box;
+
+  border-radius: 999px;
 
   font-size: 12px;
   font-weight: 600;
 
-  border-radius: 20px;
+  line-height: 1;
+
+  white-space: nowrap;
 }
 
+
+/* 활성 */
 
 .user-status.active {
-  color: #166534;
+  color: #047857;
 
-  background-color: #dcfce7;
+  background-color: #ecfdf5;
 }
 
+
+/* 비활성 */
 
 .user-status.inactive {
   color: #6b7280;
@@ -299,26 +333,29 @@
 
 
 /* ========================================
-   검색 결과 없음
+   Empty Result
 ======================================== */
 
 .user-table .user-empty {
   height: 120px;
 
-  text-align: center;
-
   color: #9ca3af;
+
+  text-align: center;
 }
 
 
 /* ========================================
-   반응형
+   Responsive - Tablet
 ======================================== */
 
 @media (max-width: 800px) {
 
   .user-management-toolbar {
     align-items: flex-start;
+    flex-direction: column;
+
+    gap: 14px;
   }
 
 
@@ -329,6 +366,33 @@
 
   .user-table {
     min-width: 750px;
+  }
+
+}
+
+
+/* ========================================
+   Responsive - Mobile
+======================================== */
+
+@media (max-width: 500px) {
+
+  .user-management-description {
+    font-size: 13px;
+  }
+
+
+  .user-create-button {
+    width: 100%;
+
+    padding: 10px 16px;
+  }
+
+
+  .user-table th,
+  .user-table td {
+    padding-left: 14px;
+    padding-right: 14px;
   }
 
 }

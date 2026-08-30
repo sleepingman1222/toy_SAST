@@ -19,42 +19,56 @@
 }
 
 
+/* ========================================
+   Section Header
+======================================== */
+
 .mypage-section-header {
   display: flex;
-
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
 
-  margin-bottom: 22px;
+  gap: 20px;
+
+  margin-bottom: 24px;
+}
+
+
+.mypage-section-header > div {
+  min-width: 0;
 }
 
 
 .mypage-section-header h2 {
   margin: 0 0 7px;
 
+  color: #111827;
+
   font-size: 22px;
   font-weight: 700;
-
-  color: #111827;
 }
 
 
 .mypage-section-header p {
   margin: 0;
 
-  font-size: 14px;
-  line-height: 1.5;
-
   color: #6b7280;
+
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 
 /* ========================================
-   계정 정보 Card
+   Account Information Card
 ======================================== */
 
 .account-info-card {
-  padding: 8px 28px;
+  overflow: hidden;
+
+  padding: 6px 26px;
+
+  box-sizing: border-box;
 
   background-color: #ffffff;
 
@@ -67,17 +81,23 @@
 }
 
 
+/* ========================================
+   Account Information Row
+======================================== */
+
 .account-info-row {
   display: grid;
 
   grid-template-columns:
-    180px 1fr;
+    180px minmax(0, 1fr);
 
   align-items: center;
 
   min-height: 62px;
 
   padding: 12px 0;
+
+  box-sizing: border-box;
 
   border-bottom: 1px solid #f0f1f3;
 }
@@ -88,46 +108,68 @@
 }
 
 
+/* ========================================
+   Account Information Label
+======================================== */
+
 .account-info-label {
+  color: #6b7280;
+
   font-size: 13px;
   font-weight: 600;
-
-  color: #6b7280;
-}
-
-
-.account-info-value {
-  font-size: 14px;
-
-  color: #1f2937;
 }
 
 
 /* ========================================
-   Button 영역
+   Account Information Value
+======================================== */
+
+.account-info-value {
+  min-width: 0;
+
+  color: #1f2937;
+
+  font-size: 14px;
+  line-height: 1.6;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* ========================================
+   Actions
 ======================================== */
 
 .mypage-actions {
   display: flex;
-
+  align-items: center;
   justify-content: flex-end;
 
   margin-top: 22px;
 }
 
 
+/* ========================================
+   Password Change Button
+======================================== */
+
 .password-change-button {
-  padding: 9px 17px;
+  min-width: 110px;
+  height: 40px;
+
+  padding: 0 16px;
+
+  color: #ffffff;
+
+  background-color: #2563eb;
+
+  border: none;
+  border-radius: 8px;
 
   font-size: 14px;
   font-weight: 600;
 
-  color: #ffffff;
-
-  background-color: #405b84;
-
-  border: none;
-  border-radius: 6px;
+  white-space: nowrap;
 
   cursor: pointer;
 
@@ -138,10 +180,72 @@
 
 
 .password-change-button:hover {
-  background-color: #334b70;
+  background-color: #1d4ed8;
 }
 
 
 .password-change-button:active {
   transform: translateY(1px);
+}
+
+
+/* ========================================
+   Disabled Button
+======================================== */
+
+.password-change-button:disabled {
+  background-color: #93c5fd;
+
+  cursor: not-allowed;
+
+  transform: none;
+}
+
+
+/* ========================================
+   Responsive
+======================================== */
+
+@media (max-width: 700px) {
+
+  .mypage {
+    max-width: 100%;
+  }
+
+
+  .mypage-section-header {
+    margin-bottom: 20px;
+  }
+
+
+  .mypage-section-header h2 {
+    font-size: 20px;
+  }
+
+
+  .account-info-card {
+    padding: 6px 20px;
+  }
+
+
+  .account-info-row {
+    grid-template-columns: 1fr;
+
+    gap: 6px;
+
+    padding: 15px 0;
+  }
+
+
+  .mypage-actions {
+    align-items: stretch;
+
+    margin-top: 18px;
+  }
+
+
+  .password-change-button {
+    width: 100%;
+  }
+
 }

@@ -1,4 +1,16 @@
-import { useState } from "react";
+import {
+  useState,
+} from "react";
+
+import {
+  useAuth,
+} from "../../../auth/useAuth";
+
+import {
+  createUser,
+  deleteUser,
+  updateUserStatus,
+} from "../../../api/api";
 
 import UserCreate from "./UserCreate";
 import UserDetail from "./UserDetail";
@@ -10,7 +22,16 @@ function UserManagement({
   users,
   setUsers,
   projects,
+  setProjects,
+  usersLoading,
+  usersError,
 }) {
+
+  const {
+    accessToken,
+    setAccessToken,
+  } = useAuth();
+
 
   /* ========================================
      검색
@@ -24,26 +45,18 @@ function UserManagement({
 
   /* ========================================
      화면 Mode
-
-     list
-     create
-     detail
   ======================================== */
 
   const [
     viewMode,
     setViewMode,
-  ] = useState("list");
+  ] = useState(
+    "list"
+  );
 
 
   /* ========================================
      선택 사용자 ID
-
-     사용자 객체 자체를 저장하지 않고
-     ID만 저장
-
-     이렇게 하면 users State가 변경되어도
-     항상 최신 사용자 정보를 가져올 수 있음
   ======================================== */
 
   const [
@@ -53,20 +66,23 @@ function UserManagement({
 
 
   /* ========================================
-     현재 선택 사용자
+     선택 사용자
   ======================================== */
 
   const selectedUser =
     users.find(
       (user) =>
-        user.id === selectedUserId
-    ) || null;
+        user.id ===
+        selectedUserId
+    ) ||
+    null;
 
 
   /* ========================================
-     특정 사용자에게 할당된 프로젝트 조회
+     할당 프로젝트 조회
 
-     Project.assignedUserIds 기준으로 계산
+     ProjectAccess Backend 연결 전에는
+     project.assignedUserIds 기준
   ======================================== */
 
   const getAssignedProjects = (
@@ -85,15 +101,18 @@ function UserManagement({
       )
       .map(
         (project) => ({
-          id: project.id,
-          name: project.name,
+          id:
+            project.id,
+
+          name:
+            project.name,
         })
       );
   };
 
 
   /* ========================================
-     사용자 상세 열기
+     사용자 상세
   ======================================== */
 
   const handleOpenUser = (
@@ -103,6 +122,7 @@ function UserManagement({
     setSelectedUserId(
       user.id
     );
+
 
     setViewMode(
       "detail"
@@ -114,84 +134,236 @@ function UserManagement({
      계정 등록 화면
   ======================================== */
 
-  const handleCreateUser = () => {
+  const handleCreateUser =
+    () => {
 
-    setViewMode(
-      "create"
-    );
-  };
+      setViewMode(
+        "create"
+      );
+    };
 
 
   /* ========================================
      계정 등록
+
+     POST /api/users/
   ======================================== */
 
-  const handleAddUser = (
-    newUser
-  ) => {
+  const handleAddUser =
+    async (
+      userData
+    ) => {
 
-    /*
-     UserCreate에서 혹시
-     assignedProjects가 넘어오더라도
-
-     이제 사용자 객체에서는
-     프로젝트 관계를 저장하지 않음
-    */
-
-    const {
-      assignedProjects,
-      ...userData
-    } = newUser;
+      const newUser =
+        await createUser(
+          userData,
+          accessToken,
+          setAccessToken
+        );
 
 
-    setUsers(
-      (prevUsers) => [
-        ...prevUsers,
-        userData,
-      ]
-    );
+      setUsers(
+        (prevUsers) => [
+          newUser,
+          ...prevUsers,
+        ]
+      );
 
 
-    setViewMode(
-      "list"
-    );
-  };
+      setViewMode(
+        "list"
+      );
+
+
+      return newUser;
+    };
 
 
   /* ========================================
      활성 / 비활성 상태 변경
+
+     PATCH /api/users/{id}/
   ======================================== */
 
-  const handleToggleUserStatus = (
-    userId
-  ) => {
+  const handleToggleUserStatus =
+    async (
+      userId
+    ) => {
 
-    setUsers(
-      (prevUsers) =>
-        prevUsers.map(
-          (user) => {
-
-            if (
-              user.id !== userId
-            ) {
-              return user;
-            }
+      const targetUser =
+        users.find(
+          (user) =>
+            user.id ===
+            userId
+        );
 
 
-            return {
-              ...user,
+      if (!targetUser) {
 
-              isActive:
-                !user.isActive,
-            };
-          }
-        )
-    );
-  };
+        throw new Error(
+          "사용자를 찾을 수 없습니다."
+        );
+      }
+
+
+      const nextIsActive =
+        !targetUser.isActive;
+
+
+      const updatedUser =
+        await updateUserStatus(
+          userId,
+          nextIsActive,
+          accessToken,
+          setAccessToken
+        );
+
+
+      // ------------------------------------
+      // User State 갱신
+      // ------------------------------------
+
+      setUsers(
+        (prevUsers) =>
+          prevUsers.map(
+            (user) =>
+              user.id ===
+              updatedUser.id
+                ? updatedUser
+                : user
+          )
+      );
+
+
+      // ------------------------------------
+      // 비활성화 시
+      // Backend에서 ProjectAccess 삭제
+      //
+      // ProjectAccess API 연결 전까지
+      // Frontend 임시 State도 맞춰줌
+      // ------------------------------------
+
+      if (
+        !updatedUser.isActive
+      ) {
+
+        setProjects(
+          (prevProjects) =>
+            prevProjects.map(
+              (project) => ({
+
+                ...project,
+
+                assignedUserIds:
+                  (
+                    project.assignedUserIds ||
+                    []
+                  ).filter(
+                    (assignedUserId) =>
+                      assignedUserId !==
+                      userId
+                  ),
+
+              })
+            )
+        );
+      }
+
+
+      return updatedUser;
+    };
 
 
   /* ========================================
-     사용자 검색
+     계정 삭제
+
+     DELETE /api/users/{id}/
+  ======================================== */
+
+  const handleDeleteUser =
+    async (
+      userId
+    ) => {
+
+      const targetUser =
+        users.find(
+          (user) =>
+            user.id ===
+            userId
+        );
+
+
+      if (!targetUser) {
+
+        throw new Error(
+          "사용자를 찾을 수 없습니다."
+        );
+      }
+
+
+      await deleteUser(
+        userId,
+        accessToken,
+        setAccessToken
+      );
+
+
+      // ------------------------------------
+      // User State에서 제거
+      // ------------------------------------
+
+      setUsers(
+        (prevUsers) =>
+          prevUsers.filter(
+            (user) =>
+              user.id !==
+              userId
+          )
+      );
+
+
+      // ------------------------------------
+      // Backend에서는 삭제 시
+      // 해당 사용자의 ProjectAccess도 제거
+      //
+      // Frontend State도 즉시 맞춰줌
+      // ------------------------------------
+
+      setProjects(
+        (prevProjects) =>
+          prevProjects.map(
+            (project) => ({
+
+              ...project,
+
+              assignedUserIds:
+                (
+                  project.assignedUserIds ||
+                  []
+                ).filter(
+                  (assignedUserId) =>
+                    assignedUserId !==
+                    userId
+                ),
+
+            })
+          )
+      );
+
+
+      setSelectedUserId(
+        null
+      );
+
+
+      setViewMode(
+        "list"
+      );
+    };
+
+
+  /* ========================================
+     검색
   ======================================== */
 
   const filteredUsers =
@@ -205,15 +377,18 @@ function UserManagement({
 
 
         if (!keyword) {
+
           return true;
         }
 
 
-        return user.username
-          .toLowerCase()
-          .includes(
-            keyword
-          );
+        return (
+          user.username
+            .toLowerCase()
+            .includes(
+              keyword
+            )
+        );
       }
     );
 
@@ -223,13 +398,13 @@ function UserManagement({
   ======================================== */
 
   if (
-    viewMode === "create"
+    viewMode ===
+    "create"
   ) {
 
     return (
 
       <UserCreate
-
         users={
           users
         }
@@ -243,7 +418,6 @@ function UserManagement({
         onCreate={
           handleAddUser
         }
-
       />
 
     );
@@ -251,21 +425,14 @@ function UserManagement({
 
 
   /* ========================================
-     사용자 상세 화면
+     사용자 상세
   ======================================== */
 
   if (
-    viewMode === "detail" &&
+    viewMode ===
+      "detail" &&
     selectedUser
   ) {
-
-    /*
-     프로젝트 관계는 여기에서
-     실시간으로 계산한다.
-
-     따라서 ProjectManagement에서
-     권한을 변경하면 이 값도 변경됨.
-    */
 
     const assignedProjects =
       getAssignedProjects(
@@ -274,6 +441,7 @@ function UserManagement({
 
 
     const detailUser = {
+
       ...selectedUser,
 
       assignedProjects,
@@ -283,7 +451,6 @@ function UserManagement({
     return (
 
       <UserDetail
-
         user={
           detailUser
         }
@@ -294,6 +461,7 @@ function UserManagement({
             null
           );
 
+
           setViewMode(
             "list"
           );
@@ -303,6 +471,9 @@ function UserManagement({
           handleToggleUserStatus
         }
 
+        onDelete={
+          handleDeleteUser
+        }
       />
 
     );
@@ -317,13 +488,7 @@ function UserManagement({
 
     <div className="user-management">
 
-
-      {/* ===================================
-          상단
-      =================================== */}
-
       <div className="user-management-toolbar">
-
 
         <div className="user-management-description">
 
@@ -334,6 +499,8 @@ function UserManagement({
 
 
         <button
+          type="button"
+
           className="user-create-button"
 
           onClick={
@@ -343,13 +510,8 @@ function UserManagement({
           계정 등록
         </button>
 
-
       </div>
 
-
-      {/* ===================================
-          검색
-      =================================== */}
 
       <div className="user-search-area">
 
@@ -373,14 +535,9 @@ function UserManagement({
       </div>
 
 
-      {/* ===================================
-          사용자 목록
-      =================================== */}
-
       <div className="user-table-wrapper">
 
         <table className="user-table">
-
 
           <thead>
 
@@ -413,145 +570,168 @@ function UserManagement({
 
           <tbody>
 
-
             {
-              filteredUsers.length > 0
+              usersLoading
                 ? (
-
-                  filteredUsers.map(
-                    (user) => {
-
-                      const assignedProjects =
-                        getAssignedProjects(
-                          user.id
-                        );
-
-
-                      return (
-
-                        <tr
-                          key={
-                            user.id
-                          }
-                        >
-
-
-                          {/* 아이디 */}
-
-                          <td>
-
-                            <button
-                              className="user-name-button"
-
-                              onClick={() =>
-                                handleOpenUser(
-                                  user
-                                )
-                              }
-                            >
-                              {
-                                user.username
-                              }
-                            </button>
-
-                          </td>
-
-
-                          {/* 역할 */}
-
-                          <td>
-
-                            {
-                              user.role ===
-                                "admin"
-                                ? "관리자"
-                                : "일반 사용자"
-                            }
-
-                          </td>
-
-
-                          {/* 상태 */}
-
-                          <td>
-
-                            <span
-                              className={
-                                user.isActive
-                                  ? "user-status active"
-                                  : "user-status inactive"
-                              }
-                            >
-
-                              {
-                                user.isActive
-                                  ? "활성"
-                                  : "비활성"
-                              }
-
-                            </span>
-
-                          </td>
-
-
-                          {/* 할당 프로젝트 */}
-
-                          <td>
-
-                            {
-                              user.role ===
-                                "admin"
-                                ? "-"
-                                : `${assignedProjects.length}개`
-                            }
-
-                          </td>
-
-
-                          {/* 생성일 */}
-
-                          <td>
-                            {
-                              user.createdAt
-                            }
-                          </td>
-
-
-                        </tr>
-
-                      );
-                    }
-                  )
-
-                )
-                : (
 
                   <tr>
 
                     <td
                       className="user-empty"
-
                       colSpan="5"
                     >
-                      검색 결과가 없습니다.
+                      사용자 목록을 불러오는 중입니다.
                     </td>
 
                   </tr>
 
                 )
+
+                : usersError
+                  ? (
+
+                    <tr>
+
+                      <td
+                        className="user-empty"
+                        colSpan="5"
+                      >
+                        {
+                          usersError
+                        }
+                      </td>
+
+                    </tr>
+
+                  )
+
+                  : filteredUsers.length > 0
+                    ? (
+
+                      filteredUsers.map(
+                        (user) => {
+
+                          const assignedProjects =
+                            getAssignedProjects(
+                              user.id
+                            );
+
+
+                          return (
+
+                            <tr
+                              key={
+                                user.id
+                              }
+                            >
+
+                              <td>
+
+                                <button
+                                  type="button"
+
+                                  className="user-name-button"
+
+                                  onClick={() =>
+                                    handleOpenUser(
+                                      user
+                                    )
+                                  }
+                                >
+                                  {
+                                    user.username
+                                  }
+                                </button>
+
+                              </td>
+
+
+                              <td>
+
+                                {
+                                  user.role ===
+                                  "admin"
+                                    ? "관리자"
+                                    : "일반 사용자"
+                                }
+
+                              </td>
+
+
+                              <td>
+
+                                <span
+                                  className={
+                                    user.isActive
+                                      ? "user-status active"
+                                      : "user-status inactive"
+                                  }
+                                >
+
+                                  {
+                                    user.isActive
+                                      ? "활성"
+                                      : "비활성"
+                                  }
+
+                                </span>
+
+                              </td>
+
+
+                              <td>
+
+                                {
+                                  user.role ===
+                                  "admin"
+                                    ? "-"
+                                    : `${assignedProjects.length}개`
+                                }
+
+                              </td>
+
+
+                              <td>
+
+                                {
+                                  user.createdAt ||
+                                  "-"
+                                }
+
+                              </td>
+
+                            </tr>
+
+                          );
+                        }
+                      )
+
+                    )
+
+                    : (
+
+                      <tr>
+
+                        <td
+                          className="user-empty"
+
+                          colSpan="5"
+                        >
+                          등록된 사용자가 없습니다.
+                        </td>
+
+                      </tr>
+
+                    )
             }
 
-
           </tbody>
-
 
         </table>
 
       </div>
 
-
     </div>
-
   );
 }
 

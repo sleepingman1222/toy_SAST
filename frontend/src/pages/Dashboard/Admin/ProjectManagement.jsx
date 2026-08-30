@@ -1,6 +1,22 @@
-import { useState } from "react";
+import {
+  useState,
+} from "react";
 
-import ProjectCreate from "./ProjectCreat";
+import {
+  useAuth,
+} from "../../../auth/useAuth";
+
+import {
+  createProject,
+  createSourceVersion,
+  deleteProject,
+  grantProjectAccess,
+  revokeProjectAccess,
+  updateProject,
+  updateSourceVersion,
+} from "../../../api/api";
+
+import ProjectCreate from "./ProjectCreate";
 import ProjectEdit from "./ProjectEdit";
 
 import ProjectDetail from "../Project/ProjectDetail";
@@ -12,7 +28,15 @@ function ProjectManagement({
   users,
   projects,
   setProjects,
+  projectsLoading,
+  projectsError,
 }) {
+  const {
+    user,
+    accessToken,
+    setAccessToken,
+  } = useAuth();
+
 
   /* ========================================
      검색
@@ -25,22 +49,17 @@ function ProjectManagement({
 
 
   /* ========================================
-     현재 선택 프로젝트
+     선택 프로젝트
   ======================================== */
 
   const [
-    selectedProject,
-    setSelectedProject,
+    selectedProjectId,
+    setSelectedProjectId,
   ] = useState(null);
 
 
   /* ========================================
      화면 Mode
-
-     list
-     create
-     detail
-     edit
   ======================================== */
 
   const [
@@ -50,56 +69,223 @@ function ProjectManagement({
 
 
   /* ========================================
-     프로젝트 상태 문자열
+     선택 프로젝트
   ======================================== */
 
-  const getStatusText = (
-    status
+  const selectedProject =
+    projects.find(
+      (project) =>
+        project.id ===
+        selectedProjectId
+    ) ||
+    null;
+
+
+  /* ========================================
+     현재 로그인 사용자
+
+     AnalysisRun은 아직
+     Frontend Mock 단계이므로 유지
+  ======================================== */
+
+  const currentUser =
+    users.find(
+      (targetUser) =>
+        targetUser.id ===
+        user?.id
+    ) ||
+    users.find(
+      (targetUser) =>
+        targetUser.username ===
+        user?.username
+    ) ||
+    null;
+
+
+  /* ========================================
+     등록자 표시
+  ======================================== */
+
+  const getCreatorName = (
+    project
   ) => {
 
-    switch (status) {
+    // ------------------------------------
+    // Backend API가 내려준 username
+    // ------------------------------------
 
-      case "pending":
-        return "분석 전";
-
-      case "running":
-        return "분석 진행 중";
-
-      case "completed":
-        return "분석 완료";
-
-      case "failed":
-        return "분석 실패";
-
-      default:
-        return "-";
+    if (
+      project.createdByUsername
+    ) {
+      return (
+        project.createdByUsername
+      );
     }
+
+
+    // ------------------------------------
+    // 기존 Mock 호환
+    // ------------------------------------
+
+    const creator =
+      users.find(
+        (targetUser) =>
+          targetUser.id ===
+          project.createdById
+      );
+
+
+    return (
+      creator?.username ||
+      "-"
+    );
   };
+
+
+  /* ========================================
+     날짜
+
+     아직 Mock 상태인
+     SourceVersion / AnalysisRun에서 사용
+  ======================================== */
+
+  const getCurrentDateTime =
+    () => {
+
+      const now =
+        new Date();
+
+
+      const year =
+        now.getFullYear();
+
+
+      const month =
+        String(
+          now.getMonth() + 1
+        ).padStart(
+          2,
+          "0"
+        );
+
+
+      const day =
+        String(
+          now.getDate()
+        ).padStart(
+          2,
+          "0"
+        );
+
+
+      const hour =
+        String(
+          now.getHours()
+        ).padStart(
+          2,
+          "0"
+        );
+
+
+      const minute =
+        String(
+          now.getMinutes()
+        ).padStart(
+          2,
+          "0"
+        );
+
+
+      return (
+        `${year}-${month}-${day} ${hour}:${minute}`
+      );
+    };
 
 
   /* ========================================
      프로젝트 등록 화면
   ======================================== */
 
-  const handleCreateProject = () => {
+  const handleOpenCreate =
+    () => {
 
-    setViewMode(
-      "create"
-    );
-  };
+      setViewMode(
+        "create"
+      );
+    };
 
 
   /* ========================================
-     프로젝트 상세 화면
+     프로젝트 등록
+
+     POST /api/projects/
+  ======================================== */
+
+  const handleCreateProject =
+    async (
+      projectData
+    ) => {
+
+      try {
+        const newProject =
+          await createProject(
+            {
+              name:
+                projectData.name,
+
+              description:
+                projectData.description,
+            },
+            accessToken,
+            setAccessToken
+          );
+
+
+        // Django가 생성한 실제 프로젝트를
+        // React State에 추가
+        setProjects(
+          (prevProjects) => [
+            ...prevProjects,
+            newProject,
+          ]
+        );
+
+
+        setSelectedProjectId(
+          newProject.id
+        );
+
+
+        setViewMode(
+          "detail"
+        );
+
+      } catch (error) {
+        console.error(
+          "프로젝트 등록 실패:",
+          error
+        );
+
+        window.alert(
+          error.message ||
+          "프로젝트 등록에 실패했습니다."
+        );
+      }
+    };
+
+
+  /* ========================================
+     프로젝트 상세
   ======================================== */
 
   const handleOpenProject = (
-    project
+    projectId
   ) => {
 
-    setSelectedProject(
-      project
+    setSelectedProjectId(
+      projectId
     );
+
 
     setViewMode(
       "detail"
@@ -108,50 +294,287 @@ function ProjectManagement({
 
 
   /* ========================================
-     프로젝트 수정 완료
+     프로젝트 수정 화면
   ======================================== */
 
-  const handleUpdateProject = (
-    updatedProject
-  ) => {
+  const handleOpenEdit =
+    () => {
 
-    setProjects(
-      (prevProjects) =>
-        prevProjects.map(
-          (project) =>
-            project.id ===
-            updatedProject.id
-
-              ? updatedProject
-
-              : project
-        )
-    );
+      if (
+        !selectedProject
+      ) {
+        return;
+      }
 
 
-    setSelectedProject(
-      updatedProject
-    );
-
-
-    setViewMode(
-      "detail"
-    );
-  };
+      setViewMode(
+        "edit"
+      );
+    };
 
 
   /* ========================================
-     분석 실행
+     프로젝트 수정
 
-     Mock에서는
-     pending → running
+     PATCH /api/projects/{id}/
+  ======================================== */
 
-     completed / failed는
-     나중에 Backend + Celery 처리
+  const handleUpdateProject =
+    async (
+      updatedProject
+    ) => {
+
+      try {
+        const savedProject =
+          await updateProject(
+            updatedProject.id,
+            {
+              name:
+                updatedProject.name,
+
+              description:
+                updatedProject.description,
+            },
+            accessToken,
+            setAccessToken
+          );
+
+
+        /*
+         * SourceVersion / AnalysisRun API는
+         * 아직 연결 전이다.
+         *
+         * 따라서 현재 React에서 임시로 가지고
+         * 있는 세부 데이터를 보존한다.
+         */
+
+        const mergedProject = {
+          ...updatedProject,
+          ...savedProject,
+
+          assignedUserIds:
+            updatedProject.assignedUserIds ||
+            [],
+
+          sourceVersions:
+            updatedProject.sourceVersions ||
+            [],
+
+          analysisHistory:
+            updatedProject.analysisHistory ||
+            [],
+
+          currentSourceVersionId:
+            updatedProject.currentSourceVersionId ??
+            savedProject.currentSourceVersionId ??
+            null,
+        };
+
+
+        setProjects(
+          (prevProjects) =>
+            prevProjects.map(
+              (project) =>
+                project.id ===
+                mergedProject.id
+                  ? mergedProject
+                  : project
+            )
+        );
+
+
+        setViewMode(
+          "detail"
+        );
+
+      } catch (error) {
+        console.error(
+          "프로젝트 수정 실패:",
+          error
+        );
+
+        window.alert(
+          error.message ||
+          "프로젝트 수정에 실패했습니다."
+        );
+      }
+    };
+
+
+  /* ========================================
+     프로젝트 삭제
+
+     DELETE /api/projects/{id}/
+  ======================================== */
+
+  const handleDeleteProject =
+    async (
+      projectId
+    ) => {
+
+      await deleteProject(
+        projectId,
+        accessToken,
+        setAccessToken
+      );
+
+
+      // Django 삭제 성공 후
+      // React State에서도 제거
+      setProjects(
+        (prevProjects) =>
+          prevProjects.filter(
+            (project) =>
+              project.id !==
+              projectId
+          )
+      );
+
+
+      // 삭제한 프로젝트 상세 화면에서
+      // 프로젝트 목록으로 이동
+      setSelectedProjectId(
+        null
+      );
+
+
+      setViewMode(
+        "list"
+      );
+    };
+
+
+  /* ========================================
+     SourceVersion 등록
+
+     POST
+     /api/projects/{id}/sources/
+  ======================================== */
+
+  const handleAddSourceVersion =
+    async (
+      projectId,
+      sourceData
+    ) => {
+
+      const newSourceVersion =
+        await createSourceVersion(
+          projectId,
+          sourceData,
+          accessToken,
+          setAccessToken
+        );
+
+
+      setProjects(
+        (prevProjects) =>
+          prevProjects.map(
+            (project) => {
+
+              if (
+                project.id !==
+                projectId
+              ) {
+                return project;
+              }
+
+
+              return {
+                ...project,
+
+                sourceVersions: [
+                  ...(
+                    project.sourceVersions ||
+                    []
+                  ),
+                  newSourceVersion,
+                ],
+
+                currentSourceVersionId:
+                  newSourceVersion.id,
+              };
+            }
+          )
+      );
+
+
+      return newSourceVersion;
+    };
+
+
+  /* ========================================
+     미분석 SourceVersion 수정
+
+     PATCH
+     /api/projects/{id}/sources/{sourceId}/
+  ======================================== */
+
+  const handleUpdateSourceVersion =
+    async (
+      projectId,
+      sourceVersionId,
+      sourceData
+    ) => {
+
+      const savedSourceVersion =
+        await updateSourceVersion(
+          projectId,
+          sourceVersionId,
+          sourceData,
+          accessToken,
+          setAccessToken
+        );
+
+
+      setProjects(
+        (prevProjects) =>
+          prevProjects.map(
+            (project) => {
+
+              if (
+                project.id !==
+                projectId
+              ) {
+                return project;
+              }
+
+
+              return {
+                ...project,
+
+                sourceVersions:
+                  (
+                    project.sourceVersions ||
+                    []
+                  ).map(
+                    (sourceVersion) =>
+                      sourceVersion.id ===
+                        sourceVersionId
+                        ? savedSourceVersion
+                        : sourceVersion
+                  ),
+
+                currentSourceVersionId:
+                  savedSourceVersion.id,
+              };
+            }
+          )
+      );
+
+
+      return savedSourceVersion;
+    };
+
+
+  /* ========================================
+     AnalysisRun 생성
+
+     아직 Backend 연결 전
   ======================================== */
 
   const handleRunAnalysis = (
-    projectId
+    projectId,
+    sourceVersionId
   ) => {
 
     setProjects(
@@ -160,43 +583,119 @@ function ProjectManagement({
           (project) => {
 
             if (
-              project.id === projectId &&
-              project.status === "pending"
+              project.id !==
+              projectId
             ) {
-
-              return {
-                ...project,
-
-                status: "running",
-              };
+              return project;
             }
 
 
-            return project;
+            const sourceVersion =
+              (
+                project.sourceVersions ||
+                []
+              ).find(
+                (source) =>
+                  source.id ===
+                  sourceVersionId
+              );
+
+
+            if (
+              !sourceVersion
+            ) {
+              return project;
+            }
+
+
+            const analysisHistory =
+              project.analysisHistory ||
+              [];
+
+
+            const hasActiveAnalysis =
+              analysisHistory.some(
+                (analysis) =>
+                  analysis.sourceVersionId ===
+                    sourceVersionId &&
+                  (
+                    analysis.status ===
+                      "pending" ||
+                    analysis.status ===
+                      "running"
+                  )
+              );
+
+
+            if (
+              hasActiveAnalysis
+            ) {
+              return project;
+            }
+
+
+            const nextSequence =
+              analysisHistory.length > 0
+                ? Math.max(
+                    ...analysisHistory.map(
+                      (analysis) =>
+                        analysis.sequence
+                    )
+                  ) + 1
+                : 1;
+
+
+            const newAnalysisRun = {
+              id:
+                Date.now(),
+
+              sequence:
+                nextSequence,
+
+              sourceVersionId:
+                sourceVersionId,
+
+              status:
+                "pending",
+
+              engine:
+                "Semgrep",
+
+              executedById:
+                currentUser?.id ??
+                user?.id ??
+                null,
+
+              startedAt:
+                null,
+
+              completedAt:
+                null,
+
+              failureReason:
+                "",
+
+              logs:
+                "",
+
+              summary:
+                null,
+
+              vulnerabilities:
+                [],
+            };
+
+
+            return {
+              ...project,
+
+              analysisHistory: [
+                ...analysisHistory,
+                newAnalysisRun,
+              ],
+            };
           }
         )
-    );
-
-
-    setSelectedProject(
-      (prevProject) => {
-
-        if (
-          prevProject &&
-          prevProject.id === projectId &&
-          prevProject.status === "pending"
-        ) {
-
-          return {
-            ...prevProject,
-
-            status: "running",
-          };
-        }
-
-
-        return prevProject;
-      }
     );
   };
 
@@ -204,256 +703,159 @@ function ProjectManagement({
   /* ========================================
      사용자 접근 권한 부여
 
-     정책:
-     completed 프로젝트만 가능
+     POST /api/projects/{id}/access/
   ======================================== */
 
-  const handleGrantUserAccess = (
-    projectId,
-    userId
-  ) => {
+  const handleGrantUserAccess =
+    async (
+      projectId,
+      userId
+    ) => {
 
-    const targetUser =
-      users.find(
-        (user) =>
-          user.id === userId
+      const targetUser =
+        users.find(
+          (target) =>
+            target.id ===
+            userId
+        );
+
+
+      if (!targetUser) {
+
+        throw new Error(
+          "사용자를 찾을 수 없습니다."
+        );
+      }
+
+
+      if (
+        targetUser.role !==
+        "user"
+      ) {
+
+        throw new Error(
+          "일반 사용자만 프로젝트에 할당할 수 있습니다."
+        );
+      }
+
+
+      if (
+        !targetUser.isActive
+      ) {
+
+        throw new Error(
+          "비활성 사용자는 프로젝트에 할당할 수 없습니다."
+        );
+      }
+
+
+      await grantProjectAccess(
+        projectId,
+        userId,
+        accessToken,
+        setAccessToken
       );
 
 
-    /* 사용자가 존재하지 않음 */
+      setProjects(
+        (prevProjects) =>
+          prevProjects.map(
+            (project) => {
 
-    if (!targetUser) {
-      return;
-    }
+              if (
+                project.id !==
+                projectId
+              ) {
 
-
-    /* 일반 사용자만 가능 */
-
-    if (
-      targetUser.role !== "user"
-    ) {
-      return;
-    }
+                return project;
+              }
 
 
-    /* 활성 사용자만 신규 할당 가능 */
-
-    if (
-      !targetUser.isActive
-    ) {
-      return;
-    }
+              const assignedUserIds =
+                project.assignedUserIds ||
+                [];
 
 
-    /* ====================================
-       프로젝트 State 수정
-    ==================================== */
+              if (
+                assignedUserIds.includes(
+                  userId
+                )
+              ) {
 
-    setProjects(
-      (prevProjects) =>
-        prevProjects.map(
-          (project) => {
+                return project;
+              }
 
-            if (
-              project.id !== projectId
-            ) {
-              return project;
+
+              return {
+                ...project,
+
+                assignedUserIds: [
+                  ...assignedUserIds,
+                  userId,
+                ],
+              };
             }
-
-
-            /* =================================
-               분석 완료 프로젝트만
-               사용자 할당 가능
-            ================================= */
-
-            if (
-              project.status !==
-              "completed"
-            ) {
-              return project;
-            }
-
-
-            const assignedUserIds =
-              project.assignedUserIds ||
-              [];
-
-
-            /* 이미 할당된 사용자 */
-
-            if (
-              assignedUserIds.includes(
-                userId
-              )
-            ) {
-              return project;
-            }
-
-
-            return {
-              ...project,
-
-              assignedUserIds: [
-                ...assignedUserIds,
-                userId,
-              ],
-            };
-          }
-        )
-    );
-
-
-    /* ====================================
-       현재 상세 화면 즉시 반영
-    ==================================== */
-
-    setSelectedProject(
-      (prevProject) => {
-
-        if (
-          !prevProject ||
-          prevProject.id !==
-            projectId
-        ) {
-          return prevProject;
-        }
-
-
-        /* completed만 가능 */
-
-        if (
-          prevProject.status !==
-          "completed"
-        ) {
-          return prevProject;
-        }
-
-
-        const assignedUserIds =
-          prevProject.assignedUserIds ||
-          [];
-
-
-        if (
-          assignedUserIds.includes(
-            userId
           )
-        ) {
-          return prevProject;
-        }
-
-
-        return {
-          ...prevProject,
-
-          assignedUserIds: [
-            ...assignedUserIds,
-            userId,
-          ],
-        };
-      }
-    );
-  };
+      );
+    };
 
 
   /* ========================================
      사용자 접근 권한 해제
 
-     정책:
-     completed 프로젝트만 가능
+     DELETE
+     /api/projects/{id}/access/{userId}/
   ======================================== */
 
-  const handleRevokeUserAccess = (
-    projectId,
-    userId
-  ) => {
+  const handleRevokeUserAccess =
+    async (
+      projectId,
+      userId
+    ) => {
 
-    /* ====================================
-       프로젝트 State 수정
-    ==================================== */
+      await revokeProjectAccess(
+        projectId,
+        userId,
+        accessToken,
+        setAccessToken
+      );
 
-    setProjects(
-      (prevProjects) =>
-        prevProjects.map(
-          (project) => {
 
-            if (
-              project.id !== projectId
-            ) {
-              return project;
+      setProjects(
+        (prevProjects) =>
+          prevProjects.map(
+            (project) => {
+
+              if (
+                project.id !==
+                projectId
+              ) {
+
+                return project;
+              }
+
+
+              return {
+                ...project,
+
+                assignedUserIds:
+                  (
+                    project.assignedUserIds ||
+                    []
+                  ).filter(
+                    (assignedUserId) =>
+                      assignedUserId !==
+                      userId
+                  ),
+              };
             }
-
-
-            /* completed만 가능 */
-
-            if (
-              project.status !==
-              "completed"
-            ) {
-              return project;
-            }
-
-
-            return {
-              ...project,
-
-              assignedUserIds:
-                (
-                  project.assignedUserIds ||
-                  []
-                ).filter(
-                  (id) =>
-                    id !== userId
-                ),
-            };
-          }
-        )
-    );
-
-
-    /* ====================================
-       상세 화면 즉시 반영
-    ==================================== */
-
-    setSelectedProject(
-      (prevProject) => {
-
-        if (
-          !prevProject ||
-          prevProject.id !==
-            projectId
-        ) {
-          return prevProject;
-        }
-
-
-        if (
-          prevProject.status !==
-          "completed"
-        ) {
-          return prevProject;
-        }
-
-
-        return {
-          ...prevProject,
-
-          assignedUserIds:
-            (
-              prevProject.assignedUserIds ||
-              []
-            ).filter(
-              (id) =>
-                id !== userId
-            ),
-        };
-      }
-    );
-  };
+          )
+      );
+    };
 
 
   /* ========================================
-     프로젝트 검색
+     검색
   ======================================== */
 
   const filteredProjects =
@@ -471,11 +873,37 @@ function ProjectManagement({
         }
 
 
-        return project.name
-          .toLowerCase()
-          .includes(
+        const creatorName =
+          getCreatorName(
+            project
+          ).toLowerCase();
+
+
+        const projectName =
+          (
+            project.name ||
+            ""
+          ).toLowerCase();
+
+
+        const description =
+          (
+            project.description ||
+            ""
+          ).toLowerCase();
+
+
+        return (
+          projectName.includes(
             keyword
-          );
+          ) ||
+          description.includes(
+            keyword
+          ) ||
+          creatorName.includes(
+            keyword
+          )
+        );
       }
     );
 
@@ -485,21 +913,21 @@ function ProjectManagement({
   ======================================== */
 
   if (
-    viewMode === "create"
+    viewMode ===
+    "create"
   ) {
-
     return (
-
       <ProjectCreate
+        onCreate={
+          handleCreateProject
+        }
 
         onCancel={() =>
           setViewMode(
             "list"
           )
         }
-
       />
-
     );
   }
 
@@ -509,16 +937,18 @@ function ProjectManagement({
   ======================================== */
 
   if (
-    viewMode === "edit" &&
+    viewMode ===
+      "edit" &&
     selectedProject
   ) {
-
     return (
-
       <ProjectEdit
-
         project={
           selectedProject
+        }
+
+        onSave={
+          handleUpdateProject
         }
 
         onCancel={() =>
@@ -526,13 +956,7 @@ function ProjectManagement({
             "detail"
           )
         }
-
-        onSave={
-          handleUpdateProject
-        }
-
       />
-
     );
   }
 
@@ -542,14 +966,12 @@ function ProjectManagement({
   ======================================== */
 
   if (
-    viewMode === "detail" &&
+    viewMode ===
+      "detail" &&
     selectedProject
   ) {
-
     return (
-
       <ProjectDetail
-
         project={
           selectedProject
         }
@@ -559,8 +981,7 @@ function ProjectManagement({
         }
 
         onBack={() => {
-
-          setSelectedProject(
+          setSelectedProjectId(
             null
           );
 
@@ -569,10 +990,20 @@ function ProjectManagement({
           );
         }}
 
-        onEdit={() =>
-          setViewMode(
-            "edit"
-          )
+        onEdit={
+          handleOpenEdit
+        }
+
+        onDelete={
+          handleDeleteProject
+        }
+
+        onAddSourceVersion={
+          handleAddSourceVersion
+        }
+
+        onUpdateSourceVersion={
+          handleUpdateSourceVersion
         }
 
         onRunAnalysis={
@@ -586,9 +1017,7 @@ function ProjectManagement({
         onRevokeUserAccess={
           handleRevokeUserAccess
         }
-
       />
-
     );
   }
 
@@ -598,31 +1027,26 @@ function ProjectManagement({
   ======================================== */
 
   return (
-
     <div className="project-management">
-
 
       <div className="project-management-toolbar">
 
-
         <div className="project-management-description">
-
-          등록된 프로젝트를
-          조회하고 관리할 수 있습니다.
-
+          등록된 프로젝트를 조회하고 관리할 수 있습니다.
         </div>
 
 
         <button
+          type="button"
+
           className="project-create-button"
 
           onClick={
-            handleCreateProject
+            handleOpenCreate
           }
         >
           프로젝트 등록
         </button>
-
 
       </div>
 
@@ -636,7 +1060,7 @@ function ProjectManagement({
             search
           }
 
-          placeholder="프로젝트 이름 검색"
+          placeholder="프로젝트명, 설명 또는 등록자 검색"
 
           onChange={
             (event) =>
@@ -653,139 +1077,133 @@ function ProjectManagement({
 
         <table className="project-table">
 
-
           <thead>
-
             <tr>
-
               <th>
                 프로젝트명
               </th>
 
               <th>
-                분석 언어
+                설명
+              </th>
+
+              <th>
+                등록자
               </th>
 
               <th>
                 등록 일시
               </th>
-
-              <th>
-                분석 상태
-              </th>
-
             </tr>
-
           </thead>
 
 
           <tbody>
 
-
             {
-              filteredProjects.length > 0
+              projectsLoading
                 ? (
-
-                  filteredProjects.map(
-                    (project) => (
-
-                      <tr
-                        key={
-                          project.id
-                        }
+                    <tr>
+                      <td
+                        className="project-empty"
+                        colSpan="4"
                       >
-
-
-                        <td>
-
-                          <button
-                            className="project-name-button"
-
-                            onClick={() =>
-                              handleOpenProject(
-                                project
-                              )
-                            }
-                          >
-
-                            {
-                              project.name
-                            }
-
-                          </button>
-
-                        </td>
-
-
-                        <td>
-                          {
-                            project.language
-                          }
-                        </td>
-
-
-                        <td>
-                          {
-                            project.createdAt
-                          }
-                        </td>
-
-
-                        <td>
-
-                          <span
-                            className={
-                              `project-status ${project.status}`
-                            }
-                          >
-
-                            {
-                              getStatusText(
-                                project.status
-                              )
-                            }
-
-                          </span>
-
-                        </td>
-
-
-                      </tr>
-
-                    )
+                        프로젝트를 불러오는 중입니다.
+                      </td>
+                    </tr>
                   )
 
-                )
-                : (
+                : projectsError
+                  ? (
+                      <tr>
+                        <td
+                          className="project-empty"
+                          colSpan="4"
+                        >
+                          {
+                            projectsError
+                          }
+                        </td>
+                      </tr>
+                    )
 
-                  <tr>
+                  : filteredProjects.length > 0
+                    ? filteredProjects.map(
+                        (project) => (
 
-                    <td
-                      className="project-empty"
+                          <tr
+                            key={
+                              project.id
+                            }
+                          >
 
-                      colSpan="4"
-                    >
+                            <td>
+                              <button
+                                type="button"
 
-                      검색 결과가 없습니다.
+                                className="project-name-button"
 
-                    </td>
+                                onClick={() =>
+                                  handleOpenProject(
+                                    project.id
+                                  )
+                                }
+                              >
+                                {
+                                  project.name
+                                }
+                              </button>
+                            </td>
 
-                  </tr>
 
-                )
+                            <td>
+                              {
+                                project.description ||
+                                "-"
+                              }
+                            </td>
+
+
+                            <td>
+                              {
+                                getCreatorName(
+                                  project
+                                )
+                              }
+                            </td>
+
+
+                            <td>
+                              {
+                                project.createdAt ||
+                                "-"
+                              }
+                            </td>
+
+                          </tr>
+
+                        )
+                      )
+
+                    : (
+                        <tr>
+                          <td
+                            className="project-empty"
+                            colSpan="4"
+                          >
+                            등록된 프로젝트가 없습니다.
+                          </td>
+                        </tr>
+                      )
             }
 
-
           </tbody>
-
 
         </table>
 
       </div>
 
-
     </div>
-
   );
 }
 

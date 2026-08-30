@@ -1,8 +1,8 @@
 /* ========================================
-   Dashboard 전체 Layout
+   Dashboard Layout
 ======================================== */
 
-.dashboard-layout {
+.dashboard {
   display: flex;
 
   width: 100vw;
@@ -15,14 +15,13 @@
 
 
 /* ========================================
-   Dashboard 오른쪽 전체 영역
+   Main Area
 ======================================== */
 
 .dashboard-main {
   display: flex;
-  flex-direction: column;
-
   flex: 1;
+  flex-direction: column;
 
   min-width: 0;
   height: 100vh;
@@ -32,82 +31,123 @@
 
 
 /* ========================================
-   Dashboard TopBar
+   TopBar
 ======================================== */
 
 .dashboard-topbar {
   display: flex;
-
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 
   flex-shrink: 0;
 
   width: 100%;
   height: 68px;
 
-  padding: 0 24px;
+  padding: 0 32px;
 
   box-sizing: border-box;
 
   background-color: #ffffff;
 
   border-bottom: 1px solid #e5e7eb;
-
-  position: relative;
-
-  z-index: 10;
 }
 
 
 /* ========================================
-   TopBar 페이지 제목
+   Page Title
 ======================================== */
 
 .dashboard-page-title {
-  font-size: 20px;
+  color: #111827;
+
+  font-size: 18px;
   font-weight: 700;
 
-  color: #111827;
+  white-space: nowrap;
 }
 
 
 /* ========================================
-   TopBar 사용자 영역
+   User Area
 ======================================== */
 
 .dashboard-user {
   display: flex;
-
   align-items: center;
 
-  gap: 12px;
+  gap: 16px;
 
   flex-shrink: 0;
 }
 
 
-/* ========================================
-   사용자 이름
-======================================== */
+.dashboard-user-info {
+  display: flex;
+  align-items: center;
 
-.dashboard-username {
-  font-size: 14px;
-  font-weight: 500;
-
-  color: #374151;
+  gap: 8px;
 }
 
 
 /* ========================================
-   로그아웃 버튼
+   Username
+======================================== */
+
+.dashboard-username {
+  color: #374151;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+
+/* ========================================
+   User Role Badge
+======================================== */
+
+.dashboard-role {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 24px;
+
+  padding: 0 9px;
+
+  box-sizing: border-box;
+
+  border-radius: 999px;
+
+  font-size: 11px;
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+
+.dashboard-role.admin {
+  color: #2563eb;
+
+  background-color: #eff6ff;
+}
+
+
+.dashboard-role.user {
+  color: #4b5563;
+
+  background-color: #f3f4f6;
+}
+
+
+/* ========================================
+   Logout Button
 ======================================== */
 
 .logout-button {
-  padding: 7px 12px;
-
-  font-size: 13px;
-  font-weight: 500;
+  padding: 8px 13px;
 
   color: #374151;
 
@@ -116,15 +156,21 @@
   border: 1px solid #d1d5db;
   border-radius: 6px;
 
+  font-size: 13px;
+  font-weight: 600;
+
   cursor: pointer;
 
   transition:
     background-color 0.15s,
-    border-color 0.15s;
+    border-color 0.15s,
+    color 0.15s;
 }
 
 
 .logout-button:hover {
+  color: #111827;
+
   background-color: #f9fafb;
 
   border-color: #9ca3af;
@@ -132,7 +178,7 @@
 
 
 /* ========================================
-   Main Content
+   Content
 ======================================== */
 
 .dashboard-content {
@@ -145,15 +191,15 @@
 
   box-sizing: border-box;
 
-  overflow-y: auto;
   overflow-x: hidden;
+  overflow-y: auto;
 
   background-color: #f5f7fa;
 }
 
 
 /* ========================================
-   반응형
+   Responsive - Tablet
 ======================================== */
 
 @media (max-width: 900px) {
@@ -170,6 +216,10 @@
 }
 
 
+/* ========================================
+   Responsive - Mobile
+======================================== */
+
 @media (max-width: 600px) {
 
   .dashboard-topbar {
@@ -180,7 +230,34 @@
 
 
   .dashboard-page-title {
-    font-size: 18px;
+    font-size: 16px;
+  }
+
+
+  .dashboard-user {
+    gap: 8px;
+  }
+
+
+  .dashboard-user-info {
+    gap: 6px;
+  }
+
+
+  .dashboard-username {
+    font-size: 13px;
+  }
+
+
+  .dashboard-role {
+    display: none;
+  }
+
+
+  .logout-button {
+    padding: 7px 10px;
+
+    font-size: 12px;
   }
 
 

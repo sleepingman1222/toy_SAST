@@ -1,5 +1,5 @@
 /* ========================================
-   관리자 요약 전체
+   Admin Summary
 ======================================== */
 
 .admin-summary {
@@ -11,21 +11,107 @@
 
 
 /* ========================================
-   설명
+   Header
 ======================================== */
 
-.admin-summary-description {
-  margin-bottom: 24px;
+.admin-summary-header {
+  margin-bottom: 28px;
+}
+
+
+.admin-summary-header h2 {
+  margin: 0 0 7px;
+
+  color: #111827;
+
+  font-size: 22px;
+  font-weight: 700;
+}
+
+
+.admin-summary-header p {
+  margin: 0;
+
+  color: #6b7280;
 
   font-size: 14px;
   line-height: 1.6;
-
-  color: #6b7280;
 }
 
 
 /* ========================================
-   공통 Section
+   Main Summary Card Grid
+======================================== */
+
+.summary-card-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr));
+
+  gap: 16px;
+
+  margin-bottom: 36px;
+}
+
+
+/* ========================================
+   Summary Card
+======================================== */
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+
+  gap: 12px;
+
+  min-width: 0;
+
+  padding: 22px 24px;
+
+  box-sizing: border-box;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
+}
+
+
+/* ========================================
+   Summary Card Label
+======================================== */
+
+.summary-card-label {
+  color: #6b7280;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  white-space: nowrap;
+}
+
+
+/* ========================================
+   Summary Card Value
+======================================== */
+
+.summary-card-value {
+  color: #1f2937;
+
+  font-size: 28px;
+  font-weight: 700;
+
+  line-height: 1;
+}
+
+
+/* ========================================
+   Section
 ======================================== */
 
 .summary-section {
@@ -33,157 +119,204 @@
 }
 
 
-.summary-section h2 {
-  margin: 0 0 14px;
+/* ========================================
+   Section Header
+======================================== */
+
+.summary-section-header {
+  margin-bottom: 14px;
+}
+
+
+.summary-section-header h3 {
+  margin: 0;
+
+  color: #1f2937;
 
   font-size: 16px;
   font-weight: 700;
-
-  color: #1f2937;
 }
 
 
 /* ========================================
-   요약 Card Grid
+   Analysis Status Grid
 ======================================== */
 
-.summary-card-grid {
+.analysis-status-grid {
   display: grid;
 
   grid-template-columns:
-    repeat(4, 1fr);
+    repeat(4, minmax(0, 1fr));
 
   gap: 16px;
 }
 
 
 /* ========================================
-   요약 Card
+   Analysis Status Card
 ======================================== */
 
-.summary-card {
+.analysis-status-card {
   display: flex;
-
-  flex-direction: column;
-
-  gap: 14px;
-
-  padding: 22px 24px;
-
-  background-color: #ffffff;
-
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-
-  box-shadow:
-    0 1px 2px
-    rgba(0, 0, 0, 0.03);
-}
-
-
-/* ========================================
-   Card Label
-======================================== */
-
-.summary-card-label {
-  font-size: 13px;
-  font-weight: 500;
-
-  color: #6b7280;
-}
-
-
-/* ========================================
-   Card Value
-======================================== */
-
-.summary-card-value {
-  font-size: 28px;
-  font-weight: 700;
-
-  color: #1f2937;
-}
-
-
-/* ========================================
-   프로젝트 상태 전체 Card
-======================================== */
-
-.project-status-summary {
-  overflow: hidden;
-
-  background-color: #ffffff;
-
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-
-  box-shadow:
-    0 1px 2px
-    rgba(0, 0, 0, 0.03);
-}
-
-
-/* ========================================
-   프로젝트 상태 Row
-======================================== */
-
-.project-status-summary-row {
-  display: flex;
-
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
 
-  min-height: 62px;
+  gap: 16px;
 
-  padding: 0 22px;
+  min-width: 0;
+  min-height: 78px;
 
-  border-bottom: 1px solid #f0f1f3;
+  padding: 18px 20px;
+
+  box-sizing: border-box;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
 }
 
 
-.project-status-summary-row:last-child {
-  border-bottom: none;
+.analysis-status-card span {
+  color: #6b7280;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  white-space: nowrap;
 }
 
 
-.project-status-summary-row strong {
-  font-size: 17px;
+.analysis-status-card strong {
+  color: #1f2937;
+
+  font-size: 24px;
   font-weight: 700;
 
-  color: #1f2937;
+  line-height: 1;
 }
 
 
 /* ========================================
-   상태 Label 영역
+   Pending
 ======================================== */
 
-.project-status-summary-label {
-  display: flex;
+.analysis-status-card.pending {
+  border-left: 4px solid #c2410c;
+}
 
-  align-items: center;
+
+.analysis-status-card.pending span,
+.analysis-status-card.pending strong {
+  color: #c2410c;
 }
 
 
 /* ========================================
-   반응형
+   Running
 ======================================== */
 
-@media (max-width: 900px) {
+.analysis-status-card.running {
+  border-left: 4px solid #2563eb;
+}
+
+
+.analysis-status-card.running span,
+.analysis-status-card.running strong {
+  color: #2563eb;
+}
+
+
+/* ========================================
+   Completed
+======================================== */
+
+.analysis-status-card.completed {
+  border-left: 4px solid #047857;
+}
+
+
+.analysis-status-card.completed span,
+.analysis-status-card.completed strong {
+  color: #047857;
+}
+
+
+/* ========================================
+   Failed
+======================================== */
+
+.analysis-status-card.failed {
+  border-left: 4px solid #dc2626;
+}
+
+
+.analysis-status-card.failed span,
+.analysis-status-card.failed strong {
+  color: #dc2626;
+}
+
+
+/* ========================================
+   Responsive - Desktop
+======================================== */
+
+@media (max-width: 1100px) {
 
   .summary-card-grid {
     grid-template-columns:
-      repeat(2, 1fr);
+      repeat(3, minmax(0, 1fr));
+  }
+
+
+  .analysis-status-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 
 }
 
 
-@media (max-width: 500px) {
+/* ========================================
+   Responsive - Tablet
+======================================== */
+
+@media (max-width: 800px) {
 
   .summary-card-grid {
     grid-template-columns:
-      1fr;
+      repeat(2, minmax(0, 1fr));
+  }
+
+}
+
+
+/* ========================================
+   Responsive - Mobile
+======================================== */
+
+@media (max-width: 500px) {
+
+  .admin-summary-header {
+    margin-bottom: 22px;
+  }
+
+
+  .admin-summary-header h2 {
+    font-size: 20px;
+  }
+
+
+  .summary-card-grid {
+    grid-template-columns: 1fr;
+
+    gap: 12px;
+
+    margin-bottom: 28px;
   }
 
 
@@ -192,27 +325,27 @@
   }
 
 
-  .project-status-summary-row {
-    padding: 0 18px;
+  .summary-card-value {
+    font-size: 26px;
+  }
+
+
+  .analysis-status-grid {
+    grid-template-columns: 1fr;
+
+    gap: 12px;
+  }
+
+
+  .analysis-status-card {
+    min-height: 70px;
+
+    padding: 16px 18px;
+  }
+
+
+  .analysis-status-card strong {
+    font-size: 22px;
   }
 
 }
-
-.project-status {
-  display: inline-flex;
-
-  align-items: center;
-  justify-content: center;
-
-  min-width: 92px;
-
-  padding: 6px 11px;
-
-  font-size: 12px;
-  font-weight: 600;
-
-  border-radius: 20px;
-
-  white-space: nowrap;
-}
-

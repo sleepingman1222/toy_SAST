@@ -7,7 +7,7 @@ function AdminSummary({
 }) {
 
   /* ========================================
-     사용자 현황
+     사용자 통계
   ======================================== */
 
   const totalUsers =
@@ -22,7 +22,7 @@ function AdminSummary({
 
 
   /* ========================================
-     프로젝트 전체
+     프로젝트 통계
   ======================================== */
 
   const totalProjects =
@@ -30,13 +30,88 @@ function AdminSummary({
 
 
   /* ========================================
-     프로젝트 상태별 개수
+     현재 SourceVersion 찾기
+  ======================================== */
+
+  const getCurrentSourceVersion = (
+    project
+  ) => {
+
+    return (
+      (
+        project.sourceVersions ||
+        []
+      ).find(
+        (sourceVersion) =>
+          sourceVersion.id ===
+          project.currentSourceVersionId
+      ) || null
+    );
+  };
+
+
+  /* ========================================
+     현재 SourceVersion의
+     최신 AnalysisRun 찾기
+  ======================================== */
+
+  const getLatestCurrentAnalysis = (
+    project
+  ) => {
+
+    const currentSourceVersion =
+      getCurrentSourceVersion(
+        project
+      );
+
+
+    if (
+      !currentSourceVersion
+    ) {
+
+      return null;
+    }
+
+
+    const currentAnalyses =
+      (
+        project.analysisHistory ||
+        []
+      )
+        .filter(
+          (analysis) =>
+            analysis.sourceVersionId ===
+            currentSourceVersion.id
+        )
+        .sort(
+          (a, b) =>
+            b.sequence -
+            a.sequence
+        );
+
+
+    return (
+      currentAnalyses[0] ||
+      null
+    );
+  };
+
+
+  /* ========================================
+     AnalysisRun 상태별 프로젝트 수
+
+     SourceVersion은 있지만
+     AnalysisRun이 없는 프로젝트는
+     아직 분석 실행 전이므로
+     상태 통계에서 제외한다.
   ======================================== */
 
   const pendingProjects =
     projects.filter(
       (project) =>
-        project.status ===
+        getLatestCurrentAnalysis(
+          project
+        )?.status ===
         "pending"
     ).length;
 
@@ -44,7 +119,9 @@ function AdminSummary({
   const runningProjects =
     projects.filter(
       (project) =>
-        project.status ===
+        getLatestCurrentAnalysis(
+          project
+        )?.status ===
         "running"
     ).length;
 
@@ -52,7 +129,9 @@ function AdminSummary({
   const completedProjects =
     projects.filter(
       (project) =>
-        project.status ===
+        getLatestCurrentAnalysis(
+          project
+        )?.status ===
         "completed"
     ).length;
 
@@ -60,9 +139,31 @@ function AdminSummary({
   const failedProjects =
     projects.filter(
       (project) =>
-        project.status ===
+        getLatestCurrentAnalysis(
+          project
+        )?.status ===
         "failed"
     ).length;
+
+
+  /* ========================================
+     전체 AnalysisRun 수
+  ======================================== */
+
+  const totalAnalysisRuns =
+    projects.reduce(
+      (
+        total,
+        project
+      ) =>
+        total +
+        (
+          project.analysisHistory
+            ?.length ||
+          0
+        ),
+      0
+    );
 
 
   return (
@@ -71,127 +172,108 @@ function AdminSummary({
 
 
       {/* ===================================
-          상단 설명
+          Header
       =================================== */}
 
-      <div className="admin-summary-description">
+      <div className="admin-summary-header">
 
-        사용자와 프로젝트의
-        현재 상태를 확인할 수 있습니다.
+        <h2>
+          관리자 요약
+        </h2>
+
+        <p>
+          시스템의 사용자, 프로젝트 및 분석 현황을 확인합니다.
+        </p>
 
       </div>
 
 
       {/* ===================================
-          핵심 요약
+          Main Summary
       =================================== */}
 
-      <section className="summary-section">
+      <div className="summary-card-grid">
 
 
-        <h2>
-          전체 현황
-        </h2>
+        <div className="summary-card">
 
+          <span className="summary-card-label">
+            전체 사용자
+          </span>
 
-        <div className="summary-card-grid">
-
-
-          {/* 전체 사용자 */}
-
-          <div className="summary-card">
-
-            <span className="summary-card-label">
-              전체 사용자
-            </span>
-
-            <strong className="summary-card-value">
-              {totalUsers}
-            </strong>
-
-          </div>
-
-
-          {/* 활성 사용자 */}
-
-          <div className="summary-card">
-
-            <span className="summary-card-label">
-              활성 사용자
-            </span>
-
-            <strong className="summary-card-value">
-              {activeUsers}
-            </strong>
-
-          </div>
-
-
-          {/* 전체 프로젝트 */}
-
-          <div className="summary-card">
-
-            <span className="summary-card-label">
-              전체 프로젝트
-            </span>
-
-            <strong className="summary-card-value">
-              {totalProjects}
-            </strong>
-
-          </div>
-
-
-          {/* 분석 완료 */}
-
-          <div className="summary-card">
-
-            <span className="summary-card-label">
-              분석 완료
-            </span>
-
-            <strong className="summary-card-value">
-              {completedProjects}
-            </strong>
-
-          </div>
-
+          <strong className="summary-card-value">
+            {totalUsers}
+          </strong>
 
         </div>
 
 
-      </section>
+        <div className="summary-card">
+
+          <span className="summary-card-label">
+            활성 사용자
+          </span>
+
+          <strong className="summary-card-value">
+            {activeUsers}
+          </strong>
+
+        </div>
+
+
+        <div className="summary-card">
+
+          <span className="summary-card-label">
+            전체 프로젝트
+          </span>
+
+          <strong className="summary-card-value">
+            {totalProjects}
+          </strong>
+
+        </div>
+
+
+        <div className="summary-card">
+
+          <span className="summary-card-label">
+            전체 분석 실행
+          </span>
+
+          <strong className="summary-card-value">
+            {totalAnalysisRuns}
+          </strong>
+
+        </div>
+
+
+      </div>
 
 
       {/* ===================================
-          프로젝트 상태
+          Analysis Status
       =================================== */}
 
       <section className="summary-section">
 
 
-        <h2>
-          프로젝트 현황
-        </h2>
+        <div className="summary-section-header">
+
+          <h3>
+            현재 분석 상태
+          </h3>
+
+        </div>
 
 
-        <div className="project-status-summary">
+        <div className="analysis-status-grid">
 
 
-          {/* 분석 전 */}
+          <div className="analysis-status-card pending">
 
-          <div className="project-status-summary-row">
-
-            <div className="project-status-summary-label">
-
-              <span
-                className="project-status pending"
-              >
-                분석 전
-              </span>
-
-            </div>
-
+            <span>
+              분석 대기
+            </span>
 
             <strong>
               {pendingProjects}
@@ -200,20 +282,11 @@ function AdminSummary({
           </div>
 
 
-          {/* 분석 진행 중 */}
+          <div className="analysis-status-card running">
 
-          <div className="project-status-summary-row">
-
-            <div className="project-status-summary-label">
-
-              <span
-                className="project-status running"
-              >
-                분석 진행 중
-              </span>
-
-            </div>
-
+            <span>
+              분석 진행 중
+            </span>
 
             <strong>
               {runningProjects}
@@ -222,20 +295,11 @@ function AdminSummary({
           </div>
 
 
-          {/* 분석 완료 */}
+          <div className="analysis-status-card completed">
 
-          <div className="project-status-summary-row">
-
-            <div className="project-status-summary-label">
-
-              <span
-                className="project-status completed"
-              >
-                분석 완료
-              </span>
-
-            </div>
-
+            <span>
+              분석 완료
+            </span>
 
             <strong>
               {completedProjects}
@@ -244,20 +308,11 @@ function AdminSummary({
           </div>
 
 
-          {/* 분석 실패 */}
+          <div className="analysis-status-card failed">
 
-          <div className="project-status-summary-row">
-
-            <div className="project-status-summary-label">
-
-              <span
-                className="project-status failed"
-              >
-                분석 실패
-              </span>
-
-            </div>
-
+            <span>
+              분석 실패
+            </span>
 
             <strong>
               {failedProjects}

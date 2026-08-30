@@ -1,5 +1,5 @@
 /* ========================================
-   계정 등록 전체 영역
+   User Create
 ======================================== */
 
 .user-create {
@@ -11,20 +11,20 @@
 
 
 /* ========================================
-   목록으로 버튼
+   Back Button
 ======================================== */
 
 .user-create-back-button {
   padding: 0;
 
-  font-size: 13px;
-  font-weight: 500;
-
   color: #64748b;
 
-  background: none;
+  background-color: transparent;
 
   border: none;
+
+  font-size: 13px;
+  font-weight: 500;
 
   cursor: pointer;
 
@@ -34,10 +34,9 @@
 
 
 .user-create-back-button:hover {
-  color: #405b84;
+  color: #2563eb;
 
   text-decoration: underline;
-
   text-underline-offset: 3px;
 }
 
@@ -55,20 +54,20 @@
 .user-create-header h2 {
   margin: 0 0 7px;
 
+  color: #111827;
+
   font-size: 22px;
   font-weight: 700;
-
-  color: #111827;
 }
 
 
 .user-create-header p {
   margin: 0;
 
-  font-size: 14px;
-  line-height: 1.5;
-
   color: #6b7280;
+
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 
@@ -78,6 +77,8 @@
 
 .user-create-form {
   padding: 28px;
+
+  box-sizing: border-box;
 
   background-color: #ffffff;
 
@@ -99,17 +100,24 @@
 }
 
 
+.user-create .user-form-group:last-of-type {
+  margin-bottom: 0;
+}
+
+
 .user-create .user-form-group label {
   display: block;
 
   margin-bottom: 8px;
 
+  color: #374151;
+
   font-size: 13px;
   font-weight: 600;
-
-  color: #374151;
 }
 
+
+/* 필수 입력 표시 */
 
 .user-create .user-form-group label span {
   margin-left: 3px;
@@ -129,7 +137,7 @@
 
   padding: 0 13px;
 
-  font-size: 14px;
+  box-sizing: border-box;
 
   color: #1f2937;
 
@@ -138,9 +146,9 @@
   border: 1px solid #d1d5db;
   border-radius: 6px;
 
-  box-sizing: border-box;
-
   outline: none;
+
+  font-size: 14px;
 
   transition:
     border-color 0.15s,
@@ -148,13 +156,19 @@
 }
 
 
+.user-create .user-form-group input:hover,
+.user-create .user-form-group select:hover {
+  border-color: #9ca3af;
+}
+
+
 .user-create .user-form-group input:focus,
 .user-create .user-form-group select:focus {
-  border-color: #405b84;
+  border-color: #2563eb;
 
   box-shadow:
     0 0 0 3px
-    rgba(64, 91, 132, 0.1);
+    rgba(37, 99, 235, 0.1);
 }
 
 
@@ -164,15 +178,30 @@
 
 
 /* ========================================
+   Disabled Input
+======================================== */
+
+.user-create .user-form-group input:disabled,
+.user-create .user-form-group select:disabled {
+  color: #9ca3af;
+
+  background-color: #f9fafb;
+
+  cursor: not-allowed;
+}
+
+
+/* ========================================
    Error
 ======================================== */
 
 .user-create-error {
+  margin-top: 4px;
   margin-bottom: 20px;
 
   padding: 12px 14px;
 
-  font-size: 13px;
+  box-sizing: border-box;
 
   color: #b91c1c;
 
@@ -180,34 +209,35 @@
 
   border: 1px solid #fecaca;
   border-radius: 6px;
+
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 
 /* ========================================
-   Action
+   Actions
 ======================================== */
 
 .user-create-actions {
   display: flex;
-
-  justify-content: flex-end;
   align-items: center;
+  justify-content: flex-end;
 
-  gap: 9px;
+  gap: 10px;
 
   margin-top: 28px;
 }
 
 
 /* ========================================
-   취소 버튼
+   Cancel Button
 ======================================== */
 
 .user-create-cancel-button {
-  padding: 9px 17px;
+  min-width: 72px;
 
-  font-size: 14px;
-  font-weight: 500;
+  padding: 9px 17px;
 
   color: #374151;
 
@@ -216,11 +246,21 @@
   border: 1px solid #d1d5db;
   border-radius: 6px;
 
+  font-size: 14px;
+  font-weight: 500;
+
   cursor: pointer;
+
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 
 .user-create-cancel-button:hover {
+  color: #111827;
+
   background-color: #f9fafb;
 
   border-color: #9ca3af;
@@ -228,39 +268,74 @@
 
 
 /* ========================================
-   등록 버튼
+   Submit Button
 ======================================== */
 
 .user-create-submit-button {
-  padding: 9px 17px;
+  min-width: 72px;
 
-  font-size: 14px;
-  font-weight: 600;
+  padding: 9px 17px;
 
   color: #ffffff;
 
-  background-color: #405b84;
+  background-color: #2563eb;
 
   border: none;
   border-radius: 6px;
 
+  font-size: 14px;
+  font-weight: 600;
+
   cursor: pointer;
+
+  transition:
+    background-color 0.15s,
+    transform 0.1s;
 }
 
 
 .user-create-submit-button:hover {
-  background-color: #334b70;
+  background-color: #1d4ed8;
+}
+
+
+.user-create-submit-button:active {
+  transform: translateY(1px);
 }
 
 
 /* ========================================
-   반응형
+   Disabled Button
+======================================== */
+
+.user-create-submit-button:disabled {
+  background-color: #93c5fd;
+
+  cursor: not-allowed;
+
+  transform: none;
+}
+
+
+/* ========================================
+   Responsive - Tablet / Mobile
 ======================================== */
 
 @media (max-width: 700px) {
 
   .user-create {
     max-width: 100%;
+  }
+
+
+  .user-create-header {
+    margin-top: 14px;
+    margin-bottom: 20px;
+  }
+
+
+  .user-create-header h2 {
+    font-size: 20px;
   }
 
 
@@ -273,6 +348,8 @@
     flex-direction: column-reverse;
 
     align-items: stretch;
+
+    gap: 8px;
   }
 
 

@@ -1,94 +1,282 @@
+/* ========================================
+   Login Page
+======================================== */
+
 .login-page {
-  width: 100vw;
-  height: 100vh;
-
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
 
-  background-color: #f5f6f8;
+  width: 100vw;
+  min-height: 100vh;
+
+  padding: 24px;
+
+  box-sizing: border-box;
+
+  background-color: #f5f7fa;
 }
 
+
+/* ========================================
+   Login Card
+======================================== */
+
 .login-card {
-  width: 360px;
+  width: 100%;
+  max-width: 380px;
 
   padding: 40px;
 
-  background-color: white;
+  box-sizing: border-box;
 
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
   border-radius: 16px;
 
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 10px 30px
+    rgba(15, 23, 42, 0.08);
 }
+
+
+/* ========================================
+   Login Title
+======================================== */
 
 .login-title {
   margin: 0;
 
-  text-align: center;
+  color: #111827;
 
-  font-size: 32px;
+  font-size: 30px;
+  font-weight: 700;
+
+  text-align: center;
 }
+
+
+/* ========================================
+   Login Description
+======================================== */
 
 .login-description {
-  margin-top: 10px;
-  margin-bottom: 30px;
+  margin: 10px 0 30px;
+
+  color: #6b7280;
+
+  font-size: 14px;
+  line-height: 1.6;
 
   text-align: center;
-
-  color: #777;
 }
+
+
+/* ========================================
+   Input Group
+======================================== */
 
 .input-group {
   display: flex;
   flex-direction: column;
 
+  gap: 8px;
+
   margin-bottom: 20px;
 }
 
+
+/* ========================================
+   Label
+======================================== */
+
 .input-group label {
-  margin-bottom: 8px;
+  color: #374151;
 
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 600;
 }
+
+
+/* ========================================
+   Input
+======================================== */
 
 .input-group input {
-  padding: 12px 14px;
+  width: 100%;
+  height: 46px;
 
-  border: 1px solid #ddd;
+  padding: 0 14px;
+
+  box-sizing: border-box;
+
+  color: #1f2937;
+
+  background-color: #f9fafb;
+
+  border: 1px solid #d1d5db;
   border-radius: 8px;
 
-  font-size: 15px;
-
   outline: none;
+
+  font-size: 14px;
+  font-family: inherit;
+
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
+
+
+/* ========================================
+   Input Placeholder
+======================================== */
+
+.input-group input::placeholder {
+  color: #9ca3af;
+}
+
+
+/* ========================================
+   Input Hover
+======================================== */
+
+.input-group input:hover {
+  border-color: #9ca3af;
+}
+
+
+/* ========================================
+   Input Focus
+======================================== */
 
 .input-group input:focus {
-  border-color: #333;
+  background-color: #ffffff;
+
+  border-color: #2563eb;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(37, 99, 235, 0.1);
 }
+
+
+/* ========================================
+   Login Button
+======================================== */
 
 .login-button {
   width: 100%;
+  height: 46px;
 
-  padding: 13px;
+  margin-top: 4px;
+
+  padding: 0 16px;
+
+  color: #ffffff;
+
+  background-color: #2563eb;
 
   border: none;
   border-radius: 8px;
 
-  background-color: #222;
-  color: white;
-
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 15px;
+  font-weight: 600;
 
   cursor: pointer;
+
+  transition:
+    background-color 0.15s,
+    transform 0.1s;
 }
+
+
+/* ========================================
+   Login Button Hover
+======================================== */
 
 .login-button:hover {
-  background-color: #444;
+  background-color: #1d4ed8;
 }
 
+
+/* ========================================
+   Login Button Active
+======================================== */
+
+.login-button:active {
+  transform: translateY(1px);
+}
+
+
+/* ========================================
+   Login Button Disabled
+======================================== */
+
+.login-button:disabled {
+  background-color: #93c5fd;
+
+  cursor: not-allowed;
+
+  transform: none;
+}
+
+
+/* ========================================
+   Login Error
+======================================== */
+
 .login-error {
-  color : red;
-  font-weight : bold;
+  margin: 0 0 18px;
+
+  padding: 11px 13px;
+
+  box-sizing: border-box;
+
+  color: #b91c1c;
+
+  background-color: #fef2f2;
+
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+
+  text-align: left;
+}
+
+
+/* ========================================
+   Responsive
+======================================== */
+
+@media (max-width: 500px) {
+
+  .login-page {
+    padding: 20px 16px;
+  }
+
+
+  .login-card {
+    max-width: 100%;
+
+    padding: 32px 24px;
+
+    border-radius: 14px;
+  }
+
+
+  .login-title {
+    font-size: 26px;
+  }
+
+
+  .login-description {
+    margin-bottom: 26px;
+  }
+
 }

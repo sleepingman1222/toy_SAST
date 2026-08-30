@@ -1,8 +1,8 @@
 /* ========================================
-   Project Edit
+   Project Create
 ======================================== */
 
-.project-edit {
+.project-create {
   width: 100%;
   max-width: 920px;
 
@@ -14,21 +14,17 @@
    Header
 ======================================== */
 
-.project-edit-header {
+.project-create-header {
   margin-bottom: 24px;
 }
 
 
-/* ========================================
-   Title
-======================================== */
-
-.project-edit-title {
+.project-create-title {
   margin-top: 16px;
 }
 
 
-.project-edit-title h1 {
+.project-create-title h1 {
   margin: 0 0 8px;
 
   color: #111827;
@@ -38,7 +34,7 @@
 }
 
 
-.project-edit-title p {
+.project-create-title p {
   margin: 0;
 
   color: #6b7280;
@@ -52,7 +48,7 @@
    Back Button
 ======================================== */
 
-.project-edit .back-button {
+.project-create .back-button {
   padding: 0;
 
   color: #64748b;
@@ -71,7 +67,7 @@
 }
 
 
-.project-edit .back-button:hover {
+.project-create .back-button:hover {
   color: #2563eb;
 
   text-decoration: underline;
@@ -83,7 +79,7 @@
    Form Card
 ======================================== */
 
-.project-edit-form {
+.project-create-form {
   display: flex;
   flex-direction: column;
 
@@ -108,10 +104,8 @@
    Error
 ======================================== */
 
-.project-edit-error {
+.project-create-error {
   padding: 12px 14px;
-
-  box-sizing: border-box;
 
   color: #b91c1c;
 
@@ -129,7 +123,7 @@
    Form Group
 ======================================== */
 
-.project-edit-form-group {
+.project-create .form-group {
   display: flex;
   flex-direction: column;
 
@@ -137,11 +131,7 @@
 }
 
 
-/* ========================================
-   Label
-======================================== */
-
-.project-edit-form-group label {
+.project-create .form-group label {
   color: #374151;
 
   font-size: 14px;
@@ -151,11 +141,7 @@
 }
 
 
-/* ========================================
-   Required
-======================================== */
-
-.project-edit .required {
+.project-create .required {
   margin-left: 4px;
 
   color: #dc2626;
@@ -166,8 +152,8 @@
    Input / Textarea
 ======================================== */
 
-.project-edit-form-group input,
-.project-edit-form-group textarea {
+.project-create .form-group input,
+.project-create .form-group textarea {
   width: 100%;
 
   box-sizing: border-box;
@@ -179,10 +165,10 @@
   border: 1px solid #d1d5db;
   border-radius: 10px;
 
-  outline: none;
-
-  font-family: inherit;
   font-size: 14px;
+  font-family: inherit;
+
+  outline: none;
 
   transition:
     background-color 0.15s,
@@ -191,22 +177,14 @@
 }
 
 
-/* ========================================
-   Input
-======================================== */
-
-.project-edit-form-group input {
+.project-create .form-group input {
   height: 48px;
 
   padding: 0 14px;
 }
 
 
-/* ========================================
-   Textarea
-======================================== */
-
-.project-edit-form-group textarea {
+.project-create .form-group textarea {
   min-height: 150px;
 
   padding: 14px;
@@ -217,32 +195,20 @@
 }
 
 
-/* ========================================
-   Placeholder
-======================================== */
-
-.project-edit-form-group input::placeholder,
-.project-edit-form-group textarea::placeholder {
+.project-create .form-group input::placeholder,
+.project-create .form-group textarea::placeholder {
   color: #9ca3af;
 }
 
 
-/* ========================================
-   Hover
-======================================== */
-
-.project-edit-form-group input:hover,
-.project-edit-form-group textarea:hover {
+.project-create .form-group input:hover,
+.project-create .form-group textarea:hover {
   border-color: #9ca3af;
 }
 
 
-/* ========================================
-   Focus
-======================================== */
-
-.project-edit-form-group input:focus,
-.project-edit-form-group textarea:focus {
+.project-create .form-group input:focus,
+.project-create .form-group textarea:focus {
   background-color: #ffffff;
 
   border-color: #2563eb;
@@ -254,27 +220,14 @@
 
 
 /* ========================================
-   Disabled
-======================================== */
-
-.project-edit-form-group input:disabled,
-.project-edit-form-group textarea:disabled {
-  color: #9ca3af;
-
-  background-color: #f3f4f6;
-
-  cursor: not-allowed;
-}
-
-
-/* ========================================
    Actions
 ======================================== */
 
-.project-edit-actions {
+.project-create-actions {
   display: flex;
-  align-items: center;
+
   justify-content: flex-end;
+  align-items: center;
 
   gap: 10px;
 
@@ -286,8 +239,9 @@
    Cancel Button
 ======================================== */
 
-.project-edit-cancel-button {
+.project-create .cancel-button {
   min-width: 76px;
+
   height: 40px;
 
   padding: 0 16px;
@@ -311,7 +265,7 @@
 }
 
 
-.project-edit-cancel-button:hover {
+.project-create .cancel-button:hover {
   color: #111827;
 
   background-color: #f9fafb;
@@ -321,11 +275,12 @@
 
 
 /* ========================================
-   Save Button
+   Submit Button
 ======================================== */
 
-.project-edit-save-button {
+.project-create .submit-button {
   min-width: 76px;
+
   height: 40px;
 
   padding: 0 16px;
@@ -348,21 +303,17 @@
 }
 
 
-.project-edit-save-button:hover {
+.project-create .submit-button:hover {
   background-color: #1d4ed8;
 }
 
 
-.project-edit-save-button:active {
+.project-create .submit-button:active {
   transform: translateY(1px);
 }
 
 
-/* ========================================
-   Disabled Save Button
-======================================== */
-
-.project-edit-save-button:disabled {
+.project-create .submit-button:disabled {
   background-color: #93c5fd;
 
   cursor: not-allowed;
@@ -377,43 +328,42 @@
 
 @media (max-width: 700px) {
 
-  .project-edit {
+  .project-create {
     max-width: 100%;
   }
 
 
-  .project-edit-title h1 {
+  .project-create-title h1 {
     font-size: 24px;
   }
 
 
-  .project-edit-title p {
+  .project-create-title p {
     font-size: 14px;
   }
 
 
-  .project-edit-form {
+  .project-create-form {
     gap: 20px;
 
     padding: 22px 20px;
   }
 
 
-  .project-edit-form-group textarea {
+  .project-create .form-group textarea {
     min-height: 130px;
   }
 
 
-  .project-edit-actions {
-    align-items: stretch;
+  .project-create-actions {
     flex-direction: column-reverse;
 
-    gap: 8px;
+    align-items: stretch;
   }
 
 
-  .project-edit-cancel-button,
-  .project-edit-save-button {
+  .project-create .cancel-button,
+  .project-create .submit-button {
     width: 100%;
   }
 

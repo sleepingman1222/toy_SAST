@@ -1,20 +1,119 @@
-* {
+/* ========================================
+   Global Reset
+======================================== */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
+
+
+/* ========================================
+   Root
+======================================== */
 
 html,
 body,
 #root {
-  margin: 0;
-
   width: 100%;
+  min-width: 100%;
   min-height: 100%;
+
+  margin: 0;
+  padding: 0;
 }
+
+
+html,
+body {
+  height: 100%;
+}
+
+
+/* ========================================
+   Body
+======================================== */
 
 body {
-  font-family: Arial, sans-serif;
+  margin: 0;
+
+  color: #1f2937;
+
+  background-color: #f5f7fa;
+
+  font-family:
+    Arial,
+    "Noto Sans KR",
+    sans-serif;
+
+  font-size: 14px;
+  line-height: 1.5;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+
+/* ========================================
+   Form Elements
+======================================== */
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+
+/* ========================================
+   Button
+======================================== */
 
 button {
   font-family: inherit;
+}
+
+
+/* ========================================
+   Textarea
+======================================== */
+
+textarea {
+  font-family: inherit;
+}
+
+
+/* ========================================
+   Images
+======================================== */
+
+img {
+  display: block;
+
+  max-width: 100%;
+}
+
+
+/* ========================================
+   Heading
+======================================== */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: inherit;
+}
+
+
+/* ========================================
+   Root Application
+======================================== */
+
+#root {
+  min-height: 100vh;
 }
