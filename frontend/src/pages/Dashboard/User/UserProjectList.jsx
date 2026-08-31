@@ -301,125 +301,67 @@ function UserProjectList({
 
 
   /* ========================================
-     Language
+     Analysis Language
 
-     분석 이력에서는 AnalysisRun의
-     analysisLanguages Snapshot을 우선 사용한다.
-
-     SourceVersion의 detectedLanguages는
-     이전 응답 / 연결 보조용 fallback으로 사용한다.
+     완료 AnalysisRun의 자동 감지 언어 Snapshot을
+     우선 사용하고 과거 데이터는 SourceVersion.language로
+     fallback한다.
   ======================================== */
 
-  const getLanguageLabel = (
-    language
-  ) => {
+  const getLanguageLabel =
+    (language) => {
 
-    switch (
-      (
-        language ||
-        ""
-      ).toLowerCase()
-    ) {
-
-      case "java":
-
-        return "Java";
-
-
-      case "javascript":
-
-        return "JavaScript";
-
-
-      case "python":
-
-        return "Python";
-
-
-      default:
-
-        return (
+      switch (
+        String(
           language ||
-          "-"
-        );
-    }
-  };
+          ""
+        ).toLowerCase()
+      ) {
+
+        case "java":
+          return "Java";
+
+        case "javascript":
+        case "js":
+          return "JavaScript";
+
+        case "python":
+        case "py":
+          return "Python";
+
+        default:
+          return (
+            language ||
+            "-"
+          );
+      }
+    };
 
 
-  const formatLanguages = (
-    languages,
-    fallback = "-"
-  ) => {
+  const getAnalysisLanguageText =
+    (
+      analysis,
+      sourceVersion
+    ) => {
 
-    if (
-      !Array.isArray(
-        languages
-      ) ||
-      languages.length === 0
-    ) {
+      if (
+        analysis?.analysisLanguages
+          ?.length > 0
+      ) {
 
-      return fallback;
-    }
+        return analysis
+          .analysisLanguages
+          .map(
+            getLanguageLabel
+          )
+          .join(", ");
+      }
 
-
-    return languages
-      .map(
-        getLanguageLabel
-      )
-      .join(", "
-      );
-  };
-
-
-  const getAnalysisLanguageText = (
-    analysis,
-    sourceVersion
-  ) => {
-
-    if (
-      analysis?.analysisLanguages
-        ?.length > 0
-    ) {
-
-      return formatLanguages(
-        analysis.analysisLanguages
-      );
-    }
-
-
-    if (
-      sourceVersion?.detectedLanguages
-        ?.length > 0
-    ) {
-
-      return formatLanguages(
-        sourceVersion.detectedLanguages
-      );
-    }
-
-
-    if (
-      sourceVersion?.language
-    ) {
 
       return getLanguageLabel(
-        sourceVersion.language
+        sourceVersion?.language
       );
-    }
-
-
-    if (
-      analysis?.analysisLanguage
-    ) {
-
-      return getLanguageLabel(
-        analysis.analysisLanguage
-      );
-    }
-
-
-    return "-";
-  };
+    };
 
 
   /* ========================================
@@ -447,14 +389,36 @@ function UserProjectList({
 
 
   /* ========================================
+     User-visible Projects
+
+     일반 사용자는 ProjectAccess가 있는 프로젝트 중
+     completed AnalysisRun이 하나 이상 존재하는
+     프로젝트만 결과 조회 대상으로 본다.
+
+     pending / planning / running / failed / cancelled
+     상태는 일반 사용자 화면에 노출하지 않는다.
+  ======================================== */
+
+  const completedProjects =
+    projects.filter(
+      (project) =>
+        Boolean(
+          getLatestCompletedAnalysis(
+            project
+          )
+        )
+    );
+
+
+  /* ========================================
      Selected Project
 
-     AnalysisRun을 함께 넣어서
-     UserProjectDetail에 전달
+     완료된 분석이 있는 프로젝트만
+     UserProjectDetail에 전달한다.
   ======================================== */
 
   const originalSelectedProject =
-    projects.find(
+    completedProjects.find(
       (project) =>
         project.id ===
         selectedProjectId
@@ -478,11 +442,8 @@ function UserProjectList({
   /* ========================================
      Search
 
-     Backend에서 이미
-     ProjectAccess가 부여된 프로젝트만 반환
-
-     completed 분석이 없어도
-     프로젝트 자체는 검색 / 조회 가능
+     검색 대상도 completed 분석 결과가 있는
+     프로젝트로 한정한다.
   ======================================== */
 
   const keyword =
@@ -492,7 +453,7 @@ function UserProjectList({
 
 
   const filteredProjects =
-    projects.filter(
+    completedProjects.filter(
       (project) => {
 
         if (!keyword) {
@@ -603,7 +564,7 @@ function UserProjectList({
         </h2>
 
         <p>
-          나에게 할당된 프로젝트와 완료된 분석 결과를 조회할 수 있습니다.
+          나에게 할당된 프로젝트 중 완료된 분석 결과와 취약점 상세를 조회할 수 있습니다.
         </p>
 
       </div>
@@ -616,11 +577,15 @@ function UserProjectList({
       <div className="user-project-status-area">
 
         <span className="user-project-status-label">
-          조회 가능 프로젝트
+          완료 결과 프로젝트
         </span>
 
         <strong className="user-project-status-count">
-          {projects.length}
+          {
+            analysesLoading
+              ? "..."
+              : completedProjects.length
+          }
         </strong>
 
         <span className="user-project-status-unit">
@@ -711,6 +676,10 @@ function UserProjectList({
                   진단 결과
                 </th>
 
+                <th>
+                  조회
+                </th>
+
               </tr>
 
             </thead>
@@ -719,16 +688,17 @@ function UserProjectList({
             <tbody>
 
               {
-                projectsLoading
+                projectsLoading ||
+                analysesLoading
                   ? (
 
                     <tr>
 
                       <td
                         className="user-project-empty"
-                        colSpan="5"
+                        colSpan="6"
                       >
-                        프로젝트를 불러오는 중입니다.
+                        조회 가능한 완료 분석 결과를 확인하는 중입니다.
                       </td>
 
                     </tr>
@@ -742,7 +712,7 @@ function UserProjectList({
 
                         <td
                           className="user-project-empty error"
-                          colSpan="5"
+                          colSpan="6"
                         >
                           {projectsError}
                         </td>
@@ -869,12 +839,10 @@ function UserProjectList({
                                 <td>
 
                                   {
-                                    analysesLoading
-                                      ? "..."
-                                      : getAnalysisLanguageText(
-                                          latestAnalysis,
-                                          sourceVersion
-                                        )
+                                    getAnalysisLanguageText(
+                                      latestAnalysis,
+                                      sourceVersion
+                                    )
                                   }
 
                                 </td>
@@ -886,27 +854,36 @@ function UserProjectList({
 
                                 <td>
 
-                                  {
-                                    analysesLoading
-                                      ? (
-                                        "불러오는 중..."
+                                  <span className="user-project-finding-count">
+                                    {findingCount}건
+                                  </span>
+
+                                </td>
+
+
+                                {/* =====================
+                                    Detail
+                                ===================== */}
+
+                                <td>
+
+                                  <button
+                                    type="button"
+
+                                    className="user-project-view-button"
+
+                                    disabled={
+                                      !latestAnalysis
+                                    }
+
+                                    onClick={() =>
+                                      setSelectedProjectId(
+                                        project.id
                                       )
-                                      : latestAnalysis
-                                        ? (
-
-                                          <span className="user-project-finding-count">
-                                            {findingCount}건
-                                          </span>
-
-                                        )
-                                        : (
-
-                                          <span className="user-project-finding-count">
-                                            완료 결과 없음
-                                          </span>
-
-                                        )
-                                  }
+                                    }
+                                  >
+                                    상세 보기
+                                  </button>
 
                                 </td>
 
@@ -923,12 +900,14 @@ function UserProjectList({
 
                           <td
                             className="user-project-empty"
-                            colSpan="5"
+                            colSpan="6"
                           >
                             {
                               projects.length === 0
                                 ? "현재 할당된 프로젝트가 없습니다."
-                                : "검색 조건에 해당하는 프로젝트가 없습니다."
+                                : completedProjects.length === 0
+                                  ? "현재 조회 가능한 완료 분석 결과가 없습니다."
+                                  : "검색 조건에 해당하는 완료 분석 결과가 없습니다."
                             }
                           </td>
 
@@ -952,8 +931,9 @@ function UserProjectList({
 
       {
         !projectsLoading &&
+        !analysesLoading &&
         !projectsError &&
-        projects.length > 0 && (
+        completedProjects.length > 0 && (
 
           <div className="user-project-list-footer">
 
@@ -965,7 +945,7 @@ function UserProjectList({
               }
             </strong>
 
-            개의 프로젝트가 표시되고 있습니다.
+            개의 완료 분석 프로젝트가 표시되고 있습니다.
 
           </div>
 

@@ -376,89 +376,6 @@ function formatApiDateTime(
 
 
 // ========================================
-// 분석 언어 정규화
-//
-// Backend의 신규 다중 언어 필드는
-// 소문자 canonical 값 배열을 사용한다.
-//
-// 전환 기간 동안 기존 단일 language /
-// analysis_language 값도 fallback으로 읽는다.
-// ========================================
-
-function normalizeLanguageName(
-  value
-) {
-
-  const normalized =
-    String(
-      value || ""
-    )
-      .trim()
-      .toLowerCase();
-
-
-  const languageMap = {
-    python: "python",
-    py: "python",
-
-    javascript: "javascript",
-    "java script": "javascript",
-    js: "javascript",
-
-    java: "java",
-  };
-
-
-  return (
-    languageMap[normalized] ||
-    normalized
-  );
-}
-
-
-function normalizeLanguageList(
-  value,
-  legacyValue = ""
-) {
-
-  let values = [];
-
-
-  if (Array.isArray(value)) {
-
-    values = value;
-
-  } else if (
-    typeof value === "string" &&
-    value.trim()
-  ) {
-
-    values = value.split(",");
-
-  } else if (
-    typeof legacyValue === "string" &&
-    legacyValue.trim()
-  ) {
-
-    values = legacyValue.split(",");
-  }
-
-
-  return [
-    ...new Set(
-      values
-        .map(
-          normalizeLanguageName
-        )
-        .filter(
-          Boolean
-        )
-    ),
-  ];
-}
-
-
-// ========================================
 // SourceVersion 응답 변환
 // ========================================
 
@@ -474,21 +391,9 @@ function normalizeSourceVersion(
     version:
       source.version,
 
-    // 기존 단일 언어 필드
-    // 전환 기간 동안 기존 화면 호환용으로 유지
     language:
       source.language ||
       "",
-
-    // 실제 신규 기준값
-    // Backend 자동 감지 다중 언어
-    detectedLanguages:
-      normalizeLanguageList(
-        source.detected_languages ??
-        source.detectedLanguages,
-        source.language ??
-        ""
-      ),
 
     sourceType:
       source.source_type ??
@@ -541,14 +446,6 @@ function normalizeVulnerability(
 
     id:
       vulnerability.id,
-
-    // 개별 취약점이 탐지된 실제 소스 언어
-    analysisLanguage:
-      normalizeLanguageName(
-        vulnerability.analysis_language ??
-        vulnerability.analysisLanguage ??
-        ""
-      ),
 
     securityWeaknessIdentifier:
       vulnerability.security_weakness_identifier ??
@@ -662,22 +559,23 @@ function normalizeAnalysisRun(
       analysis.engine ||
       "Semgrep",
 
-    // 기존 단일 언어 Snapshot
-    // 전환 기간 동안 호환용으로 유지
     analysisLanguage:
       analysis.analysis_language ??
       analysis.analysisLanguage ??
       "",
 
-    // 분석 실행 당시 자동 감지된 다중 언어 Snapshot
     analysisLanguages:
-      normalizeLanguageList(
+      Array.isArray(
         analysis.analysis_languages ??
-        analysis.analysisLanguages,
-        analysis.analysis_language ??
-        analysis.analysisLanguage ??
-        ""
-      ),
+        analysis.analysisLanguages
+      )
+        ? [
+            ...(
+              analysis.analysis_languages ??
+              analysis.analysisLanguages
+            ),
+          ]
+        : [],
 
     executedById:
       analysis.executed_by_id ??
@@ -744,6 +642,291 @@ function normalizeAnalysisRun(
         analysis.updated_at ??
         analysis.updatedAt
       ),
+  };
+}
+
+
+// ========================================
+// AnalysisChunk 응답 변환
+// ========================================
+
+function normalizeAnalysisChunk(
+  chunk
+) {
+
+  return {
+
+    id:
+      chunk.id,
+
+    sequence:
+      chunk.sequence ??
+      0,
+
+    language:
+      chunk.language ||
+      "",
+
+    status:
+      chunk.status ||
+      "",
+
+    fileCount:
+      chunk.file_count ??
+      chunk.fileCount ??
+      0,
+
+    totalBytes:
+      chunk.total_bytes ??
+      chunk.totalBytes ??
+      0,
+
+    retryCount:
+      chunk.retry_count ??
+      chunk.retryCount ??
+      0,
+
+    maxRetries:
+      chunk.max_retries ??
+      chunk.maxRetries ??
+      0,
+
+    resultCount:
+      chunk.result_count ??
+      chunk.resultCount ??
+      0,
+
+    statusReason:
+      chunk.status_reason ??
+      chunk.statusReason ??
+      "",
+
+    startedAt:
+      chunk.started_at ||
+      chunk.startedAt
+        ? formatApiDateTime(
+            chunk.started_at ??
+            chunk.startedAt
+          )
+        : null,
+
+    completedAt:
+      chunk.completed_at ||
+      chunk.completedAt
+        ? formatApiDateTime(
+            chunk.completed_at ??
+            chunk.completedAt
+          )
+        : null,
+  };
+}
+
+
+// ========================================
+// 언어별 Chunk 진행 정보 변환
+// ========================================
+
+function normalizeAnalysisLanguageProgress(
+  language
+) {
+
+  return {
+
+    language:
+      language.language ||
+      "",
+
+    total:
+      language.total ??
+      0,
+
+    terminal:
+      language.terminal ??
+      0,
+
+    active:
+      language.active ??
+      0,
+
+    pending:
+      language.pending ??
+      0,
+
+    queued:
+      language.queued ??
+      0,
+
+    running:
+      language.running ??
+      0,
+
+    retryPending:
+      language.retry_pending ??
+      language.retryPending ??
+      0,
+
+    completed:
+      language.completed ??
+      0,
+
+    failed:
+      language.failed ??
+      0,
+
+    skipped:
+      language.skipped ??
+      0,
+
+    cancelled:
+      language.cancelled ??
+      0,
+
+    resultCount:
+      language.result_count ??
+      language.resultCount ??
+      0,
+
+    retryCount:
+      language.retry_count ??
+      language.retryCount ??
+      0,
+
+    progressPercent:
+      language.progress_percent ??
+      language.progressPercent ??
+      0,
+  };
+}
+
+
+// ========================================
+// Analysis Chunk Progress 응답 변환
+// ========================================
+
+function normalizeAnalysisProgress(
+  progress
+) {
+
+  return {
+
+    analysisRunId:
+      progress.analysis_run_id ??
+      progress.analysisRunId ??
+      null,
+
+    status:
+      progress.status ||
+      "",
+
+    progressPercent:
+      progress.progress_percent ??
+      progress.progressPercent ??
+      0,
+
+    totalChunks:
+      progress.total_chunks ??
+      progress.totalChunks ??
+      0,
+
+    terminalChunks:
+      progress.terminal_chunks ??
+      progress.terminalChunks ??
+      0,
+
+    activeChunks:
+      progress.active_chunks ??
+      progress.activeChunks ??
+      0,
+
+    unknownChunks:
+      progress.unknown_chunks ??
+      progress.unknownChunks ??
+      0,
+
+    pendingChunks:
+      progress.pending_chunks ??
+      progress.pendingChunks ??
+      0,
+
+    queuedChunks:
+      progress.queued_chunks ??
+      progress.queuedChunks ??
+      0,
+
+    runningChunks:
+      progress.running_chunks ??
+      progress.runningChunks ??
+      0,
+
+    retryPendingChunks:
+      progress.retry_pending_chunks ??
+      progress.retryPendingChunks ??
+      0,
+
+    completedChunks:
+      progress.completed_chunks ??
+      progress.completedChunks ??
+      0,
+
+    failedChunks:
+      progress.failed_chunks ??
+      progress.failedChunks ??
+      0,
+
+    skippedChunks:
+      progress.skipped_chunks ??
+      progress.skippedChunks ??
+      0,
+
+    cancelledChunks:
+      progress.cancelled_chunks ??
+      progress.cancelledChunks ??
+      0,
+
+    totalFiles:
+      progress.total_files ??
+      progress.totalFiles ??
+      0,
+
+    totalBytes:
+      progress.total_bytes ??
+      progress.totalBytes ??
+      0,
+
+    resultCount:
+      progress.result_count ??
+      progress.resultCount ??
+      0,
+
+    retryCount:
+      progress.retry_count ??
+      progress.retryCount ??
+      0,
+
+    languages:
+      (
+        progress.languages ||
+        []
+      ).map(
+        normalizeAnalysisLanguageProgress
+      ),
+
+    chunks:
+      (
+        progress.chunks ||
+        []
+      ).map(
+        normalizeAnalysisChunk
+      ),
+
+    updatedAt:
+      progress.updated_at ||
+      progress.updatedAt
+        ? formatApiDateTime(
+            progress.updated_at ??
+            progress.updatedAt
+          )
+        : null,
   };
 }
 
@@ -948,19 +1131,9 @@ function normalizeAdminSummary(
             analysis.source_version ??
             null,
 
-          // 기존 단일 언어 Snapshot
           analysisLanguage:
             analysis.analysis_language ||
             "",
-
-          // 신규 다중 언어 Snapshot
-          analysisLanguages:
-            normalizeLanguageList(
-              analysis.analysis_languages ??
-              analysis.analysisLanguages,
-              analysis.analysis_language ??
-              ""
-            ),
 
           status:
             analysis.status ||
@@ -1033,6 +1206,7 @@ async function getApiErrorMessage(
       "non_field_errors",
       "name",
       "description",
+      "language",
       "source_type",
       "source_file",
       "repository_url",
@@ -1329,6 +1503,12 @@ export async function createSourceVersion(
 
 
   formData.append(
+    "language",
+    sourceData.language
+  );
+
+
+  formData.append(
     "source_type",
     sourceData.sourceType
   );
@@ -1426,6 +1606,12 @@ export async function updateSourceVersion(
 
   const formData =
     new FormData();
+
+
+  formData.append(
+    "language",
+    sourceData.language
+  );
 
 
   formData.append(
@@ -1671,6 +1857,58 @@ export async function getProjectAnalysisRun(
 
 
   return normalizeAnalysisRun(
+    data
+  );
+}
+
+
+// ========================================
+// AnalysisRun Chunk 진행률 조회
+//
+// GET
+// /api/projects/{id}/analyses/{analysisId}/progress/
+//
+// 관리자 전용
+// ========================================
+
+export async function getAdminProjectAnalysisProgress(
+  projectId,
+  analysisId,
+  accessToken,
+  setAccessToken
+) {
+
+  const response =
+    await authFetch(
+      `/api/projects/${projectId}/analyses/${analysisId}/progress/`,
+      accessToken,
+      setAccessToken,
+      {
+        method: "GET",
+      }
+    );
+
+
+  if (!response.ok) {
+
+    const message =
+      await getApiErrorMessage(
+        response,
+        "분석 Chunk 진행 정보를 불러오지 못했습니다."
+      );
+
+
+    throw new Error(
+      message
+    );
+  }
+
+
+  const data =
+    await response.json();
+
+
+  return normalizeAnalysisProgress(
     data
   );
 }

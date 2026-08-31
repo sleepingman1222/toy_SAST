@@ -1,5 +1,9 @@
 from django.urls import path
 
+from .progress_views import (
+    ProjectAnalysisProgressView,
+)
+
 from .views import (
     AdminSummaryView,
     ProjectAnalysisRunDetailView,
@@ -52,5 +56,22 @@ urlpatterns = [
         "projects/<int:project_id>/analyses/<int:analysis_id>/",
         ProjectAnalysisRunDetailView.as_view(),
         name="project-analysis-detail",
+    ),
+
+
+    # ========================================
+    # AnalysisRun Chunk 진행률 조회
+    #
+    # GET
+    #
+    # /api/projects/{project_id}/analyses/{analysis_id}/progress/
+    #
+    # 관리자 전용
+    # ========================================
+
+    path(
+        "projects/<int:project_id>/analyses/<int:analysis_id>/progress/",
+        ProjectAnalysisProgressView.as_view(),
+        name="project-analysis-progress",
     ),
 ]

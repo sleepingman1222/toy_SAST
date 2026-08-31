@@ -1,5 +1,8 @@
+import uuid
+
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 # ========================================
@@ -162,6 +165,11 @@ class KisaSecurityWeakness(models.Model):
 
 # ========================================
 # AnalysisRun
+#
+# 사용자가 요청한 전체 분석 1회
+#
+# 실제 분석 작업은 AnalysisChunk로
+# 분리하여 실행한다.
 # ========================================
 
 class AnalysisRun(models.Model):
@@ -177,6 +185,11 @@ class AnalysisRun(models.Model):
             "Pending"
         )
 
+        PLANNING = (
+            "planning",
+            "Planning"
+        )
+
         RUNNING = (
             "running",
             "Running"
@@ -190,6 +203,11 @@ class AnalysisRun(models.Model):
         FAILED = (
             "failed",
             "Failed"
+        )
+
+        CANCELLED = (
+            "cancelled",
+            "Cancelled"
         )
 
 
@@ -260,25 +278,21 @@ class AnalysisRun(models.Model):
     # 기존 AnalysisRun 데이터와
     # 기존 코드 호환을 위해 유지한다.
     #
-    # 자동 감지 / 다중 언어 구조가
-    # 안정화되면 제거한다.
+    # 다중 언어 구조가 안정화되면
+    # 추후 제거 가능.
     # ====================================
 
     analysis_language = models.CharField(
         max_length=50,
 
         blank=True,
+
         default=""
     )
 
 
     # ====================================
     # 분석 시점 다중 언어 Snapshot
-    #
-    # SourceVersion의 detected_languages를
-    # 그대로 참조하는 것이 아니라
-    # 분석 실행 당시의 언어 정보를
-    # 별도로 보존한다.
     #
     # 예:
     #
@@ -288,13 +302,14 @@ class AnalysisRun(models.Model):
     #     "python",
     # ]
     #
-    # SourceVersion 정보가 이후 변경되어도
-    # 과거 AnalysisRun의 분석 당시 언어는
-    # 그대로 유지된다.
+    # SourceVersion의 언어 정보가
+    # 이후 변경되어도 분석 당시 정보를
+    # 그대로 유지한다.
     # ====================================
 
     analysis_languages = models.JSONField(
         default=list,
+
         blank=True
     )
 
@@ -318,17 +333,22 @@ class AnalysisRun(models.Model):
 
     started_at = models.DateTimeField(
         null=True,
+
         blank=True
     )
 
     completed_at = models.DateTimeField(
         null=True,
+
         blank=True
     )
 
 
     # ====================================
-    # 실패 정보
+    # 전체 분석 실패 정보
+    #
+    # Chunk 기반 구조가 안정화되면
+    # Chunk 상태를 집계하여 설정한다.
     # ====================================
 
     failure_reason = models.TextField(
@@ -337,7 +357,9 @@ class AnalysisRun(models.Model):
 
 
     # ====================================
-    # 분석 로그
+    # 기존 전체 분석 로그
+    #
+    # [Legacy / 호환용]
     # ====================================
 
     logs = models.TextField(
@@ -346,11 +368,14 @@ class AnalysisRun(models.Model):
 
 
     # ====================================
-    # Semgrep Raw Result
+    # 기존 전체 Semgrep Raw Result
+    #
+    # [Legacy / 호환용]
     # ====================================
 
     raw_result = models.JSONField(
         null=True,
+
         blank=True
     )
 
@@ -393,6 +418,1072 @@ class AnalysisRun(models.Model):
         return (
             f"{self.project.name} "
             f"Analysis #{self.sequence}"
+        )
+
+
+# ========================================
+# AnalysisChunk
+#
+# AnalysisRun을 실제 실행 가능한
+# 작업 단위로 분할한 모델
+#
+# 중요:
+# 더 이상 "언어당 Chunk 1개"가 아니다.
+#
+# 예:
+#
+# AnalysisRun #10
+#
+# python
+#   Chunk #1
+#   Chunk #2
+#   Chunk #3
+#
+# javascript
+#   Chunk #4
+#
+# java
+#   Chunk #5
+# ========================================
+
+class AnalysisChunk(models.Model):
+
+    # ====================================
+    # Status
+    # ====================================
+
+    class Status(models.TextChoices):
+
+        PENDING = (
+            "pending",
+            "Pending"
+        )
+
+        QUEUED = (
+            "queued",
+            "Queued"
+        )
+
+        RUNNING = (
+            "running",
+            "Running"
+        )
+
+        RETRY_PENDING = (
+            "retry_pending",
+            "Retry Pending"
+        )
+
+        COMPLETED = (
+            "completed",
+            "Completed"
+        )
+
+        FAILED = (
+            "failed",
+            "Failed"
+        )
+
+        SKIPPED = (
+            "skipped",
+            "Skipped"
+        )
+
+        CANCELLED = (
+            "cancelled",
+            "Cancelled"
+        )
+
+
+    # ====================================
+    # AnalysisRun
+    # ====================================
+
+    analysis_run = models.ForeignKey(
+        AnalysisRun,
+
+        on_delete=models.CASCADE,
+
+        related_name="analysis_chunks"
+    )
+
+
+    # ====================================
+    # 분석 언어
+    #
+    # 예:
+    # java
+    # javascript
+    # python
+    #
+    # 동일 언어의 Chunk가 여러 개
+    # 존재할 수 있다.
+    # ====================================
+
+    language = models.CharField(
+        max_length=50
+    )
+
+
+    # ====================================
+    # AnalysisRun 내부 Chunk 순번
+    #
+    # 1, 2, 3 ...
+    # ====================================
+
+    sequence = models.PositiveIntegerField()
+
+
+    # ====================================
+    # Chunk 상태
+    # ====================================
+
+    status = models.CharField(
+        max_length=20,
+
+        choices=Status.choices,
+
+        default=Status.PENDING
+    )
+
+
+    # ====================================
+    # Chunk에 포함된 파일 개수
+    # ====================================
+
+    file_count = models.PositiveIntegerField(
+        default=0
+    )
+
+
+    # ====================================
+    # Chunk에 포함된 전체 파일 크기
+    #
+    # byte 단위
+    # ====================================
+
+    total_bytes = models.PositiveBigIntegerField(
+        default=0
+    )
+
+
+    # ====================================
+    # 재시도 횟수
+    #
+    # Attempt 실패 이후 실제로
+    # 재시도된 횟수
+    # ====================================
+
+    retry_count = models.PositiveIntegerField(
+        default=0
+    )
+
+
+    # ====================================
+    # 최대 재시도 횟수
+    # ====================================
+
+    max_retries = models.PositiveIntegerField(
+        default=3
+    )
+
+
+    # ====================================
+    # Chunk 최종 상태 사유
+    #
+    # 예:
+    #
+    # FILE_TOO_LARGE
+    # MAX_RETRIES_EXCEEDED
+    # USER_CANCELLED
+    #
+    # 개별 실행 오류는
+    # AnalysisChunkAttempt.failure_reason에
+    # 기록한다.
+    # ====================================
+
+    status_reason = models.TextField(
+        blank=True
+    )
+
+
+    # ====================================
+    # Chunk 최초 실행 시작 시간
+    # ====================================
+
+    started_at = models.DateTimeField(
+        null=True,
+
+        blank=True
+    )
+
+
+    # ====================================
+    # Chunk 최종 완료 시간
+    # ====================================
+
+    completed_at = models.DateTimeField(
+        null=True,
+
+        blank=True
+    )
+
+
+    # ====================================
+    # 아래 필드는 기존 구조 호환용
+    #
+    # 새 실행 구조에서는
+    # AnalysisChunkAttempt가
+    # authoritative source가 된다.
+    #
+    # Celery Chunk Worker 전환 완료 후
+    # 제거 예정.
+    # ====================================
+
+    heartbeat_at = models.DateTimeField(
+        null=True,
+
+        blank=True
+    )
+
+    result_count = models.PositiveIntegerField(
+        default=0
+    )
+
+    failure_reason = models.TextField(
+        blank=True
+    )
+
+    logs = models.TextField(
+        blank=True
+    )
+
+    raw_result = models.JSONField(
+        null=True,
+
+        blank=True
+    )
+
+
+    # ====================================
+    # 생성 / 수정 시간
+    # ====================================
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+
+    class Meta:
+
+        ordering = [
+            "sequence"
+        ]
+
+        constraints = [
+
+            # --------------------------------
+            # 하나의 AnalysisRun 안에서
+            # Chunk 순번 중복 방지
+            # --------------------------------
+
+            models.UniqueConstraint(
+                fields=[
+                    "analysis_run",
+                    "sequence"
+                ],
+
+                name=
+                    "unique_analysis_run_chunk_sequence"
+            ),
+
+            # --------------------------------
+            # 중요:
+            #
+            # 기존의
+            #
+            # analysis_run + language
+            #
+            # UniqueConstraint는 삭제했다.
+            #
+            # 이제 같은 언어에서
+            # 여러 Chunk 생성 가능.
+            # --------------------------------
+        ]
+
+        indexes = [
+
+            # --------------------------------
+            # AnalysisRun의 Chunk 상태 집계
+            # --------------------------------
+
+            models.Index(
+                fields=[
+                    "analysis_run",
+                    "status"
+                ],
+
+                name=
+                    "chunk_run_status_idx"
+            ),
+
+            # --------------------------------
+            # Recovery 대상 검색 보조
+            # --------------------------------
+
+            models.Index(
+                fields=[
+                    "status",
+                    "updated_at"
+                ],
+
+                name=
+                    "chunk_status_updated_idx"
+            ),
+        ]
+
+
+    def __str__(self):
+
+        return (
+            f"{self.analysis_run.project.name} "
+            f"Analysis #{self.analysis_run.sequence} "
+            f"Chunk #{self.sequence} "
+            f"({self.language})"
+        )
+
+
+# ========================================
+# AnalysisChunkFile
+#
+# AnalysisChunk가 담당하는
+# 실제 Source 파일
+#
+# 파일 내용을 DB에 저장하는 것이 아니라
+# SourceVersion 기준 상대 경로와
+# 메타데이터만 저장한다.
+# ========================================
+
+class AnalysisChunkFile(models.Model):
+
+    # ====================================
+    # 파일 크기 분류
+    # ====================================
+
+    class FileClass(models.TextChoices):
+
+        NORMAL = (
+            "normal",
+            "Normal"
+        )
+
+        LARGE = (
+            "large",
+            "Large"
+        )
+
+        OVERSIZED = (
+            "oversized",
+            "Oversized"
+        )
+
+
+    # ====================================
+    # Chunk
+    # ====================================
+
+    chunk = models.ForeignKey(
+        AnalysisChunk,
+
+        on_delete=models.CASCADE,
+
+        related_name="files"
+    )
+
+
+    # ====================================
+    # SourceVersion 기준 상대 경로
+    #
+    # 예:
+    #
+    # accounts/views.py
+    #
+    # 절대 경로는 저장하지 않는다.
+    # ====================================
+
+    relative_path = models.CharField(
+        max_length=1000
+    )
+
+
+    # ====================================
+    # 파일 크기
+    #
+    # byte 단위
+    # ====================================
+
+    size_bytes = models.PositiveBigIntegerField()
+
+
+    # ====================================
+    # 파일 크기 분류
+    #
+    # normal
+    # large
+    # oversized
+    # ====================================
+
+    file_class = models.CharField(
+        max_length=20,
+
+        choices=FileClass.choices,
+
+        default=FileClass.NORMAL
+    )
+
+
+    # ====================================
+    # Source 파일 SHA-256
+    #
+    # 추후:
+    #
+    # - 분석 입력 변조 확인
+    # - 동일 파일 확인
+    # - 캐시
+    #
+    # 등에 사용할 수 있다.
+    #
+    # 현재 Planner에서는
+    # 빈 값으로 두어도 된다.
+    # ====================================
+
+    content_sha256 = models.CharField(
+        max_length=64,
+
+        blank=True,
+
+        default=""
+    )
+
+
+    # ====================================
+    # 생성 시간
+    # ====================================
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+
+    class Meta:
+
+        ordering = [
+            "id"
+        ]
+
+        constraints = [
+
+            # --------------------------------
+            # 하나의 Chunk에 동일 상대경로가
+            # 두 번 등록되는 것을 방지
+            # --------------------------------
+
+            models.UniqueConstraint(
+                fields=[
+                    "chunk",
+                    "relative_path"
+                ],
+
+                name=
+                    "unique_chunk_relative_path"
+            ),
+        ]
+
+        indexes = [
+
+            models.Index(
+                fields=[
+                    "chunk",
+                    "file_class"
+                ],
+
+                name=
+                    "chunk_file_class_idx"
+            ),
+        ]
+
+
+    def __str__(self):
+
+        return (
+            f"Chunk #{self.chunk.sequence} - "
+            f"{self.relative_path}"
+        )
+
+
+# ========================================
+# AnalysisChunkAttempt
+#
+# AnalysisChunk를 실제로 실행한
+# "한 번의 실행 시도"
+#
+# Chunk 하나는 Worker 장애 / Timeout 등으로
+# 여러 Attempt를 가질 수 있다.
+#
+# 예:
+#
+# Chunk #3
+#
+# Attempt #1
+# worker_lost
+#
+# Attempt #2
+# timed_out
+#
+# Attempt #3
+# completed
+# ========================================
+
+class AnalysisChunkAttempt(models.Model):
+
+    # ====================================
+    # Status
+    # ====================================
+
+    class Status(models.TextChoices):
+
+        RUNNING = (
+            "running",
+            "Running"
+        )
+
+        COMPLETED = (
+            "completed",
+            "Completed"
+        )
+
+        FAILED = (
+            "failed",
+            "Failed"
+        )
+
+        WORKER_LOST = (
+            "worker_lost",
+            "Worker Lost"
+        )
+
+        TIMED_OUT = (
+            "timed_out",
+            "Timed Out"
+        )
+
+        CANCELLED = (
+            "cancelled",
+            "Cancelled"
+        )
+
+        SUPERSEDED = (
+            "superseded",
+            "Superseded"
+        )
+
+
+    # ====================================
+    # Chunk
+    # ====================================
+
+    chunk = models.ForeignKey(
+        AnalysisChunk,
+
+        on_delete=models.CASCADE,
+
+        related_name="attempts"
+    )
+
+
+    # ====================================
+    # 실행 시도 번호
+    #
+    # 1, 2, 3 ...
+    # ====================================
+
+    attempt_no = models.PositiveIntegerField()
+
+
+    # ====================================
+    # 실행 소유권 Token
+    #
+    # Celery task_id와 별개다.
+    #
+    # stale Worker가 뒤늦게 결과를
+    # 저장하려는 상황을 차단할 때 사용.
+    # ====================================
+
+    execution_token = models.UUIDField(
+        default=uuid.uuid4,
+
+        unique=True,
+
+        editable=False
+    )
+
+
+    # ====================================
+    # Celery Task ID
+    #
+    # 운영 / 추적용
+    #
+    # 실행 무결성 판단의 기준으로
+    # 사용하지 않는다.
+    # ====================================
+
+    celery_task_id = models.CharField(
+        max_length=255,
+
+        blank=True,
+
+        default="",
+
+        db_index=True
+    )
+
+
+    # ====================================
+    # Attempt 상태
+    # ====================================
+
+    status = models.CharField(
+        max_length=20,
+
+        choices=Status.choices,
+
+        default=Status.RUNNING
+    )
+
+
+    # ====================================
+    # 실행 시작 시간
+    # ====================================
+
+    started_at = models.DateTimeField(
+        default=timezone.now
+    )
+
+
+    # ====================================
+    # Worker Heartbeat
+    #
+    # 살아있는 Worker가 일정 주기로
+    # 갱신한다.
+    # ====================================
+
+    heartbeat_at = models.DateTimeField(
+        default=timezone.now
+    )
+
+
+    # ====================================
+    # 실행권 Lease 만료 시간
+    #
+    # 현재 시간보다 과거이면서
+    # status=running이면
+    # stale 작업 후보가 된다.
+    #
+    # Attempt 생성 시 반드시 설정한다.
+    # ====================================
+
+    lease_expires_at = models.DateTimeField(
+        db_index=True
+    )
+
+
+    # ====================================
+    # Attempt 종료 시간
+    # ====================================
+
+    completed_at = models.DateTimeField(
+        null=True,
+
+        blank=True
+    )
+
+
+    # ====================================
+    # 해당 Attempt의 탐지 결과 수
+    # ====================================
+
+    result_count = models.PositiveIntegerField(
+        default=0
+    )
+
+
+    # ====================================
+    # 실패 원인
+    #
+    # 내부 상세 정보는 외부 API에
+    # 그대로 노출하지 않는다.
+    # ====================================
+
+    failure_reason = models.TextField(
+        blank=True
+    )
+
+
+    # ====================================
+    # Attempt 로그
+    # ====================================
+
+    logs = models.TextField(
+        blank=True
+    )
+
+
+    # ====================================
+    # 해당 Attempt의 Semgrep Raw Result
+    # ====================================
+
+    raw_result = models.JSONField(
+        null=True,
+
+        blank=True
+    )
+
+
+    # ====================================
+    # 생성 / 수정 시간
+    # ====================================
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+
+    class Meta:
+
+        ordering = [
+            "attempt_no"
+        ]
+
+        constraints = [
+
+            # --------------------------------
+            # 같은 Chunk 안에서
+            # Attempt 번호 중복 방지
+            # --------------------------------
+
+            models.UniqueConstraint(
+                fields=[
+                    "chunk",
+                    "attempt_no"
+                ],
+
+                name=
+                    "unique_chunk_attempt_number"
+            ),
+
+            # --------------------------------
+            # 하나의 Chunk에는 동시에
+            # running Attempt가 최대 하나
+            #
+            # Celery 중복 전달에 대한
+            # DB 차원의 방어선
+            # --------------------------------
+
+            models.UniqueConstraint(
+                fields=[
+                    "chunk"
+                ],
+
+                condition=models.Q(
+                    status="running"
+                ),
+
+                name=
+                    "unique_running_attempt_per_chunk"
+            ),
+
+            # --------------------------------
+            # 하나의 Chunk에는 최종적으로
+            # completed Attempt가 최대 하나
+            #
+            # 성공 결과를 단일화한다.
+            # --------------------------------
+
+            models.UniqueConstraint(
+                fields=[
+                    "chunk"
+                ],
+
+                condition=models.Q(
+                    status="completed"
+                ),
+
+                name=
+                    "unique_completed_attempt_per_chunk"
+            ),
+        ]
+
+        indexes = [
+
+            # --------------------------------
+            # Recovery Scanner:
+            #
+            # running +
+            # lease_expires_at < now
+            #
+            # 검색 최적화
+            # --------------------------------
+
+            models.Index(
+                fields=[
+                    "status",
+                    "lease_expires_at"
+                ],
+
+                name=
+                    "attempt_lease_idx"
+            ),
+
+            models.Index(
+                fields=[
+                    "chunk",
+                    "status"
+                ],
+
+                name=
+                    "attempt_chunk_status_idx"
+            ),
+        ]
+
+
+    def __str__(self):
+
+        return (
+            f"Chunk #{self.chunk.sequence} "
+            f"Attempt #{self.attempt_no} "
+            f"({self.status})"
+        )
+
+
+# ========================================
+# AnalysisDispatchOutbox
+#
+# PostgreSQL Transaction과
+# Celery/Redis 메시지 전달 사이에서
+# Task 유실을 방지한다.
+#
+# 중요한 원칙:
+#
+# PostgreSQL = Source of Truth
+# Redis = Transport
+# Celery = Executor
+# ========================================
+
+class AnalysisDispatchOutbox(models.Model):
+
+    # ====================================
+    # Status
+    # ====================================
+
+    class Status(models.TextChoices):
+
+        PENDING = (
+            "pending",
+            "Pending"
+        )
+
+        PUBLISHED = (
+            "published",
+            "Published"
+        )
+
+        CANCELLED = (
+            "cancelled",
+            "Cancelled"
+        )
+
+
+    # ====================================
+    # 대상 Chunk
+    # ====================================
+
+    chunk = models.ForeignKey(
+        AnalysisChunk,
+
+        on_delete=models.CASCADE,
+
+        related_name="dispatch_outboxes"
+    )
+
+
+    # ====================================
+    # Chunk 내부 Dispatch 번호
+    #
+    # 최초 dispatch
+    # 1
+    #
+    # retry dispatch
+    # 2, 3 ...
+    # ====================================
+
+    dispatch_no = models.PositiveIntegerField()
+
+
+    # ====================================
+    # Outbox Event 고유 식별자
+    # ====================================
+
+    event_key = models.UUIDField(
+        default=uuid.uuid4,
+
+        unique=True,
+
+        editable=False
+    )
+
+
+    # ====================================
+    # Outbox 상태
+    # ====================================
+
+    status = models.CharField(
+        max_length=20,
+
+        choices=Status.choices,
+
+        default=Status.PENDING
+    )
+
+
+    # ====================================
+    # Redis/Celery publish 시도 횟수
+    # ====================================
+
+    publish_attempts = models.PositiveIntegerField(
+        default=0
+    )
+
+
+    # ====================================
+    # Publish 성공 후 생성된
+    # Celery Task ID
+    # ====================================
+
+    celery_task_id = models.CharField(
+        max_length=255,
+
+        blank=True,
+
+        default=""
+    )
+
+
+    # ====================================
+    # 다음 publish 시도 가능 시간
+    #
+    # Redis 장애 발생 시
+    # exponential backoff 구현에 사용
+    # ====================================
+
+    available_at = models.DateTimeField(
+        default=timezone.now
+    )
+
+
+    # ====================================
+    # 가장 최근 publish 오류
+    # ====================================
+
+    last_error = models.TextField(
+        blank=True
+    )
+
+
+    # ====================================
+    # Publish 완료 시간
+    # ====================================
+
+    published_at = models.DateTimeField(
+        null=True,
+
+        blank=True
+    )
+
+
+    # ====================================
+    # 생성 / 수정 시간
+    # ====================================
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+
+    class Meta:
+
+        ordering = [
+            "created_at"
+        ]
+
+        constraints = [
+
+            # --------------------------------
+            # 하나의 Chunk 안에서
+            # dispatch 번호 중복 방지
+            # --------------------------------
+
+            models.UniqueConstraint(
+                fields=[
+                    "chunk",
+                    "dispatch_no"
+                ],
+
+                name=
+                    "unique_chunk_dispatch_number"
+            ),
+        ]
+
+        indexes = [
+
+            # --------------------------------
+            # Dispatcher가
+            #
+            # pending +
+            # available_at <= now
+            #
+            # 조회할 때 사용
+            # --------------------------------
+
+            models.Index(
+                fields=[
+                    "status",
+                    "available_at"
+                ],
+
+                name=
+                    "outbox_dispatch_idx"
+            ),
+        ]
+
+
+    def __str__(self):
+
+        return (
+            f"Chunk #{self.chunk.sequence} "
+            f"Dispatch #{self.dispatch_no} "
+            f"({self.status})"
         )
 
 
@@ -453,6 +1544,9 @@ class Vulnerability(models.Model):
 
     # ====================================
     # AnalysisRun
+    #
+    # 기존 API / 데이터 구조와의
+    # 호환성을 위해 유지한다.
     # ====================================
 
     analysis_run = models.ForeignKey(
@@ -465,14 +1559,66 @@ class Vulnerability(models.Model):
 
 
     # ====================================
+    # AnalysisChunkAttempt
+    #
+    # 실제 어떤 실행 Attempt에서
+    # 생성된 결과인지 기록한다.
+    #
+    # 기존 Vulnerability 데이터는
+    # Attempt 정보가 없으므로
+    # null / blank 허용.
+    #
+    # 새 Chunk Worker에서는
+    # 반드시 값을 지정한다.
+    # ====================================
+
+    analysis_attempt = models.ForeignKey(
+        AnalysisChunkAttempt,
+
+        on_delete=models.CASCADE,
+
+        null=True,
+
+        blank=True,
+
+        related_name="vulnerabilities"
+    )
+
+
+    # ====================================
+    # Vulnerability Fingerprint
+    #
+    # 동일 Attempt에서 동일 결과가
+    # 중복 저장되는 것을 방지한다.
+    #
+    # 추후 예:
+    #
+    # sha256(
+    #     rule_id
+    #     + file_path
+    #     + start_line
+    #     + start_column
+    # )
+    #
+    # 기존 데이터 호환을 위해
+    # null 허용.
+    # ====================================
+
+    fingerprint = models.CharField(
+        max_length=64,
+
+        null=True,
+
+        blank=True
+    )
+
+
+    # ====================================
     # KISA 보안약점
     #
     # 현재 기존 Semgrep 분석 데이터에는
-    # KISA 매핑 정보가 없으므로
+    # KISA 매핑 정보가 없을 수 있으므로
     # null 허용
-    #
-    # 이후 KISA Rule Set 적용 시
-    # 자동 매칭
     # ====================================
 
     security_weakness = models.ForeignKey(
@@ -481,6 +1627,7 @@ class Vulnerability(models.Model):
         on_delete=models.PROTECT,
 
         null=True,
+
         blank=True,
 
         related_name="vulnerabilities"
@@ -490,26 +1637,13 @@ class Vulnerability(models.Model):
     # ====================================
     # 취약점 분석 언어
     #
-    # AnalysisRun은 여러 언어를 분석할 수 있지만
-    # 개별 Vulnerability는 실제 탐지된
-    # 소스 파일의 언어 하나를 저장한다.
-    #
     # 예:
     #
-    # AnalysisRun.analysis_languages
-    # [
-    #     "javascript",
-    #     "python",
-    # ]
+    # python
+    # javascript
+    # java
     #
-    # Vulnerability #1
-    # analysis_language = "python"
-    #
-    # Vulnerability #2
-    # analysis_language = "javascript"
-    #
-    # 기존 Vulnerability 데이터에는
-    # 언어 정보가 없을 수 있으므로
+    # 기존 데이터 호환을 위해
     # blank 허용
     # ====================================
 
@@ -517,6 +1651,7 @@ class Vulnerability(models.Model):
         max_length=50,
 
         blank=True,
+
         default=""
     )
 
@@ -578,6 +1713,7 @@ class Vulnerability(models.Model):
 
     line = models.PositiveIntegerField(
         null=True,
+
         blank=True
     )
 
@@ -622,6 +1758,57 @@ class Vulnerability(models.Model):
 
         ordering = [
             "id"
+        ]
+
+        constraints = [
+
+            # --------------------------------
+            # 동일 Attempt 안에서
+            # 동일 fingerprint의 취약점이
+            # 중복 저장되는 것을 방지한다.
+            #
+            # Legacy Vulnerability에는
+            # analysis_attempt / fingerprint가
+            # null일 수 있으므로 제외.
+            # --------------------------------
+
+            models.UniqueConstraint(
+                fields=[
+                    "analysis_attempt",
+                    "fingerprint"
+                ],
+
+                condition=(
+                    models.Q(
+                        analysis_attempt__isnull=False
+                    )
+                    &
+                    models.Q(
+                        fingerprint__isnull=False
+                    )
+                ),
+
+                name=
+                    "unique_attempt_vulnerability_fingerprint"
+            ),
+        ]
+
+        indexes = [
+
+            # --------------------------------
+            # AnalysisRun 결과 조회 +
+            # Attempt별 결과 조회
+            # --------------------------------
+
+            models.Index(
+                fields=[
+                    "analysis_run",
+                    "analysis_attempt"
+                ],
+
+                name=
+                    "vuln_run_attempt_idx"
+            ),
         ]
 
 

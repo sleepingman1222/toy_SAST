@@ -27,6 +27,26 @@ import ProjectDetail from "../Project/ProjectDetail";
 import "./ProjectManagement.css";
 
 
+const ACTIVE_ANALYSIS_STATUSES = [
+  "pending",
+  "planning",
+  "running",
+];
+
+
+function isActiveAnalysisStatus(
+  status
+) {
+
+  return (
+    ACTIVE_ANALYSIS_STATUSES
+      .includes(
+        status
+      )
+  );
+}
+
+
 function ProjectManagement({
   users,
   projects,
@@ -93,10 +113,9 @@ function ProjectManagement({
       []
     ).some(
       (analysis) =>
-        analysis.status ===
-          "pending" ||
-        analysis.status ===
-          "running"
+        isActiveAnalysisStatus(
+          analysis.status
+        )
     );
 
 
@@ -104,7 +123,7 @@ function ProjectManagement({
      AnalysisRun 조회 / Polling
 
      상세 화면 진입 시 즉시 조회
-     pending / running 존재 시 2초마다 갱신
+     pending / planning / running 존재 시 2초마다 갱신
   ======================================== */
 
   useEffect(() => {

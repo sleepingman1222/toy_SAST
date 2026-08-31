@@ -7,7 +7,183 @@ import {
   useAuth,
 } from "../../../auth/useAuth";
 
+import {
+  getAdminProjectAnalysisProgress,
+} from "../../../api/api";
+
 import "./ProjectDetail.css";
+
+
+const ACTIVE_ANALYSIS_STATUSES = [
+  "pending",
+  "planning",
+  "running",
+];
+
+
+function isActiveAnalysisStatus(
+  status
+) {
+
+  return (
+    ACTIVE_ANALYSIS_STATUSES
+      .includes(
+        status
+      )
+  );
+}
+
+
+function getLanguageDisplayName(
+  language
+) {
+
+  const normalizedLanguage =
+    String(
+      language ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
+
+
+  switch (
+    normalizedLanguage
+  ) {
+
+    case "java":
+
+      return "Java";
+
+
+    case "javascript":
+    case "js":
+
+      return "JavaScript";
+
+
+    case "python":
+    case "py":
+
+      return "Python";
+
+
+    default:
+
+      return (
+        language ||
+        "-"
+      );
+  }
+}
+
+
+function getChunkStatusText(
+  status
+) {
+
+  switch (
+    status
+  ) {
+
+    case "pending":
+    case "queued":
+
+      return "대기";
+
+
+    case "running":
+
+      return "실행 중";
+
+
+    case "retry_pending":
+
+      return "재시도 대기";
+
+
+    case "completed":
+
+      return "완료";
+
+
+    case "failed":
+
+      return "실패";
+
+
+    case "skipped":
+
+      return "건너뜀";
+
+
+    case "cancelled":
+
+      return "취소";
+
+
+    default:
+
+      return "-";
+  }
+}
+
+
+function formatBytes(
+  bytes
+) {
+
+  const value = Number(
+    bytes ||
+    0
+  );
+
+
+  if (
+    !Number.isFinite(
+      value
+    ) ||
+    value <= 0
+  ) {
+    return "0 B";
+  }
+
+
+  if (
+    value < 1024
+  ) {
+    return `${value} B`;
+  }
+
+
+  const kilobytes =
+    value / 1024;
+
+
+  if (
+    kilobytes < 1024
+  ) {
+    return `${kilobytes.toFixed(1)} KB`;
+  }
+
+
+  const megabytes =
+    kilobytes / 1024;
+
+
+  if (
+    megabytes < 1024
+  ) {
+    return `${megabytes.toFixed(1)} MB`;
+  }
+
+
+  const gigabytes =
+    megabytes / 1024;
+
+
+  return `${gigabytes.toFixed(1)} GB`;
+}
 
 
 function ProjectDetail({
@@ -25,6 +201,8 @@ function ProjectDetail({
 
   const {
     user,
+    accessToken,
+    setAccessToken,
   } = useAuth();
 
 
@@ -90,6 +268,12 @@ function ProjectDetail({
   ======================================== */
 
   const [
+    sourceLanguage,
+    setSourceLanguage,
+  ] = useState("Java");
+
+
+  const [
     sourceType,
     setSourceType,
   ] = useState("upload");
@@ -139,6 +323,24 @@ function ProjectDetail({
     selectedVulnerability,
     setSelectedVulnerability,
   ] = useState(null);
+
+
+  const [
+    selectedAnalysisProgress,
+    setSelectedAnalysisProgress,
+  ] = useState(null);
+
+
+  const [
+    analysisProgressLoading,
+    setAnalysisProgressLoading,
+  ] = useState(false);
+
+
+  const [
+    analysisProgressError,
+    setAnalysisProgressError,
+  ] = useState("");
 
 
   /* ========================================
@@ -234,10 +436,9 @@ function ProjectDetail({
 
 
   const currentAnalysisIsBusy =
-    latestCurrentAnalysis?.status ===
-      "pending" ||
-    latestCurrentAnalysis?.status ===
-      "running";
+    isActiveAnalysisStatus(
+      latestCurrentAnalysis?.status
+    );
 
 
   /* ========================================
@@ -250,10 +451,9 @@ function ProjectDetail({
   const projectHasActiveAnalysis =
     analysisHistory.some(
       (analysis) =>
-        analysis.status ===
-          "pending" ||
-        analysis.status ===
-          "running"
+        isActiveAnalysisStatus(
+          analysis.status
+        )
     );
 
 
@@ -305,6 +505,18 @@ function ProjectDetail({
 
     setSelectedVulnerability(
       null
+    );
+
+    setSelectedAnalysisProgress(
+      null
+    );
+
+    setAnalysisProgressLoading(
+      false
+    );
+
+    setAnalysisProgressError(
+      ""
     );
 
     setShowSourceModal(
@@ -373,6 +585,180 @@ function ProjectDetail({
     ) || null;
 
 
+  const selectedAnalysisProgressId =
+    selectedAnalysis?.id ||
+    null;
+
+
+  const selectedAnalysisProgressStatus =
+    selectedAnalysis?.status ||
+    "";
+
+
+  /* ========================================
+     Analysis Chunk Progress 조회 / Polling
+
+     관리자만 내부 Chunk 상태를 조회한다.
+
+     pending / planning / running
+     → 2초마다 갱신
+
+     terminal 상태
+     → 한 번 조회
+  ======================================== */
+
+  useEffect(() => {
+
+    if (
+      !selectedAnalysisProgressId
+    ) {
+
+      setSelectedAnalysisProgress(
+        null
+      );
+
+      setAnalysisProgressLoading(
+        false
+      );
+
+      setAnalysisProgressError(
+        ""
+      );
+
+      return undefined;
+    }
+
+
+    let cancelled = false;
+    let intervalId = null;
+
+
+    setSelectedAnalysisProgress(
+      null
+    );
+
+    setAnalysisProgressError(
+      ""
+    );
+
+
+    const loadAnalysisProgress =
+      async (
+        showLoading = false
+      ) => {
+
+        if (
+          showLoading &&
+          !cancelled
+        ) {
+          setAnalysisProgressLoading(
+            true
+          );
+        }
+
+
+        try {
+
+          const progress =
+            await getAdminProjectAnalysisProgress(
+              project.id,
+              selectedAnalysisProgressId,
+              accessToken,
+              setAccessToken
+            );
+
+
+          if (cancelled) {
+            return;
+          }
+
+
+          setSelectedAnalysisProgress(
+            progress
+          );
+
+          setAnalysisProgressError(
+            ""
+          );
+
+        } catch (error) {
+
+          if (cancelled) {
+            return;
+          }
+
+
+          console.error(
+            "분석 Chunk 진행 정보 조회 실패:",
+            error
+          );
+
+
+          setAnalysisProgressError(
+            error.message ||
+            "분석 Chunk 진행 정보를 불러오지 못했습니다."
+          );
+
+        } finally {
+
+          if (
+            showLoading &&
+            !cancelled
+          ) {
+            setAnalysisProgressLoading(
+              false
+            );
+          }
+        }
+      };
+
+
+    loadAnalysisProgress(
+      true
+    );
+
+
+    if (
+      isActiveAnalysisStatus(
+        selectedAnalysisProgressStatus
+      )
+    ) {
+
+      intervalId =
+        window.setInterval(
+          () =>
+            loadAnalysisProgress(
+              false
+            ),
+          2000
+        );
+    }
+
+
+    return () => {
+
+      cancelled = true;
+
+
+      if (
+        intervalId !==
+        null
+      ) {
+        window.clearInterval(
+          intervalId
+        );
+      }
+    };
+
+  }, [
+    project.id,
+    selectedAnalysisProgressId,
+    selectedAnalysisProgressStatus,
+    accessToken,
+    setAccessToken,
+  ]);
+
+
   /* ========================================
      SourceVersion 찾기
   ======================================== */
@@ -400,124 +786,87 @@ function ProjectDetail({
 
 
   /* ========================================
-     분석 언어
+     Source 언어
 
-     Backend에서 자동 감지한 언어를 사용한다.
+     앞으로 언어 정보의 기준은
+     SourceVersion.language 하나만 사용.
 
-     SourceVersion.detectedLanguages
-     → 현재 소스에서 감지된 언어
-
-     AnalysisRun.analysisLanguages
-     → 분석 실행 당시 언어 Snapshot
+     project.language 사용 X
+     analysisLanguage 사용 X
   ======================================== */
-
-  const getLanguageLabel = (
-    language
-  ) => {
-
-    switch (
-      language
-    ) {
-
-      case "java":
-        return "Java";
-
-      case "javascript":
-        return "JavaScript";
-
-      case "python":
-        return "Python";
-
-      default:
-        return (
-          language ||
-          "-"
-        );
-    }
-  };
-
-
-  const formatLanguages = (
-    languages,
-    fallback = "-"
-  ) => {
-
-    if (
-      !Array.isArray(
-        languages
-      ) ||
-      languages.length === 0
-    ) {
-
-      return fallback;
-    }
-
-
-    return languages
-      .map(
-        getLanguageLabel
-      )
-      .join(", ");
-  };
-
 
   const getSourceLanguage = (
     sourceVersion
   ) => {
 
-    return formatLanguages(
-      sourceVersion?.detectedLanguages,
-      "분석 실행 시 자동 감지"
+    return (
+      sourceVersion?.language ||
+      "-"
     );
   };
 
 
-  const getAnalysisLanguage = (
+  /* ========================================
+     Analysis 감지 언어
+
+     Snapshot / Planner에서 감지된
+     analysisLanguages가 있으면 그것을 우선 표시.
+
+     아직 pending / planning 초반이라
+     감지 결과가 없으면 SourceVersion 언어로
+     임시 표시한다.
+  ======================================== */
+
+  const getAnalysisLanguageText = (
     analysis,
     sourceVersion
   ) => {
 
+    const detectedLanguages =
+      Array.isArray(
+        analysis?.analysisLanguages
+      )
+        ? analysis.analysisLanguages
+            .filter(
+              Boolean
+            )
+        : [];
+
+
     if (
-      analysis?.analysisLanguages
-        ?.length > 0
+      detectedLanguages.length >
+      0
     ) {
 
-      return formatLanguages(
-        analysis.analysisLanguages
+      return (
+        detectedLanguages
+          .map(
+            getLanguageDisplayName
+          )
+          .join(
+            ", "
+          )
       );
     }
 
 
     if (
-      sourceVersion?.detectedLanguages
-        ?.length > 0
+      analysis?.analysisLanguage
     ) {
 
-      return formatLanguages(
-        sourceVersion.detectedLanguages
+      return (
+        getLanguageDisplayName(
+          analysis.analysisLanguage
+        )
       );
     }
 
 
-    if (
-      analysis?.status ===
-      "pending"
-    ) {
-
-      return "자동 감지 예정";
-    }
-
-
-    if (
-      analysis?.status ===
-      "running"
-    ) {
-
-      return "자동 감지 중";
-    }
-
-
-    return "-";
+    return (
+      getSourceLanguage(
+        sourceVersion
+      )
+    );
   };
 
 
@@ -538,6 +887,11 @@ function ProjectDetail({
         return "분석 대기";
 
 
+      case "planning":
+
+        return "분석 준비 중";
+
+
       case "running":
 
         return "분석 진행 중";
@@ -553,11 +907,43 @@ function ProjectDetail({
         return "분석 실패";
 
 
+      case "cancelled":
+
+        return "분석 취소";
+
+
       default:
 
         return "-";
     }
   };
+
+
+  const selectedProgressPercent =
+    Math.min(
+      100,
+      Math.max(
+        0,
+        Number(
+          selectedAnalysisProgress
+            ?.progressPercent ||
+          0
+        )
+      )
+    );
+
+
+  const selectedQueuedChunkCount =
+    (
+      selectedAnalysisProgress
+        ?.pendingChunks ||
+      0
+    ) +
+    (
+      selectedAnalysisProgress
+        ?.queuedChunks ||
+      0
+    );
 
 
   /* ========================================
@@ -810,6 +1196,10 @@ function ProjectDetail({
 
   const resetSourceForm = () => {
 
+    setSourceLanguage(
+      "Java"
+    );
+
     setSourceType(
       "upload"
     );
@@ -869,6 +1259,12 @@ function ProjectDetail({
 
     setSourceModalMode(
       "edit"
+    );
+
+
+    setSourceLanguage(
+      currentSourceVersion.language ||
+      "Java"
     );
 
 
@@ -943,6 +1339,18 @@ function ProjectDetail({
       );
 
 
+      if (
+        !sourceLanguage
+      ) {
+
+        setSourceError(
+          "분석 언어를 선택해주세요."
+        );
+
+        return;
+      }
+
+
       const uploadFileRequired =
         sourceType ===
           "upload" &&
@@ -995,6 +1403,9 @@ function ProjectDetail({
 
 
       const sourceData = {
+
+        language:
+          sourceLanguage,
 
         sourceType:
           sourceType,
@@ -1697,7 +2108,7 @@ function ProjectDetail({
                       <div className="current-source-item">
 
                         <span>
-                          분석 언어
+                          소스 언어
                         </span>
 
                         <strong>
@@ -1794,7 +2205,7 @@ function ProjectDetail({
 
 
                           <p>
-                            현재 분석 작업이 처리 중이므로 분석 대상을 변경할 수 없습니다.
+                            현재 분석 작업이 대기·준비·진행 중이므로 분석 대상을 변경할 수 없습니다.
                           </p>
 
 
@@ -1898,7 +2309,7 @@ function ProjectDetail({
                         </th>
 
                         <th>
-                          분석 언어
+                          소스 언어
                         </th>
 
                         <th>
@@ -1977,7 +2388,7 @@ function ProjectDetail({
                                 <td>
 
                                   {
-                                    getAnalysisLanguage(
+                                    getAnalysisLanguageText(
                                       analysis,
                                       sourceVersion
                                     )
@@ -2127,7 +2538,7 @@ function ProjectDetail({
                   {" · "}
 
                   {
-                    getAnalysisLanguage(
+                    getAnalysisLanguageText(
                       selectedAnalysis,
                       selectedSourceVersion
                     )
@@ -2154,6 +2565,384 @@ function ProjectDetail({
 
 
             </div>
+
+
+            {
+              (
+
+                <div className="chunk-progress-card">
+
+
+                  <div className="chunk-progress-header">
+
+                    <div>
+
+                      <h4>
+                        Chunk 처리 현황
+                      </h4>
+
+                      <p>
+                        PostgreSQL에 저장된 Chunk 상태를 기준으로 표시합니다.
+                      </p>
+
+                    </div>
+
+
+                    <strong>
+                      {selectedProgressPercent}%
+                    </strong>
+
+                  </div>
+
+
+                  <div className="chunk-progress-track">
+
+                    <div
+                      className="chunk-progress-bar"
+
+                      style={{
+                        width:
+                          `${selectedProgressPercent}%`,
+                      }}
+                    />
+
+                  </div>
+
+
+                  {
+                    analysisProgressLoading &&
+                    !selectedAnalysisProgress
+                      ? (
+
+                        <div className="chunk-progress-loading">
+                          Chunk 진행 정보를 불러오는 중입니다.
+                        </div>
+
+                      )
+                      : analysisProgressError &&
+                        !selectedAnalysisProgress
+                        ? (
+
+                          <div className="chunk-progress-error">
+                            {analysisProgressError}
+                          </div>
+
+                        )
+                        : selectedAnalysisProgress
+                          ? (
+
+                            <>
+
+                              {
+                                analysisProgressError && (
+
+                                  <div className="chunk-progress-warning">
+                                    최근 진행 정보를 갱신하지 못했습니다. 마지막으로 조회한 상태를 표시합니다.
+                                  </div>
+
+                                )
+                              }
+
+
+                              <div className="chunk-progress-stats">
+
+                                <div>
+                                  <span>전체</span>
+                                  <strong>
+                                    {selectedAnalysisProgress.totalChunks}
+                                  </strong>
+                                </div>
+
+                                <div>
+                                  <span>완료</span>
+                                  <strong>
+                                    {selectedAnalysisProgress.completedChunks}
+                                  </strong>
+                                </div>
+
+                                <div>
+                                  <span>실행 중</span>
+                                  <strong>
+                                    {selectedAnalysisProgress.runningChunks}
+                                  </strong>
+                                </div>
+
+                                <div>
+                                  <span>대기</span>
+                                  <strong>
+                                    {selectedQueuedChunkCount}
+                                  </strong>
+                                </div>
+
+                                <div>
+                                  <span>재시도 대기</span>
+                                  <strong>
+                                    {selectedAnalysisProgress.retryPendingChunks}
+                                  </strong>
+                                </div>
+
+                                <div>
+                                  <span>실패</span>
+                                  <strong>
+                                    {selectedAnalysisProgress.failedChunks}
+                                  </strong>
+                                </div>
+
+                                <div>
+                                  <span>건너뜀</span>
+                                  <strong>
+                                    {selectedAnalysisProgress.skippedChunks}
+                                  </strong>
+                                </div>
+
+                                <div>
+                                  <span>취소</span>
+                                  <strong>
+                                    {selectedAnalysisProgress.cancelledChunks}
+                                  </strong>
+                                </div>
+
+                              </div>
+
+
+                              <div className="chunk-progress-metadata">
+
+                                <span>
+                                  파일 {selectedAnalysisProgress.totalFiles}개
+                                </span>
+
+                                <span>
+                                  분석 크기 {formatBytes(selectedAnalysisProgress.totalBytes)}
+                                </span>
+
+                                <span>
+                                  탐지 {selectedAnalysisProgress.resultCount}건
+                                </span>
+
+                                <span>
+                                  재시도 {selectedAnalysisProgress.retryCount}회
+                                </span>
+
+                              </div>
+
+
+                              {
+                                selectedAnalysisProgress.languages.length > 0 && (
+
+                                  <div className="chunk-language-progress-list">
+
+                                    {
+                                      selectedAnalysisProgress.languages.map(
+                                        (languageProgress) => {
+
+                                          const waitingCount =
+                                            (
+                                              languageProgress.pending ||
+                                              0
+                                            ) +
+                                            (
+                                              languageProgress.queued ||
+                                              0
+                                            );
+
+
+                                          return (
+
+                                            <div
+                                              className="chunk-language-progress-item"
+                                              key={languageProgress.language}
+                                            >
+
+                                              <div className="chunk-language-progress-title">
+
+                                                <strong>
+                                                  {
+                                                    getLanguageDisplayName(
+                                                      languageProgress.language
+                                                    )
+                                                  }
+                                                </strong>
+
+                                                <span>
+                                                  {languageProgress.terminal}/{languageProgress.total} 처리
+                                                  {" · "}
+                                                  {languageProgress.progressPercent}%
+                                                </span>
+
+                                              </div>
+
+
+                                              <div className="chunk-language-progress-track">
+
+                                                <div
+                                                  style={{
+                                                    width:
+                                                      `${Math.min(
+                                                        100,
+                                                        Math.max(
+                                                          0,
+                                                          Number(
+                                                            languageProgress.progressPercent ||
+                                                            0
+                                                          )
+                                                        )
+                                                      )}%`,
+                                                  }}
+                                                />
+
+                                              </div>
+
+
+                                              <p>
+                                                완료 {languageProgress.completed}
+                                                {" · "}
+                                                실행 {languageProgress.running}
+                                                {" · "}
+                                                대기 {waitingCount}
+                                                {" · "}
+                                                재시도 {languageProgress.retryPending}
+                                                {
+                                                  languageProgress.failed > 0
+                                                    ? ` · 실패 ${languageProgress.failed}`
+                                                    : ""
+                                                }
+                                                {
+                                                  languageProgress.skipped > 0
+                                                    ? ` · 건너뜀 ${languageProgress.skipped}`
+                                                    : ""
+                                                }
+                                              </p>
+
+                                            </div>
+
+                                          );
+                                        }
+                                      )
+                                    }
+
+                                  </div>
+
+                                )
+                              }
+
+
+                              <div className="chunk-progress-table-wrapper">
+
+                                {
+                                  selectedAnalysisProgress.chunks.length > 0
+                                    ? (
+
+                                      <table className="chunk-progress-table">
+
+                                        <thead>
+                                          <tr>
+                                            <th>Chunk</th>
+                                            <th>언어</th>
+                                            <th>파일</th>
+                                            <th>상태</th>
+                                            <th>재시도</th>
+                                            <th>탐지</th>
+                                          </tr>
+                                        </thead>
+
+                                        <tbody>
+
+                                          {
+                                            selectedAnalysisProgress.chunks.map(
+                                              (chunk) => (
+
+                                                <tr key={chunk.id}>
+
+                                                  <td>
+                                                    #{chunk.sequence}
+                                                  </td>
+
+                                                  <td>
+                                                    {
+                                                      getLanguageDisplayName(
+                                                        chunk.language
+                                                      )
+                                                    }
+                                                  </td>
+
+                                                  <td>
+                                                    {chunk.fileCount}개
+                                                  </td>
+
+                                                  <td>
+
+                                                    <span
+                                                      className={
+                                                        `chunk-status ${chunk.status}`
+                                                      }
+                                                    >
+                                                      {
+                                                        getChunkStatusText(
+                                                          chunk.status
+                                                        )
+                                                      }
+                                                    </span>
+
+                                                    {
+                                                      chunk.statusReason && (
+                                                        <small className="chunk-status-reason">
+                                                          {chunk.statusReason}
+                                                        </small>
+                                                      )
+                                                    }
+
+                                                  </td>
+
+                                                  <td>
+                                                    {
+                                                      chunk.maxRetries > 0
+                                                        ? `${chunk.retryCount}/${chunk.maxRetries}`
+                                                        : chunk.retryCount
+                                                    }
+                                                  </td>
+
+                                                  <td>
+                                                    {chunk.resultCount}건
+                                                  </td>
+
+                                                </tr>
+
+                                              )
+                                            )
+                                          }
+
+                                        </tbody>
+
+                                      </table>
+
+                                    )
+                                    : (
+
+                                      <div className="chunk-progress-empty">
+                                        아직 생성된 Chunk가 없습니다. 분석 준비가 완료되면 Chunk 진행 정보가 표시됩니다.
+                                      </div>
+
+                                    )
+                                }
+
+                              </div>
+
+                            </>
+
+                          )
+                          : (
+
+                            <div className="chunk-progress-empty">
+                              표시할 Chunk 진행 정보가 없습니다.
+                            </div>
+
+                          )
+                  }
+
+                </div>
+
+              )
+            }
 
 
             {
@@ -2462,6 +3251,48 @@ function ProjectDetail({
 
             {
               selectedAnalysis.status ===
+                "pending" && (
+
+                <div className="analysis-progress-box">
+
+                  <h4>
+                    분석 요청이 대기 중입니다.
+                  </h4>
+
+                  <p>
+                    분석 요청이 등록되었습니다. Worker가 작업을 가져가면 분석 준비 상태로 변경됩니다.
+                  </p>
+
+                </div>
+
+              )
+            }
+
+
+            {
+              selectedAnalysis.status ===
+                "planning" && (
+
+                <div className="analysis-progress-box">
+
+                  <div className="analysis-progress-spinner" />
+
+                  <h4>
+                    분석 대상을 준비하고 있습니다.
+                  </h4>
+
+                  <p>
+                    소스 스냅샷을 만들고 분석 파일을 언어별 Chunk로 구성하고 있습니다.
+                  </p>
+
+                </div>
+
+              )
+            }
+
+
+            {
+              selectedAnalysis.status ===
                 "running" && (
 
                 <div className="analysis-progress-box">
@@ -2473,7 +3304,7 @@ function ProjectDetail({
                   </h4>
 
                   <p>
-                    분석이 완료되면 취약점 결과를 확인할 수 있습니다.
+                    Chunk 단위로 정적 분석을 처리하고 있습니다. 일시적인 Worker 장애가 발생하면 Recovery가 자동으로 이어서 처리합니다.
                   </p>
 
                 </div>
@@ -2484,23 +3315,14 @@ function ProjectDetail({
 
             {
               selectedAnalysis.status ===
-                "pending" && (
+                "cancelled" && (
 
-                <div className="analysis-progress-box">
-
-                  <h4>
-                    분석 작업이 대기 중입니다.
-                  </h4>
-
-                  <p>
-                    분석 작업이 시작되면 분석 진행 상태로 변경됩니다.
-                  </p>
-
+                <div className="analysis-message-box">
+                  취소된 분석입니다. 이 분석에서는 새로운 취약점 결과가 생성되지 않습니다.
                 </div>
 
               )
             }
-
 
           </section>
 
@@ -2666,7 +3488,7 @@ function ProjectDetail({
                   {
                     projectHasActiveAnalysis
                       ? (
-                          "분석 대기 또는 진행 중인 작업이 있어 현재 프로젝트를 삭제할 수 없습니다."
+                          "분석 대기·준비 또는 진행 중인 작업이 있어 현재 프로젝트를 삭제할 수 없습니다."
                         )
                       : (
                           "프로젝트와 관련된 소스 버전, 분석 이력, 취약점 결과 및 사용자 접근 권한이 함께 삭제됩니다."
@@ -2864,8 +3686,44 @@ function ProjectDetail({
               >
 
 
-                <div className="current-file-info">
-                  ※ 분석 언어는 실제 소스코드에서 자동으로 감지됩니다.
+                <div className="source-form-group">
+
+                  <label>
+                    소스 언어
+                  </label>
+
+
+                  <select
+                    value={
+                      sourceLanguage
+                    }
+
+                    disabled={
+                      savingSource
+                    }
+
+                    onChange={
+                      (event) =>
+                        setSourceLanguage(
+                          event.target.value
+                        )
+                    }
+                  >
+
+                    <option value="Java">
+                      Java
+                    </option>
+
+                    <option value="JavaScript">
+                      JavaScript
+                    </option>
+
+                    <option value="Python">
+                      Python
+                    </option>
+
+                  </select>
+
                 </div>
 
 
@@ -3163,7 +4021,7 @@ function ProjectDetail({
                 <div>
 
                   <span>
-                    분석 언어
+                    소스 언어
                   </span>
 
                   <strong>
@@ -3491,25 +4349,6 @@ function ProjectDetail({
                     {
                       getConfidenceText(
                         selectedVulnerability.confidence
-                      )
-                    }
-
-                  </strong>
-
-                </div>
-
-
-                <div>
-
-                  <span>
-                    분석 언어
-                  </span>
-
-                  <strong>
-
-                    {
-                      getLanguageLabel(
-                        selectedVulnerability.analysisLanguage
                       )
                     }
 

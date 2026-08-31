@@ -172,8 +172,20 @@ STATIC_URL = "static/"
 # ========================================
 # Media files
 #
-# SourceVersion의 업로드 파일을
-# 저장하기 위해 사용
+# SourceVersion의 업로드 파일과
+# Analysis Workspace Snapshot을 저장하기 위해 사용.
+#
+# Docker 개발 환경에서는:
+#
+# backend:
+#   ./backend:/app
+#
+# celery:
+#   ./backend:/app
+#
+# 로 동일한 Host Directory를 공유하므로
+# /app/media/analysis_workspaces를
+# Backend와 Celery Worker가 함께 볼 수 있다.
 # ========================================
 
 MEDIA_URL = "/media/"
@@ -202,6 +214,45 @@ CELERY_RESULT_BACKEND = os.environ.get(
     "REDIS_URL",
     "redis://redis:6379/0"
 )
+
+
+# ----------------------------------------
+# Celery 시간 설정
+#
+# Django TIME_ZONE과 동일하게 UTC 사용.
+# 현재 Recovery는 interval schedule이므로
+# 시간대 차이의 직접적인 영향은 없지만,
+# Worker / Beat의 기준을 명시적으로 통일한다.
+# ----------------------------------------
+
+CELERY_ENABLE_UTC = True
+
+CELERY_TIMEZONE = "UTC"
+
+
+# ----------------------------------------
+# Celery Beat
+#
+# 30초마다 Recovery Cycle 실행.
+#
+# Recovery Cycle:
+# 1. 오래된 pending AnalysisRun 재전송
+# 2. lease가 만료된 running Attempt 복구
+# 3. publish 가능한 pending Outbox 재전송
+#
+# Recovery 작업은 DB 상태를 Source of Truth로
+# 사용하고 중복 실행을 견디도록 구현되어 있다.
+# ----------------------------------------
+
+CELERY_BEAT_SCHEDULE = {
+    "analysis-recovery-every-30-seconds": {
+        "task":
+            "scans.tasks.run_analysis_recovery",
+
+        "schedule":
+            30.0,
+    },
+}
 
 
 # ========================================

@@ -1,8 +1,11 @@
+import hashlib
 import json
 import os
+import shutil
 import stat
 import subprocess
 import tempfile
+import time
 import zipfile
 
 from contextlib import contextmanager
@@ -20,10 +23,51 @@ from django.utils import timezone
 
 from projects.models import SourceVersion
 
+from .constants import (
+    ANALYSIS_CHUNK_TASK_NAME,
+    CHUNK_HEARTBEAT_INTERVAL_SECONDS,
+    IGNORED_LANGUAGE_DIRECTORIES,
+    LANGUAGE_ALIASES,
+    LANGUAGE_DISPLAY_NAMES,
+    LANGUAGE_EXTENSIONS,
+    OUTBOX_DISPATCH_BATCH_SIZE,
+    SUPPORTED_LANGUAGE_ORDER,
+)
+
 from .models import (
+    AnalysisChunk,
+    AnalysisChunkAttempt,
+    AnalysisChunkFile,
     AnalysisRun,
     KisaSecurityWeakness,
     Vulnerability,
+)
+
+from .services.chunk_executor import (
+    claim_chunk,
+    heartbeat_attempt,
+)
+
+from .services.chunk_state_manager import (
+    complete_chunk_attempt,
+    fail_chunk_attempt,
+)
+
+from .services.chunk_planner import (
+    plan_analysis_chunks,
+)
+
+from .services.chunk_recovery import (
+    run_recovery_cycle,
+)
+
+from .services.outbox_dispatcher import (
+    dispatch_pending_outboxes,
+)
+
+from .services.source_snapshot import (
+    get_analysis_workspace_source_root,
+    materialize_analysis_workspace,
 )
 
 
@@ -102,76 +146,6 @@ SEMGREP_RULE_ROOT = (
     / "semgrep_rules"
     / "kisa"
 )
-
-
-# ========================================
-# 자동 감지 지원 언어
-#
-# 현재 요구 대상:
-# - Java
-# - JavaScript
-# - Python
-#
-# 실제 분석 가능 여부는
-# semgrep_rules/kisa/<language>/
-# Rule 디렉터리 존재 여부로 다시 확인한다.
-# ========================================
-
-SUPPORTED_LANGUAGE_ORDER = (
-    "java",
-    "javascript",
-    "python",
-)
-
-LANGUAGE_EXTENSIONS = {
-    ".java": "java",
-
-    ".js": "javascript",
-    ".jsx": "javascript",
-    ".mjs": "javascript",
-    ".cjs": "javascript",
-
-    ".py": "python",
-}
-
-LANGUAGE_ALIASES = {
-    "java": "java",
-
-    "javascript": "javascript",
-    "js": "javascript",
-
-    "python": "python",
-    "py": "python",
-}
-
-LANGUAGE_DISPLAY_NAMES = {
-    "java": "Java",
-    "javascript": "JavaScript",
-    "python": "Python",
-}
-
-IGNORED_LANGUAGE_DIRECTORIES = {
-    ".git",
-    ".idea",
-    ".vscode",
-
-    "__pycache__",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-
-    ".venv",
-    "venv",
-    "env",
-
-    "node_modules",
-
-    "build",
-    "dist",
-    "target",
-
-    "vendor",
-}
 
 
 # ========================================
@@ -2958,10 +2932,1918 @@ def save_vulnerabilities(
 
 
 # ========================================
-# AnalysisRun 비동기 실행
+# Chunk Worker Exception
 # ========================================
 
-@shared_task
+class ChunkOwnershipLostError(
+    RuntimeError
+):
+
+    pass
+
+
+class NonRetryableChunkError(
+    RuntimeError
+):
+
+    pass
+
+
+# ========================================
+# Chunk Relative Path 검증
+#
+# AnalysisChunkFile.relative_path는
+# DB 내부 값이지만 Worker 경계에서 다시 검증한다.
+# ========================================
+
+def normalize_chunk_relative_path(
+    relative_path
+):
+
+    value = str(
+        relative_path
+        or ""
+    )
+
+
+    if not value:
+
+        raise NonRetryableChunkError(
+            "Chunk File 상대 경로가 비어 있습니다."
+        )
+
+
+    if (
+        "\\" in value
+        or
+        "\x00" in value
+    ):
+
+        raise NonRetryableChunkError(
+            "Chunk File 경로에 허용되지 않는 문자가 "
+            "포함되어 있습니다."
+        )
+
+
+    posix_path = PurePosixPath(
+        value
+    )
+
+
+    if posix_path.is_absolute():
+
+        raise NonRetryableChunkError(
+            "Chunk File에 절대 경로를 사용할 수 없습니다."
+        )
+
+
+    normalized_parts = []
+
+
+    for part in posix_path.parts:
+
+        if part in (
+            "",
+            ".",
+        ):
+
+            continue
+
+
+        if part == "..":
+
+            raise NonRetryableChunkError(
+                "Chunk File 경로에 상위 경로 이동(..)이 "
+                "포함되어 있습니다."
+            )
+
+
+        normalized_parts.append(
+            part
+        )
+
+
+    if not normalized_parts:
+
+        raise NonRetryableChunkError(
+            "Chunk File 상대 경로가 올바르지 않습니다."
+        )
+
+
+    return PurePosixPath(
+        *normalized_parts
+    )
+
+
+# ========================================
+# Chunk File → 실행 Workspace 복사
+#
+# Persistent Workspace의 Source를
+# 실제 Semgrep 실행용 TemporaryDirectory로
+# 복사하면서 다음을 검증한다.
+#
+# - Path containment
+# - Symbolic Link
+# - File size
+# - SHA-256
+# ========================================
+
+def copy_verified_chunk_file(
+    chunk_file,
+    workspace_source_root,
+    execution_source_root,
+):
+
+    relative_path = (
+        normalize_chunk_relative_path(
+            chunk_file.relative_path
+        )
+    )
+
+
+    if (
+        chunk_file.file_class
+        ==
+        AnalysisChunkFile.FileClass.OVERSIZED
+    ):
+
+        raise NonRetryableChunkError(
+            "실행 가능한 Chunk에 Oversized File이 "
+            "포함되어 있습니다. "
+            f"file={relative_path}"
+        )
+
+
+    expected_hash = str(
+        chunk_file.content_sha256
+        or ""
+    ).lower()
+
+
+    if (
+        len(expected_hash)
+        !=
+        64
+    ):
+
+        raise NonRetryableChunkError(
+            "Chunk File SHA-256 Snapshot이 올바르지 않습니다. "
+            f"file={relative_path}"
+        )
+
+
+    source_path = (
+        workspace_source_root
+        /
+        Path(
+            *relative_path.parts
+        )
+    )
+
+
+    if source_path.is_symlink():
+
+        raise NonRetryableChunkError(
+            "Workspace Source에 Symbolic Link가 감지되었습니다. "
+            f"file={relative_path}"
+        )
+
+
+    try:
+
+        resolved_source_path = (
+            source_path.resolve(
+                strict=True
+            )
+        )
+
+    except (
+        OSError,
+        RuntimeError,
+    ) as error:
+
+        raise NonRetryableChunkError(
+            "Workspace Source File을 찾을 수 없습니다. "
+            f"file={relative_path}, "
+            f"error={error}"
+        )
+
+
+    try:
+
+        resolved_source_path.relative_to(
+            workspace_source_root
+        )
+
+    except ValueError:
+
+        raise NonRetryableChunkError(
+            "Workspace Source File이 허용 경로를 벗어났습니다. "
+            f"file={relative_path}"
+        )
+
+
+    if not resolved_source_path.is_file():
+
+        raise NonRetryableChunkError(
+            "Workspace Source가 일반 파일이 아닙니다. "
+            f"file={relative_path}"
+        )
+
+
+    try:
+
+        before_stat = (
+            resolved_source_path.stat()
+        )
+
+    except OSError as error:
+
+        raise NonRetryableChunkError(
+            "Workspace Source File 정보를 읽을 수 없습니다. "
+            f"file={relative_path}, "
+            f"error={error}"
+        )
+
+
+    if (
+        before_stat.st_size
+        !=
+        chunk_file.size_bytes
+    ):
+
+        raise NonRetryableChunkError(
+            "Workspace Source File 크기가 Snapshot과 "
+            "일치하지 않습니다. "
+            f"file={relative_path}"
+        )
+
+
+    destination_path = (
+        execution_source_root
+        /
+        Path(
+            *relative_path.parts
+        )
+    )
+
+
+    try:
+
+        destination_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+    except OSError as error:
+
+        raise RuntimeError(
+            "Chunk 실행 Directory를 생성할 수 없습니다. "
+            f"error={error}"
+        )
+
+
+    sha256 = hashlib.sha256()
+
+    copied_size = 0
+
+
+    try:
+
+        with (
+            resolved_source_path.open(
+                mode="rb"
+            )
+            as source_file,
+
+            destination_path.open(
+                mode="xb"
+            )
+            as destination_file
+        ):
+
+            while True:
+
+                data = (
+                    source_file.read(
+                        1024
+                        * 1024
+                    )
+                )
+
+
+                if not data:
+
+                    break
+
+
+                destination_file.write(
+                    data
+                )
+
+
+                sha256.update(
+                    data
+                )
+
+
+                copied_size += (
+                    len(
+                        data
+                    )
+                )
+
+
+        destination_path.chmod(
+            0o600
+        )
+
+    except OSError as error:
+
+        raise RuntimeError(
+            "Chunk 실행용 Source File을 복사할 수 없습니다. "
+            f"file={relative_path}, "
+            f"error={error}"
+        )
+
+
+    if (
+        copied_size
+        !=
+        chunk_file.size_bytes
+    ):
+
+        raise NonRetryableChunkError(
+            "Chunk 실행용 Source File 크기가 Snapshot과 "
+            "일치하지 않습니다. "
+            f"file={relative_path}"
+        )
+
+
+    actual_hash = (
+        sha256.hexdigest()
+    )
+
+
+    if (
+        actual_hash
+        !=
+        expected_hash
+    ):
+
+        raise NonRetryableChunkError(
+            "Workspace Source File SHA-256이 Snapshot과 "
+            "일치하지 않습니다. "
+            f"file={relative_path}"
+        )
+
+
+    try:
+
+        after_stat = (
+            resolved_source_path.stat()
+        )
+
+    except OSError as error:
+
+        raise NonRetryableChunkError(
+            "Chunk 복사 후 Workspace Source 정보를 "
+            "확인할 수 없습니다. "
+            f"file={relative_path}, "
+            f"error={error}"
+        )
+
+
+    if (
+        before_stat.st_size
+        !=
+        after_stat.st_size
+        or
+        before_stat.st_mtime_ns
+        !=
+        after_stat.st_mtime_ns
+    ):
+
+        raise NonRetryableChunkError(
+            "Chunk 실행 준비 중 Workspace Source File이 "
+            "변경되었습니다. "
+            f"file={relative_path}"
+        )
+
+
+    return destination_path
+
+
+# ========================================
+# Chunk 실행 대상 준비
+#
+# Persistent Workspace 전체를 분석하지 않고
+# 해당 Chunk에 할당된 File만 Fresh Temp에
+# 복사한다.
+# ========================================
+
+@contextmanager
+def prepare_chunk_execution_target(
+    chunk
+):
+
+    workspace_source_root = (
+        get_analysis_workspace_source_root(
+            chunk.analysis_run_id
+        )
+    )
+
+
+    try:
+
+        workspace_source_root = (
+            workspace_source_root.resolve(
+                strict=True
+            )
+        )
+
+    except (
+        OSError,
+        RuntimeError,
+    ) as error:
+
+        raise NonRetryableChunkError(
+            "Analysis Workspace Source를 찾을 수 없습니다. "
+            f"error={error}"
+        )
+
+
+    if not workspace_source_root.is_dir():
+
+        raise NonRetryableChunkError(
+            "Analysis Workspace Source가 올바른 "
+            "Directory가 아닙니다."
+        )
+
+
+    chunk_files = list(
+        chunk.files
+        .all()
+        .order_by(
+            "id"
+        )
+    )
+
+
+    if not chunk_files:
+
+        raise NonRetryableChunkError(
+            "Chunk에 분석할 Source File이 없습니다."
+        )
+
+
+    if (
+        len(chunk_files)
+        !=
+        chunk.file_count
+    ):
+
+        raise NonRetryableChunkError(
+            "Chunk File Count가 DB Snapshot과 "
+            "일치하지 않습니다."
+        )
+
+
+    actual_total_bytes = sum(
+        chunk_file.size_bytes
+        for chunk_file
+        in chunk_files
+    )
+
+
+    if (
+        actual_total_bytes
+        !=
+        chunk.total_bytes
+    ):
+
+        raise NonRetryableChunkError(
+            "Chunk Total Bytes가 DB Snapshot과 "
+            "일치하지 않습니다."
+        )
+
+
+    with tempfile.TemporaryDirectory(
+        prefix=(
+            f"sast_chunk_"
+            f"{chunk.id}_"
+        )
+    ) as temp_directory:
+
+        execution_source_root = (
+            Path(
+                temp_directory
+            )
+            /
+            "source"
+        )
+
+
+        execution_source_root.mkdir(
+            parents=True,
+            exist_ok=False,
+        )
+
+
+        for chunk_file in chunk_files:
+
+            copy_verified_chunk_file(
+                chunk_file,
+                workspace_source_root,
+                execution_source_root,
+            )
+
+
+        yield execution_source_root
+
+
+# ========================================
+# Semgrep Process 종료
+# ========================================
+
+def terminate_semgrep_process(
+    process
+):
+
+    if process.poll() is not None:
+
+        return
+
+
+    try:
+
+        process.terminate()
+
+
+        process.wait(
+            timeout=5
+        )
+
+    except subprocess.TimeoutExpired:
+
+        process.kill()
+
+
+        process.wait()
+
+    except OSError:
+
+        pass
+
+
+# ========================================
+# Heartbeat 포함 Semgrep 실행
+#
+# subprocess pipe 대신 TemporaryFile을 사용해
+# stdout/stderr 양이 많아도 pipe deadlock이
+# 발생하지 않도록 한다.
+# ========================================
+
+def execute_semgrep_with_heartbeat(
+    target_path,
+    rule_path,
+    attempt_id,
+    execution_token,
+):
+
+    command = [
+        "semgrep",
+        "scan",
+
+        "--config",
+        str(
+            rule_path
+        ),
+
+        "--metrics=off",
+        "--json",
+
+        str(
+            target_path
+        ),
+    ]
+
+
+    try:
+
+        with (
+            tempfile.TemporaryFile(
+                mode="w+t",
+                encoding="utf-8",
+            )
+            as stdout_file,
+
+            tempfile.TemporaryFile(
+                mode="w+t",
+                encoding="utf-8",
+            )
+            as stderr_file
+        ):
+
+            try:
+
+                process = subprocess.Popen(
+                    command,
+                    stdout=stdout_file,
+                    stderr=stderr_file,
+                    text=True,
+                )
+
+            except OSError as error:
+
+                raise RuntimeError(
+                    "Semgrep을 실행할 수 없습니다. "
+                    f"{error}"
+                )
+
+
+            started_monotonic = (
+                time.monotonic()
+            )
+
+
+            last_heartbeat_monotonic = (
+                started_monotonic
+            )
+
+
+            while True:
+
+                return_code = (
+                    process.poll()
+                )
+
+
+                if return_code is not None:
+
+                    break
+
+
+                current_monotonic = (
+                    time.monotonic()
+                )
+
+
+                if (
+                    current_monotonic
+                    -
+                    started_monotonic
+                    >
+                    SEMGREP_TIMEOUT
+                ):
+
+                    terminate_semgrep_process(
+                        process
+                    )
+
+
+                    raise RuntimeError(
+                        "Semgrep 분석 시간이 초과되었습니다."
+                    )
+
+
+                if (
+                    current_monotonic
+                    -
+                    last_heartbeat_monotonic
+                    >=
+                    CHUNK_HEARTBEAT_INTERVAL_SECONDS
+                ):
+
+                    heartbeat_result = (
+                        heartbeat_attempt(
+                            attempt_id,
+                            execution_token,
+                        )
+                    )
+
+
+                    if not heartbeat_result.get(
+                        "updated"
+                    ):
+
+                        terminate_semgrep_process(
+                            process
+                        )
+
+
+                        raise ChunkOwnershipLostError(
+                            "Chunk Attempt 실행권을 잃어 "
+                            "Semgrep 실행을 중단합니다. "
+                            f"reason="
+                            f"{heartbeat_result.get('reason')}"
+                        )
+
+
+                    last_heartbeat_monotonic = (
+                        current_monotonic
+                    )
+
+
+                time.sleep(
+                    1
+                )
+
+
+            stdout_file.seek(
+                0
+            )
+
+
+            stderr_file.seek(
+                0
+            )
+
+
+            stdout = (
+                stdout_file.read()
+                or ""
+            ).strip()
+
+
+            stderr = (
+                stderr_file.read()
+                or ""
+            ).strip()
+
+
+    except ChunkOwnershipLostError:
+
+        raise
+
+
+    if not stdout:
+
+        raise RuntimeError(
+            "Semgrep이 JSON 결과를 반환하지 않았습니다."
+            + (
+                "\n"
+                + truncate_log(
+                    stderr
+                )
+                if stderr
+                else ""
+            )
+        )
+
+
+    try:
+
+        raw_result = json.loads(
+            stdout
+        )
+
+    except json.JSONDecodeError:
+
+        raise RuntimeError(
+            "Semgrep 결과를 JSON으로 해석할 수 없습니다."
+            + (
+                "\n"
+                + truncate_log(
+                    stderr
+                )
+                if stderr
+                else ""
+            )
+        )
+
+
+    if return_code != 0:
+
+        error_message = (
+            stderr
+            or
+            raw_result.get(
+                "errors"
+            )
+            or
+            "알 수 없는 Semgrep 오류"
+        )
+
+
+        raise RuntimeError(
+            "Semgrep 분석에 실패했습니다.\n"
+            + truncate_log(
+                str(
+                    error_message
+                )
+            )
+        )
+
+
+    return {
+        "raw_result":
+            raw_result,
+
+        "logs":
+            truncate_log(
+                stderr
+            ),
+    }
+
+
+# ========================================
+# Vulnerability Fingerprint
+#
+# 같은 Attempt 내부에서 동일 Semgrep Result가
+# 중복 저장되는 것을 방지한다.
+# ========================================
+
+def build_vulnerability_fingerprint(
+    semgrep_result,
+    analysis_target
+):
+
+    rule_id = str(
+        semgrep_result.get(
+            "check_id"
+        )
+        or
+        "unknown-rule"
+    )
+
+
+    file_path = (
+        get_display_file_path(
+            semgrep_result,
+            analysis_target,
+        )
+    )
+
+
+    start = (
+        semgrep_result.get(
+            "start"
+        )
+        or {}
+    )
+
+
+    end = (
+        semgrep_result.get(
+            "end"
+        )
+        or {}
+    )
+
+
+    payload = {
+        "rule_id":
+            rule_id,
+
+        "file_path":
+            str(
+                file_path
+            ).replace(
+                "\\",
+                "/",
+            ),
+
+        "start_line":
+            start.get(
+                "line"
+            ),
+
+        "start_col":
+            start.get(
+                "col"
+            ),
+
+        "end_line":
+            end.get(
+                "line"
+            ),
+
+        "end_col":
+            end.get(
+                "col"
+            ),
+    }
+
+
+    serialized = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(
+            ",",
+            ":",
+        ),
+    )
+
+
+    return (
+        hashlib.sha256(
+            serialized.encode(
+                "utf-8"
+            )
+        )
+        .hexdigest()
+    )
+
+
+# ========================================
+# Attempt-scoped Vulnerability 생성
+# ========================================
+
+def build_attempt_vulnerability(
+    analysis_run,
+    analysis_attempt,
+    semgrep_result,
+    analysis_target,
+    analysis_language,
+):
+
+    vulnerability = (
+        build_vulnerability(
+            analysis_run,
+            semgrep_result,
+            analysis_target,
+            analysis_language,
+        )
+    )
+
+
+    vulnerability.analysis_attempt = (
+        analysis_attempt
+    )
+
+
+    vulnerability.fingerprint = (
+        build_vulnerability_fingerprint(
+            semgrep_result,
+            analysis_target,
+        )
+    )
+
+
+    return vulnerability
+
+
+# ========================================
+# Attempt-scoped Vulnerability 저장
+#
+# 기존 save_vulnerabilities()처럼
+# AnalysisRun 전체 결과를 삭제하지 않는다.
+#
+# 오직 현재 Attempt 결과만 저장한다.
+# ========================================
+
+def save_attempt_vulnerabilities(
+    analysis_run_id,
+    attempt_id,
+    execution_token,
+    raw_result,
+    analysis_target,
+    analysis_language,
+):
+
+    try:
+
+        analysis_run = (
+            AnalysisRun.objects
+            .get(
+                pk=
+                    analysis_run_id
+            )
+        )
+
+
+        analysis_attempt = (
+            AnalysisChunkAttempt.objects
+            .select_related(
+                "chunk"
+            )
+            .get(
+                pk=
+                    attempt_id
+            )
+        )
+
+    except (
+        AnalysisRun.DoesNotExist,
+        AnalysisChunkAttempt.DoesNotExist,
+    ):
+
+        raise ChunkOwnershipLostError(
+            "취약점 저장 전에 AnalysisRun 또는 "
+            "AnalysisChunkAttempt를 찾을 수 없습니다."
+        )
+
+
+    results = (
+        raw_result.get(
+            "results"
+        )
+        or []
+    )
+
+
+    vulnerability_objects = []
+
+
+    for semgrep_result in results:
+
+        vulnerability_objects.append(
+            build_attempt_vulnerability(
+                analysis_run,
+                analysis_attempt,
+                semgrep_result,
+                analysis_target,
+                analysis_language,
+            )
+        )
+
+
+    # ====================================
+    # 실제 DB Publish 전 실행권 재확인
+    # ====================================
+
+    with transaction.atomic():
+
+        locked_analysis_run = (
+            AnalysisRun.objects
+            .select_for_update()
+            .get(
+                pk=
+                    analysis_run_id
+            )
+        )
+
+
+        locked_chunk = (
+            AnalysisChunk.objects
+            .select_for_update()
+            .get(
+                pk=
+                    analysis_attempt.chunk_id
+            )
+        )
+
+
+        locked_attempt = (
+            AnalysisChunkAttempt.objects
+            .select_for_update()
+            .get(
+                pk=
+                    attempt_id
+            )
+        )
+
+
+        if (
+            locked_analysis_run.status
+            !=
+            AnalysisRun.Status.RUNNING
+        ):
+
+            raise ChunkOwnershipLostError(
+                "AnalysisRun이 더 이상 running 상태가 아닙니다."
+            )
+
+
+        if (
+            locked_chunk.status
+            !=
+            AnalysisChunk.Status.RUNNING
+        ):
+
+            raise ChunkOwnershipLostError(
+                "AnalysisChunk가 더 이상 running 상태가 아닙니다."
+            )
+
+
+        if (
+            locked_attempt.status
+            !=
+            AnalysisChunkAttempt.Status.RUNNING
+        ):
+
+            raise ChunkOwnershipLostError(
+                "AnalysisChunkAttempt가 더 이상 running 상태가 아닙니다."
+            )
+
+
+        if (
+            str(
+                locked_attempt.execution_token
+            )
+            !=
+            str(
+                execution_token
+                or ""
+            )
+        ):
+
+            raise ChunkOwnershipLostError(
+                "AnalysisChunkAttempt execution_token이 "
+                "일치하지 않습니다."
+            )
+
+
+        # --------------------------------
+        # 같은 Attempt 안의 이전 Partial 결과는
+        # 현재 결과로 원자적으로 교체한다.
+        # --------------------------------
+
+        locked_attempt.vulnerabilities.all().delete()
+
+
+        for vulnerability in vulnerability_objects:
+
+            vulnerability.analysis_run = (
+                locked_analysis_run
+            )
+
+
+            vulnerability.analysis_attempt = (
+                locked_attempt
+            )
+
+
+        if vulnerability_objects:
+
+            Vulnerability.objects.bulk_create(
+                vulnerability_objects
+            )
+
+
+    return len(
+        vulnerability_objects
+    )
+
+
+# ========================================
+# AnalysisChunk Celery Worker
+#
+# IMPORTANT:
+#
+# Celery 자체 Retry를 사용하지 않는다.
+#
+# Retry의 Source of Truth는 PostgreSQL의
+# Chunk / Attempt / Outbox이다.
+# ========================================
+
+@shared_task(
+    bind=True,
+    name=ANALYSIS_CHUNK_TASK_NAME,
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def run_analysis_chunk(
+    self,
+    chunk_id
+):
+
+    celery_task_id = str(
+        getattr(
+            self.request,
+            "id",
+            "",
+        )
+        or ""
+    )
+
+
+    claim_result = (
+        claim_chunk(
+            chunk_id,
+            celery_task_id=
+                celery_task_id,
+        )
+    )
+
+
+    if not claim_result.get(
+        "claimed"
+    ):
+
+        return {
+            "success":
+                False,
+
+            "claimed":
+                False,
+
+            "chunk_id":
+                chunk_id,
+
+            "reason":
+                claim_result.get(
+                    "reason"
+                ),
+        }
+
+
+    analysis_run_id = (
+        claim_result[
+            "analysis_run_id"
+        ]
+    )
+
+
+    attempt_id = (
+        claim_result[
+            "attempt_id"
+        ]
+    )
+
+
+    execution_token = (
+        claim_result[
+            "execution_token"
+        ]
+    )
+
+
+    try:
+
+        chunk = (
+            AnalysisChunk.objects
+            .select_related(
+                "analysis_run"
+            )
+            .prefetch_related(
+                "files"
+            )
+            .get(
+                pk=
+                    chunk_id
+            )
+        )
+
+
+        # =================================
+        # KISA Rule
+        #
+        # Rule Directory가 없는 것은
+        # 재시도로 해결되지 않는 설정 오류.
+        # =================================
+
+        try:
+
+            rule_path = (
+                get_semgrep_rule_path(
+                    chunk.language
+                )
+            )
+
+        except RuntimeError as error:
+
+            raise NonRetryableChunkError(
+                str(
+                    error
+                )
+            )
+
+
+        # =================================
+        # Chunk Source 준비
+        # =================================
+
+        with prepare_chunk_execution_target(
+            chunk
+        ) as analysis_target:
+
+            # =============================
+            # Semgrep
+            # =============================
+
+            semgrep_result = (
+                execute_semgrep_with_heartbeat(
+                    analysis_target,
+                    rule_path,
+                    attempt_id,
+                    execution_token,
+                )
+            )
+
+
+            raw_result = (
+                semgrep_result[
+                    "raw_result"
+                ]
+            )
+
+
+            logs = (
+                semgrep_result.get(
+                    "logs"
+                )
+                or ""
+            )
+
+
+            # =============================
+            # Semgrep 종료 직후
+            # 실행권 재확인 + Lease 연장
+            # =============================
+
+            heartbeat_result = (
+                heartbeat_attempt(
+                    attempt_id,
+                    execution_token,
+                )
+            )
+
+
+            if not heartbeat_result.get(
+                "updated"
+            ):
+
+                raise ChunkOwnershipLostError(
+                    "Semgrep 종료 후 Chunk 실행권을 "
+                    "확인할 수 없습니다. "
+                    f"reason="
+                    f"{heartbeat_result.get('reason')}"
+                )
+
+
+            # =============================
+            # Attempt-scoped 결과 저장
+            # =============================
+
+            try:
+
+                vulnerability_count = (
+                    save_attempt_vulnerabilities(
+                        analysis_run_id,
+                        attempt_id,
+                        execution_token,
+                        raw_result,
+                        analysis_target,
+                        chunk.language,
+                    )
+                )
+
+            except ChunkOwnershipLostError:
+
+                raise
+
+            except RuntimeError as error:
+
+                # KISA Master / Rule Metadata 문제 등은
+                # 같은 Source를 재시도해도 해결되지 않는다.
+                raise NonRetryableChunkError(
+                    str(
+                        error
+                    )
+                )
+
+
+        # =================================
+        # Chunk 완료 확정
+        # =================================
+
+        complete_result = (
+            complete_chunk_attempt(
+                attempt_id,
+                execution_token,
+                result_count=
+                    vulnerability_count,
+                raw_result=
+                    raw_result,
+                logs=
+                    logs,
+            )
+        )
+
+
+        if not complete_result.get(
+            "completed"
+        ):
+
+            return {
+                "success":
+                    False,
+
+                "claimed":
+                    True,
+
+                "chunk_id":
+                    chunk_id,
+
+                "attempt_id":
+                    attempt_id,
+
+                "reason":
+                    complete_result.get(
+                        "reason"
+                    ),
+            }
+
+
+        return {
+            "success":
+                True,
+
+            "claimed":
+                True,
+
+            "analysis_run_id":
+                analysis_run_id,
+
+            "chunk_id":
+                chunk_id,
+
+            "attempt_id":
+                attempt_id,
+
+            "attempt_no":
+                claim_result.get(
+                    "attempt_no"
+                ),
+
+            "status":
+                AnalysisChunk.Status.COMPLETED,
+
+            "result_count":
+                vulnerability_count,
+        }
+
+
+    except ChunkOwnershipLostError as error:
+
+        # --------------------------------
+        # stale Worker는 DB 상태를
+        # 더 이상 변경하면 안 된다.
+        # --------------------------------
+
+        return {
+            "success":
+                False,
+
+            "claimed":
+                True,
+
+            "analysis_run_id":
+                analysis_run_id,
+
+            "chunk_id":
+                chunk_id,
+
+            "attempt_id":
+                attempt_id,
+
+            "reason":
+                "ownership_lost",
+
+            "message":
+                truncate_log(
+                    str(
+                        error
+                    )
+                ),
+        }
+
+
+    except NonRetryableChunkError as error:
+
+        failure_result = (
+            fail_chunk_attempt(
+                attempt_id,
+                execution_token,
+                failure_reason=
+                    str(
+                        error
+                    ),
+                logs=
+                    str(
+                        error
+                    ),
+                retryable=
+                    False,
+            )
+        )
+
+
+        return {
+            "success":
+                False,
+
+            "claimed":
+                True,
+
+            "analysis_run_id":
+                analysis_run_id,
+
+            "chunk_id":
+                chunk_id,
+
+            "attempt_id":
+                attempt_id,
+
+            "reason":
+                failure_result.get(
+                    "reason"
+                ),
+
+            "retryable":
+                False,
+
+            "message":
+                truncate_log(
+                    str(
+                        error
+                    )
+                ),
+        }
+
+
+    except Exception as error:
+
+        failure_result = (
+            fail_chunk_attempt(
+                attempt_id,
+                execution_token,
+                failure_reason=
+                    str(
+                        error
+                    ),
+                logs=
+                    str(
+                        error
+                    ),
+                retryable=
+                    True,
+            )
+        )
+
+
+        return {
+            "success":
+                False,
+
+            "claimed":
+                True,
+
+            "analysis_run_id":
+                analysis_run_id,
+
+            "chunk_id":
+                chunk_id,
+
+            "attempt_id":
+                attempt_id,
+
+            "reason":
+                failure_result.get(
+                    "reason"
+                ),
+
+            "retryable":
+                True,
+
+            "message":
+                truncate_log(
+                    str(
+                        error
+                    )
+                ),
+        }
+
+
+# ========================================
+# 즉시 처리 가능한 Outbox 전체 Dispatch
+#
+# Planner는 하나의 AnalysisRun에서
+# 50개를 넘는 Chunk를 만들 수 있다.
+#
+# Dispatcher의 한 번 처리량은 제한되어 있으므로
+# 현재 available_at <= now 인 Outbox가 없어질 때까지
+# 여러 Batch를 반복한다.
+#
+# Redis publish 실패 Outbox는 available_at이
+# 미래로 이동하므로 같은 Loop에서 즉시 재시도되지 않는다.
+# ========================================
+
+def dispatch_available_outboxes(
+    max_batches=200,
+):
+
+    totals = {
+        "batch_count": 0,
+        "claimed_count": 0,
+        "published_count": 0,
+        "failed_count": 0,
+        "cancelled_count": 0,
+        "deferred_count": 0,
+        "state_changed_count": 0,
+    }
+
+
+    for _ in range(
+        max_batches
+    ):
+
+        result = (
+            dispatch_pending_outboxes(
+                batch_size=
+                    OUTBOX_DISPATCH_BATCH_SIZE
+            )
+        )
+
+
+        totals[
+            "batch_count"
+        ] += 1
+
+
+        for key in (
+            "claimed_count",
+            "published_count",
+            "failed_count",
+            "cancelled_count",
+            "deferred_count",
+            "state_changed_count",
+        ):
+
+            totals[key] += int(
+                result.get(
+                    key,
+                    0,
+                )
+                or 0
+            )
+
+
+        processed_count = (
+            int(
+                result.get(
+                    "claimed_count",
+                    0,
+                )
+                or 0
+            )
+            +
+            int(
+                result.get(
+                    "cancelled_count",
+                    0,
+                )
+                or 0
+            )
+            +
+            int(
+                result.get(
+                    "deferred_count",
+                    0,
+                )
+                or 0
+            )
+        )
+
+
+        if processed_count == 0:
+
+            break
+
+
+    return totals
+
+
+# ========================================
+# Outbox Dispatcher Celery Task
+#
+# 현재 run_analysis()도 Planning 직후
+# Dispatcher를 직접 호출한다.
+#
+# 이 Task는 이후 Celery Beat / Recovery Scanner에서
+# 주기적으로 호출할 수 있도록 미리 등록한다.
+# ========================================
+
+@shared_task(
+    name="scans.tasks.dispatch_analysis_outboxes"
+)
+def dispatch_analysis_outboxes():
+
+    return (
+        dispatch_available_outboxes()
+    )
+
+
+# ========================================
+# Analysis Recovery Celery Task
+#
+# PostgreSQL을 Source of Truth로 사용해:
+#
+# - 오래된 pending AnalysisRun
+# - Lease가 만료된 running Attempt
+# - publish 가능한 pending Outbox
+#
+# 를 한 번의 Recovery Cycle에서 복구한다.
+#
+# Task는 at-least-once 실행되어도 안전하도록
+# Recovery Service 자체가 idempotent하게 설계되어 있다.
+# ========================================
+
+@shared_task(
+    name="scans.tasks.run_analysis_recovery",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def run_analysis_recovery():
+
+    return (
+        run_recovery_cycle()
+    )
+
+
+# ========================================
+# Snapshot 언어 목록
+#
+# ScannedSourceFile 목록에서
+# 지원 언어 순서대로 고정한다.
+# ========================================
+
+def get_snapshot_languages(
+    snapshot_files,
+):
+
+    detected = {
+        item.language
+        for item
+        in snapshot_files
+    }
+
+
+    return [
+        language
+        for language
+        in SUPPORTED_LANGUAGE_ORDER
+        if language in detected
+    ]
+
+
+# ========================================
+# AnalysisRun Pipeline 시작 실패 기록
+#
+# Snapshot / Planning 이전 장애는
+# AnalysisRun 자체를 failed 처리한다.
+#
+# 이미 Chunk가 생성되고 Run이 running이라면
+# Outbox가 PostgreSQL에 남아 있으므로
+# Run을 강제로 failed로 덮어쓰지 않는다.
+# ========================================
+
+def record_analysis_start_failure(
+    analysis_run_id,
+    error,
+):
+
+    error_message = (
+        truncate_log(
+            str(
+                error
+            )
+        )
+    )
+
+
+    try:
+
+        with transaction.atomic():
+
+            analysis_run = (
+                AnalysisRun.objects
+                .select_for_update()
+                .get(
+                    pk=
+                        analysis_run_id
+                )
+            )
+
+
+            has_chunks = (
+                analysis_run
+                .analysis_chunks
+                .exists()
+            )
+
+
+            # --------------------------------
+            # Planning 이전 / 중간 실패
+            # --------------------------------
+
+            if (
+                analysis_run.status
+                in (
+                    AnalysisRun.Status.PENDING,
+                    AnalysisRun.Status.PLANNING,
+                )
+                or
+                not has_chunks
+            ):
+
+                analysis_run.status = (
+                    AnalysisRun
+                    .Status
+                    .FAILED
+                )
+
+                analysis_run.completed_at = (
+                    timezone.now()
+                )
+
+                analysis_run.failure_reason = (
+                    error_message
+                )
+
+
+            # --------------------------------
+            # 이미 Chunk / Outbox Pipeline이
+            # 만들어졌다면 Run 상태는 유지.
+            #
+            # Recovery Dispatcher가 DB를 기준으로
+            # 이어서 처리할 수 있어야 한다.
+            # --------------------------------
+
+            existing_logs = (
+                analysis_run.logs
+                or ""
+            )
+
+
+            if existing_logs:
+
+                analysis_run.logs = (
+                    truncate_log(
+                        existing_logs
+                        + "\n\n"
+                        + error_message
+                    )
+                )
+
+            else:
+
+                analysis_run.logs = (
+                    error_message
+                )
+
+
+            update_fields = [
+                "logs",
+                "updated_at",
+            ]
+
+
+            if (
+                analysis_run.status
+                ==
+                AnalysisRun.Status.FAILED
+            ):
+
+                update_fields.extend([
+                    "status",
+                    "completed_at",
+                    "failure_reason",
+                ])
+
+
+            analysis_run.save(
+                update_fields=
+                    update_fields
+            )
+
+
+    except AnalysisRun.DoesNotExist:
+
+        pass
+
+
+# ========================================
+# AnalysisRun 비동기 시작 Task
+#
+# OLD:
+#
+# prepare source
+# → detect language
+# → Semgrep 전체 실행
+# → Vulnerability 저장
+# → Run completed
+#
+# NEW:
+#
+# PENDING
+# → PLANNING claim
+# → prepare_analysis_target()
+# → Persistent Workspace Snapshot
+# → Chunk Planner
+# → AnalysisChunk / File / Outbox
+# → Outbox Dispatcher
+# → run_analysis_chunk(chunk_id)
+#
+# 실제 Semgrep은 이 Task에서 실행하지 않는다.
+# ========================================
+
+@shared_task(
+    name="scans.tasks.run_analysis"
+)
 def run_analysis(
     analysis_run_id
 ):
@@ -2969,7 +4851,11 @@ def run_analysis(
     try:
 
         # =================================
-        # pending → running
+        # Bootstrap Claim
+        #
+        # duplicate run_analysis 메시지가 와도
+        # PENDING → PLANNING 전환에 성공한
+        # 하나의 Worker만 Source 준비를 수행한다.
         # =================================
 
         with transaction.atomic():
@@ -2999,6 +4885,12 @@ def run_analysis(
                     "success":
                         False,
 
+                    "claimed":
+                        False,
+
+                    "reason":
+                        "analysis_run_not_pending",
+
                     "message":
                         "실행 가능한 pending 상태가 아닙니다.",
 
@@ -3011,7 +4903,7 @@ def run_analysis(
 
 
             analysis_run.status = (
-                AnalysisRun.Status.RUNNING
+                AnalysisRun.Status.PLANNING
             )
 
             analysis_run.started_at = (
@@ -3046,22 +4938,23 @@ def run_analysis(
             )
 
 
-        # =================================
-        # SourceVersion
-        # =================================
-
-        source_version = (
-            analysis_run
-            .source_version
-        )
+            source_version = (
+                analysis_run
+                .source_version
+            )
 
 
         # =================================
-        # 실제 분석 대상 준비
+        # Source 준비
         #
-        # Upload / Repository / Internal
-        # 모두 최종 target_path를 만든 뒤
-        # 동일한 언어 감지 흐름을 사용한다.
+        # Upload:
+        # 안전한 TemporaryDirectory 압축 해제
+        #
+        # Repository:
+        # TemporaryDirectory clone
+        #
+        # Internal:
+        # 허용된 Internal Root
         # =================================
 
         with prepare_analysis_target(
@@ -3069,132 +4962,162 @@ def run_analysis(
         ) as target_path:
 
             # =============================
-            # 언어 자동 감지
-            # =============================
-
-            detected_languages = (
-                detect_languages(
-                    target_path
-                )
-            )
-
-
-            # =============================
-            # 감지 결과 Snapshot 저장
+            # Persistent Workspace Snapshot
             #
-            # SourceVersion
-            # → detected_languages
-            #
-            # AnalysisRun
-            # → analysis_languages
-            #
-            # 기존 단일 language 필드도
-            # 전환 기간 동안 자동 갱신
+            # TemporaryDirectory가 사라지기 전에
+            # 정확한 분석 입력을 영속화한다.
             # =============================
 
-            save_detected_languages(
-                source_version,
-                analysis_run_id,
-                detected_languages,
-            )
-
-
-            if not detected_languages:
-
-                raise RuntimeError(
-                    "지원하는 분석 대상 언어를 "
-                    "찾을 수 없습니다. "
-                    "현재 자동 감지 대상은 "
-                    "Java, JavaScript, Python입니다."
-                )
-
-
-            # =============================
-            # 언어별 KISA Semgrep 실행
-            # =============================
-
-            semgrep_result = (
-                execute_semgrep_for_languages(
+            snapshot_files = (
+                materialize_analysis_workspace(
+                    analysis_run_id,
                     target_path,
-                    detected_languages,
                 )
             )
 
 
-            raw_result = (
-                semgrep_result[
-                    "raw_result"
-                ]
+        # =================================
+        # 여기서는 Upload / Repository의
+        # 원본 TemporaryDirectory가 이미 삭제되어도
+        # Persistent Workspace가 남아 있다.
+        # =================================
+
+        detected_languages = (
+            get_snapshot_languages(
+                snapshot_files
+            )
+        )
+
+
+        if not detected_languages:
+
+            raise RuntimeError(
+                "지원하는 분석 대상 언어를 "
+                "찾을 수 없습니다. "
+                "현재 자동 감지 대상은 "
+                "Java, JavaScript, Python입니다."
             )
 
-            logs = (
-                semgrep_result[
-                    "logs"
-                ]
+
+        # =================================
+        # SourceVersion 감지 언어 Snapshot
+        #
+        # 기존 UI / API 호환을 위해
+        # 기존 함수를 재사용한다.
+        #
+        # AnalysisRun의 언어 필드는 뒤의 Planner가
+        # 최종 Chunk 기준으로 다시 확정한다.
+        # =================================
+
+        save_detected_languages(
+            source_version,
+            analysis_run_id,
+            detected_languages,
+        )
+
+
+        # =================================
+        # Chunk Planning
+        #
+        # Snapshot Metadata를 직접 전달한다.
+        # 원본 Temporary Source를 다시 읽지 않는다.
+        #
+        # 같은 DB Transaction 안에서:
+        #
+        # AnalysisChunk
+        # AnalysisChunkFile
+        # AnalysisDispatchOutbox
+        #
+        # 생성.
+        # =================================
+
+        planning_result = (
+            plan_analysis_chunks(
+                analysis_run_id,
+                scanned_files=
+                    snapshot_files,
+            )
+        )
+
+
+        # =================================
+        # Planner가 모든 파일을 Oversized로
+        # 판단한 경우 Run을 failed로 끝낼 수 있다.
+        # =================================
+
+        if (
+            planning_result.get(
+                "queued_chunk_count",
+                0,
+            )
+            <= 0
+        ):
+
+            analysis_run = (
+                AnalysisRun.objects
+                .get(
+                    pk=
+                        analysis_run_id
+                )
             )
 
 
-            # =============================
-            # 결과 DB 저장
-            # =============================
+            return {
+                "success":
+                    False,
 
-            with transaction.atomic():
+                "claimed":
+                    True,
 
-                analysis_run = (
-                    AnalysisRun.objects
-                    .select_for_update()
-                    .get(
-                        pk=
-                            analysis_run_id
-                    )
-                )
+                "reason":
+                    "no_dispatchable_chunks",
 
+                "analysis_run_id":
+                    analysis_run.id,
 
-                analysis_run.raw_result = (
-                    raw_result
-                )
+                "status":
+                    analysis_run.status,
 
-                analysis_run.logs = (
-                    logs
-                )
+                "analysis_languages":
+                    list(
+                        analysis_run
+                        .analysis_languages
+                    ),
 
-
-                vulnerability_count = (
-                    save_vulnerabilities(
-                        analysis_run,
-                        raw_result,
-                        target_path
-                    )
-                )
+                "planning":
+                    planning_result,
+            }
 
 
-                analysis_run.status = (
-                    AnalysisRun
-                    .Status
-                    .COMPLETED
-                )
+        # =================================
+        # Outbox → Redis / Celery
+        #
+        # 네트워크 실패는 Dispatcher가 Outbox를
+        # pending으로 유지하고 Backoff를 기록한다.
+        #
+        # 여기서는 즉시 publish 가능한 Outbox를
+        # 여러 Batch로 처리한다.
+        # =================================
 
-                analysis_run.completed_at = (
-                    timezone.now()
-                )
-
-                analysis_run.failure_reason = ""
+        dispatch_result = (
+            dispatch_available_outboxes()
+        )
 
 
-                analysis_run.save(
-                    update_fields=[
-                        "status",
-                        "completed_at",
-                        "failure_reason",
-                        "logs",
-                        "raw_result",
-                        "updated_at",
-                    ]
-                )
+        analysis_run = (
+            AnalysisRun.objects
+            .get(
+                pk=
+                    analysis_run_id
+            )
+        )
 
 
         return {
             "success":
+                True,
+
+            "claimed":
                 True,
 
             "analysis_run_id":
@@ -3209,8 +5132,11 @@ def run_analysis(
                     .analysis_languages
                 ),
 
-            "result_count":
-                vulnerability_count,
+            "planning":
+                planning_result,
+
+            "dispatch":
+                dispatch_result,
         }
 
 
@@ -3220,6 +5146,12 @@ def run_analysis(
             "success":
                 False,
 
+            "claimed":
+                False,
+
+            "reason":
+                "analysis_run_not_found",
+
             "message":
                 "AnalysisRun을 찾을 수 없습니다.",
         }
@@ -3227,83 +5159,9 @@ def run_analysis(
 
     except Exception as error:
 
-        try:
-
-            with transaction.atomic():
-
-                analysis_run = (
-                    AnalysisRun.objects
-                    .select_for_update()
-                    .get(
-                        pk=
-                            analysis_run_id
-                    )
-                )
-
-
-                analysis_run.status = (
-                    AnalysisRun
-                    .Status
-                    .FAILED
-                )
-
-                analysis_run.completed_at = (
-                    timezone.now()
-                )
-
-                analysis_run.failure_reason = (
-                    truncate_log(
-                        str(
-                            error
-                        )
-                    )
-                )
-
-
-                existing_logs = (
-                    analysis_run.logs
-                    or ""
-                )
-
-
-                if existing_logs:
-
-                    analysis_run.logs = (
-                        truncate_log(
-                            existing_logs
-                            + "\n\n"
-                            + str(
-                                error
-                            )
-                        )
-                    )
-
-                else:
-
-                    analysis_run.logs = (
-                        truncate_log(
-                            str(
-                                error
-                            )
-                        )
-                    )
-
-
-                analysis_run.save(
-                    update_fields=[
-                        "status",
-                        "completed_at",
-                        "failure_reason",
-                        "logs",
-                        "updated_at",
-                    ]
-                )
-
-
-        except AnalysisRun.DoesNotExist:
-
-            pass
-
+        record_analysis_start_failure(
+            analysis_run_id,
+            error,
+        )
 
         raise
-
