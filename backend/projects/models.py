@@ -69,12 +69,14 @@ class Project(models.Model):
 
 
     class Meta:
+
         ordering = [
             "-created_at"
         ]
 
 
     def __str__(self):
+
         return self.name
 
 
@@ -130,16 +132,52 @@ class SourceVersion(models.Model):
 
 
     # ====================================
-    # Language
+    # 기존 단일 Language
     #
-    # Java / JavaScript / Python 등
+    # [전환용 필드]
     #
-    # choices로 막지 않는 이유:
-    # 앞으로 언어 추가 가능
+    # 기존 데이터 / 기존 코드 호환을 위해
+    # 일단 유지한다.
+    #
+    # 앞으로 신규 SourceVersion의 언어는
+    # 관리자가 직접 입력하지 않고
+    # Backend가 실제 소스에서 자동 감지한다.
+    #
+    # 다중 언어 구조가 안정화된 후
+    # 이 필드는 제거한다.
     # ====================================
 
     language = models.CharField(
-        max_length=50
+        max_length=50,
+
+        blank=True,
+        default=""
+    )
+
+
+    # ====================================
+    # 자동 감지 언어
+    #
+    # 예:
+    #
+    # [
+    #     "java",
+    #     "javascript",
+    #     "python",
+    # ]
+    #
+    # 관리자가 직접 입력하는 값이 아니라
+    # 실제 분석 대상 소스에서
+    # Backend가 자동으로 감지하여 저장한다.
+    #
+    # JSONField를 사용하는 이유:
+    # - 한 SourceVersion에 여러 언어 가능
+    # - 향후 언어 확장 용이
+    # ====================================
+
+    detected_languages = models.JSONField(
+        default=list,
+        blank=True
     )
 
 
@@ -240,6 +278,42 @@ class SourceVersion(models.Model):
     def clean(self):
 
         super().clean()
+
+
+        # --------------------------------
+        # detected_languages 형식 검사
+        #
+        # 실제 값은 Backend에서 생성하지만
+        # 잘못된 데이터가 DB에 들어가는 것을
+        # 방지하기 위한 기본 검증
+        # --------------------------------
+
+        if not isinstance(
+            self.detected_languages,
+            list
+        ):
+
+            raise ValidationError({
+                "detected_languages":
+                    "감지된 언어 정보는 목록 형식이어야 합니다."
+            })
+
+
+        for language in self.detected_languages:
+
+            if (
+                not isinstance(
+                    language,
+                    str
+                )
+                or
+                not language.strip()
+            ):
+
+                raise ValidationError({
+                    "detected_languages":
+                        "감지된 언어는 비어 있지 않은 문자열이어야 합니다."
+                })
 
 
         # --------------------------------

@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
 } from "react";
 
@@ -7,9 +8,11 @@ import {
 } from "../../../auth/useAuth";
 
 import {
+  createAnalysisRun,
   createProject,
   createSourceVersion,
   deleteProject,
+  getProjectAnalysisRuns,
   grantProjectAccess,
   revokeProjectAccess,
   updateProject,
@@ -32,7 +35,6 @@ function ProjectManagement({
   projectsError,
 }) {
   const {
-    user,
     accessToken,
     setAccessToken,
   } = useAuth();
@@ -82,24 +84,126 @@ function ProjectManagement({
 
 
   /* ========================================
-     현재 로그인 사용자
-
-     AnalysisRun은 아직
-     Frontend Mock 단계이므로 유지
+     선택 프로젝트 분석 진행 여부
   ======================================== */
 
-  const currentUser =
-    users.find(
-      (targetUser) =>
-        targetUser.id ===
-        user?.id
-    ) ||
-    users.find(
-      (targetUser) =>
-        targetUser.username ===
-        user?.username
-    ) ||
-    null;
+  const selectedProjectHasActiveAnalysis =
+    (
+      selectedProject?.analysisHistory ||
+      []
+    ).some(
+      (analysis) =>
+        analysis.status ===
+          "pending" ||
+        analysis.status ===
+          "running"
+    );
+
+
+  /* ========================================
+     AnalysisRun 조회 / Polling
+
+     상세 화면 진입 시 즉시 조회
+     pending / running 존재 시 2초마다 갱신
+  ======================================== */
+
+  useEffect(() => {
+
+    if (
+      viewMode !== "detail" ||
+      !selectedProjectId
+    ) {
+      return undefined;
+    }
+
+
+    let cancelled = false;
+    let intervalId = null;
+
+
+    const refreshAnalysisHistory =
+      async () => {
+
+        try {
+
+          const analysisHistory =
+            await getProjectAnalysisRuns(
+              selectedProjectId,
+              accessToken,
+              setAccessToken
+            );
+
+
+          if (cancelled) {
+            return;
+          }
+
+
+          setProjects(
+            (prevProjects) =>
+              prevProjects.map(
+                (project) =>
+                  project.id ===
+                    selectedProjectId
+                    ? {
+                        ...project,
+                        analysisHistory,
+                      }
+                    : project
+              )
+          );
+
+        } catch (error) {
+
+          if (cancelled) {
+            return;
+          }
+
+
+          console.error(
+            "분석 이력 조회 실패:",
+            error
+          );
+        }
+      };
+
+
+    refreshAnalysisHistory();
+
+
+    if (
+      selectedProjectHasActiveAnalysis
+    ) {
+
+      intervalId =
+        window.setInterval(
+          refreshAnalysisHistory,
+          2000
+        );
+    }
+
+
+    return () => {
+
+      cancelled = true;
+
+
+      if (intervalId !== null) {
+
+        window.clearInterval(
+          intervalId
+        );
+      }
+    };
+
+  }, [
+    viewMode,
+    selectedProjectId,
+    selectedProjectHasActiveAnalysis,
+    accessToken,
+    setAccessToken,
+    setProjects,
+  ]);
 
 
   /* ========================================
@@ -140,66 +244,6 @@ function ProjectManagement({
       "-"
     );
   };
-
-
-  /* ========================================
-     날짜
-
-     아직 Mock 상태인
-     SourceVersion / AnalysisRun에서 사용
-  ======================================== */
-
-  const getCurrentDateTime =
-    () => {
-
-      const now =
-        new Date();
-
-
-      const year =
-        now.getFullYear();
-
-
-      const month =
-        String(
-          now.getMonth() + 1
-        ).padStart(
-          2,
-          "0"
-        );
-
-
-      const day =
-        String(
-          now.getDate()
-        ).padStart(
-          2,
-          "0"
-        );
-
-
-      const hour =
-        String(
-          now.getHours()
-        ).padStart(
-          2,
-          "0"
-        );
-
-
-      const minute =
-        String(
-          now.getMinutes()
-        ).padStart(
-          2,
-          "0"
-        );
-
-
-      return (
-        `${year}-${month}-${day} ${hour}:${minute}`
-      );
-    };
 
 
   /* ========================================
@@ -341,11 +385,10 @@ function ProjectManagement({
 
 
         /*
-         * SourceVersion / AnalysisRun API는
-         * 아직 연결 전이다.
-         *
-         * 따라서 현재 React에서 임시로 가지고
-         * 있는 세부 데이터를 보존한다.
+         * 프로젝트 기본정보 수정 응답으로 인해
+         * 현재 화면의 SourceVersion / AnalysisRun /
+         * ProjectAccess 상태가 사라지지 않도록
+         * 기존 세부 데이터를 보존한다.
          */
 
         const mergedProject = {
@@ -569,135 +612,94 @@ function ProjectManagement({
   /* ========================================
      AnalysisRun 생성
 
-     아직 Backend 연결 전
+     POST
+     /api/projects/{id}/analyses/
   ======================================== */
 
-  const handleRunAnalysis = (
-    projectId,
-    sourceVersionId
-  ) => {
+  const handleRunAnalysis =
+    async (
+      projectId,
+      sourceVersionId
+    ) => {
 
-    setProjects(
-      (prevProjects) =>
-        prevProjects.map(
-          (project) => {
+      try {
 
-            if (
-              project.id !==
-              projectId
-            ) {
-              return project;
-            }
-
-
-            const sourceVersion =
-              (
-                project.sourceVersions ||
-                []
-              ).find(
-                (source) =>
-                  source.id ===
-                  sourceVersionId
-              );
+        const newAnalysisRun =
+          await createAnalysisRun(
+            projectId,
+            sourceVersionId,
+            accessToken,
+            setAccessToken
+          );
 
 
-            if (
-              !sourceVersion
-            ) {
-              return project;
-            }
+        setProjects(
+          (prevProjects) =>
+            prevProjects.map(
+              (project) => {
+
+                if (
+                  project.id !==
+                  projectId
+                ) {
+                  return project;
+                }
 
 
-            const analysisHistory =
-              project.analysisHistory ||
-              [];
+                const analysisHistory =
+                  project.analysisHistory ||
+                  [];
 
 
-            const hasActiveAnalysis =
-              analysisHistory.some(
-                (analysis) =>
-                  analysis.sourceVersionId ===
-                    sourceVersionId &&
-                  (
-                    analysis.status ===
-                      "pending" ||
-                    analysis.status ===
-                      "running"
-                  )
-              );
+                const exists =
+                  analysisHistory.some(
+                    (analysis) =>
+                      analysis.id ===
+                      newAnalysisRun.id
+                  );
 
 
-            if (
-              hasActiveAnalysis
-            ) {
-              return project;
-            }
+                return {
+                  ...project,
+
+                  analysisHistory:
+                    exists
+                      ? analysisHistory.map(
+                          (analysis) =>
+                            analysis.id ===
+                              newAnalysisRun.id
+                              ? newAnalysisRun
+                              : analysis
+                        )
+                      : [
+                          ...analysisHistory,
+                          newAnalysisRun,
+                        ],
+                };
+              }
+            )
+        );
 
 
-            const nextSequence =
-              analysisHistory.length > 0
-                ? Math.max(
-                    ...analysisHistory.map(
-                      (analysis) =>
-                        analysis.sequence
-                    )
-                  ) + 1
-                : 1;
+        return newAnalysisRun;
+
+      } catch (error) {
+
+        console.error(
+          "분석 실행 실패:",
+          error
+        );
 
 
-            const newAnalysisRun = {
-              id:
-                Date.now(),
-
-              sequence:
-                nextSequence,
-
-              sourceVersionId:
-                sourceVersionId,
-
-              status:
-                "pending",
-
-              engine:
-                "Semgrep",
-
-              executedById:
-                currentUser?.id ??
-                user?.id ??
-                null,
-
-              startedAt:
-                null,
-
-              completedAt:
-                null,
-
-              failureReason:
-                "",
-
-              logs:
-                "",
-
-              summary:
-                null,
-
-              vulnerabilities:
-                [],
-            };
+        window.alert(
+          error.message ||
+          "분석 실행에 실패했습니다."
+        );
 
 
-            return {
-              ...project,
-
-              analysisHistory: [
-                ...analysisHistory,
-                newAnalysisRun,
-              ],
-            };
-          }
-        )
-    );
-  };
+        return null;
+      }
+    };
 
 
   /* ========================================

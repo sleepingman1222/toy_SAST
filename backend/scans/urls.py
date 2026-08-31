@@ -1,12 +1,28 @@
 from django.urls import path
 
 from .views import (
+    AdminSummaryView,
     ProjectAnalysisRunDetailView,
     ProjectAnalysisRunListCreateView,
 )
 
 
 urlpatterns = [
+
+    # ========================================
+    # 관리자 요약
+    #
+    # GET
+    #
+    # /api/admin/summary/
+    # ========================================
+
+    path(
+        "admin/summary/",
+        AdminSummaryView.as_view(),
+        name="admin-summary",
+    ),
+
 
     # ========================================
     # AnalysisRun 목록 조회 / 생성

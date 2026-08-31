@@ -1,0 +1,173 @@
+rules:
+  - id: kisa.python.sql-injection.tainted-query
+
+    mode: taint
+
+    languages:
+      - python
+
+    message: >-
+      외부 입력값이 SQL 쿼리 문자열에 직접 사용되고 있습니다.
+      외부 입력값을 SQL 문자열에 결합하지 말고
+      파라미터 바인딩을 사용하세요.
+
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: KISA-SW-001
+      kisa_category: 입력데이터 검증 및 표현
+      kisa_item_number: 1
+      kisa_name: SQL 삽입
+
+      confidence: HIGH
+
+      recommendation: >-
+        SQL 문자열에 외부 입력값을 직접 결합하지 말고,
+        SQL 문장은 고정된 형태로 작성한 뒤 외부 입력값은
+        파라미터 바인딩을 통해 별도로 전달하세요.
+
+      cwe:
+        - "CWE-89: Improper Neutralization of Special Elements used in an SQL Command"
+
+      detection_type: automatic
+
+
+    # ========================================
+    # Source
+    #
+    # 외부에서 들어오는 신뢰할 수 없는 입력값
+    # ========================================
+
+    pattern-sources:
+
+      # --------------------------------------
+      # Django
+      # --------------------------------------
+
+      - pattern-either:
+
+          - pattern: request.GET.get(...)
+
+          - pattern: request.POST.get(...)
+
+          - pattern: request.GET[...]
+
+          - pattern: request.POST[...]
+
+          - pattern: $REQUEST.GET.get(...)
+
+          - pattern: $REQUEST.POST.get(...)
+
+          - pattern: $REQUEST.GET[...]
+
+          - pattern: $REQUEST.POST[...]
+
+
+      # --------------------------------------
+      # Flask
+      # --------------------------------------
+
+      - pattern-either:
+
+          - pattern: request.args.get(...)
+
+          - pattern: request.form.get(...)
+
+          - pattern: request.values.get(...)
+
+          - pattern: request.args[...]
+
+          - pattern: request.form[...]
+
+          - pattern: request.values[...]
+
+          - pattern: $REQUEST.args.get(...)
+
+          - pattern: $REQUEST.form.get(...)
+
+          - pattern: $REQUEST.values.get(...)
+
+          - pattern: $REQUEST.args[...]
+
+          - pattern: $REQUEST.form[...]
+
+          - pattern: $REQUEST.values[...]
+
+
+      # --------------------------------------
+      # Starlette / FastAPI Request
+      # --------------------------------------
+
+      - pattern-either:
+
+          - pattern: $REQUEST.query_params.get(...)
+
+          - pattern: $REQUEST.query_params[...]
+
+          - pattern: $REQUEST.path_params.get(...)
+
+          - pattern: $REQUEST.path_params[...]
+
+
+      # --------------------------------------
+      # Python 기본 입력
+      # --------------------------------------
+
+      - pattern-either:
+
+          - pattern: input(...)
+
+          - pattern: sys.argv[...]
+
+
+    # ========================================
+    # Sink
+    #
+    # SQL 문장 자체가 실행되는 위치
+    #
+    # 중요한 점:
+    # parameter 자리가 아니라
+    # Query 인자만 Sink로 잡는다.
+    # ========================================
+
+    pattern-sinks:
+
+      # --------------------------------------
+      # Python DB-API
+      #
+      # cursor.execute(query)
+      # --------------------------------------
+
+      - pattern: $CURSOR.execute($QUERY)
+
+
+      # --------------------------------------
+      # executemany
+      #
+      # Query 자체가 tainted인 경우 탐지
+      # --------------------------------------
+
+      - pattern: $CURSOR.executemany($QUERY, ...)
+
+
+      # --------------------------------------
+      # Django raw query
+      # --------------------------------------
+
+      - pattern: $MODEL.objects.raw($QUERY)
+
+
+      # --------------------------------------
+      # Django RawSQL
+      # --------------------------------------
+
+      - pattern: RawSQL($QUERY, ...)
+
+
+      # --------------------------------------
+      # SQLAlchemy / DB Connection 계열
+      # --------------------------------------
+
+      - pattern: $CONNECTION.execute($QUERY)
+
+      - pattern: $CONNECTION.exec_driver_sql($QUERY)

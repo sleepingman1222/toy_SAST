@@ -1,0 +1,346 @@
+/* ========================================
+   User Summary
+======================================== */
+
+.user-summary {
+  width: 100%;
+  max-width: 1200px;
+
+  margin: 0 auto;
+}
+
+
+/* ========================================
+   Header
+======================================== */
+
+.user-summary-header {
+  margin-bottom: 28px;
+}
+
+
+.user-summary-header h2 {
+  margin: 0 0 7px;
+
+  color: #111827;
+
+  font-size: 22px;
+  font-weight: 700;
+}
+
+
+.user-summary-header p {
+  margin: 0;
+
+  color: #6b7280;
+
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+
+/* ========================================
+   Loading / Error
+======================================== */
+
+.user-summary-state-card {
+  padding: 24px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  color: #6b7280;
+
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+
+.user-summary-state-card.error {
+  border-color: #fecaca;
+
+  background-color: #fef2f2;
+
+  color: #b91c1c;
+}
+
+
+/* ========================================
+   Summary Card Grid
+======================================== */
+
+.user-summary-card-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 16px;
+
+  margin-bottom: 36px;
+}
+
+
+/* ========================================
+   Summary Card
+======================================== */
+
+.user-summary-card {
+  display: flex;
+  flex-direction: column;
+
+  gap: 12px;
+
+  min-width: 0;
+
+  padding: 22px 24px;
+
+  box-sizing: border-box;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
+}
+
+
+.user-summary-card-label {
+  color: #6b7280;
+
+  font-size: 13px;
+  font-weight: 500;
+}
+
+
+.user-summary-card-value {
+  color: #1f2937;
+
+  font-size: 28px;
+  font-weight: 700;
+
+  line-height: 1;
+}
+
+
+/* ========================================
+   Section
+======================================== */
+
+.user-summary-section {
+  margin-bottom: 32px;
+}
+
+
+.user-summary-section-header {
+  margin-bottom: 14px;
+}
+
+
+.user-summary-section-header h3 {
+  margin: 0;
+
+  color: #1f2937;
+
+  font-size: 16px;
+  font-weight: 700;
+}
+
+
+.user-summary-section-header p {
+  margin: 6px 0 0;
+
+  color: #6b7280;
+
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+
+/* ========================================
+   Recent Analysis
+======================================== */
+
+.user-recent-analysis-card {
+  overflow: hidden;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
+}
+
+
+.user-recent-analysis-table-wrapper {
+  width: 100%;
+
+  overflow-x: auto;
+}
+
+
+.user-recent-analysis-table {
+  width: 100%;
+  min-width: 720px;
+
+  border-collapse: collapse;
+}
+
+
+.user-recent-analysis-table th {
+  padding: 13px 16px;
+
+  background-color: #f9fafb;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  color: #6b7280;
+
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+
+  white-space: nowrap;
+}
+
+
+.user-recent-analysis-table td {
+  padding: 15px 16px;
+
+  border-bottom: 1px solid #f3f4f6;
+
+  color: #374151;
+
+  font-size: 13px;
+
+  vertical-align: middle;
+}
+
+
+.user-recent-analysis-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+
+.user-recent-analysis-project {
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+
+.user-recent-analysis-project strong {
+  color: #1f2937;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+
+.user-recent-analysis-project span {
+  color: #9ca3af;
+
+  font-size: 12px;
+}
+
+
+.user-analysis-status {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 24px;
+
+  padding: 3px 8px;
+
+  box-sizing: border-box;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+
+.user-analysis-status.completed {
+  background-color: #ecfdf5;
+
+  color: #047857;
+}
+
+
+.user-recent-analysis-empty {
+  padding: 30px 20px;
+
+  color: #9ca3af;
+
+  font-size: 13px;
+  text-align: center;
+}
+
+
+/* ========================================
+   Responsive - Tablet
+======================================== */
+
+@media (max-width: 800px) {
+
+  .user-summary-card-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+}
+
+
+/* ========================================
+   Responsive - Mobile
+======================================== */
+
+@media (max-width: 500px) {
+
+  .user-summary-header {
+    margin-bottom: 22px;
+  }
+
+
+  .user-summary-header h2 {
+    font-size: 20px;
+  }
+
+
+  .user-summary-card-grid {
+    grid-template-columns: 1fr;
+
+    gap: 12px;
+
+    margin-bottom: 28px;
+  }
+
+
+  .user-summary-card {
+    padding: 20px;
+  }
+
+
+  .user-summary-card-value {
+    font-size: 26px;
+  }
+
+
+  .user-recent-analysis-table th,
+  .user-recent-analysis-table td {
+    padding: 12px 14px;
+  }
+
+}

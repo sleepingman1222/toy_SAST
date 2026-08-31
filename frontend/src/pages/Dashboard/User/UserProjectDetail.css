@@ -1,0 +1,1051 @@
+/* ========================================
+   User Project Detail
+======================================== */
+
+.user-project-detail {
+  width: 100%;
+  max-width: 1200px;
+
+  margin: 0 auto;
+}
+
+
+/* ========================================
+   Header
+======================================== */
+
+.user-project-detail-header {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 18px;
+
+  margin-bottom: 28px;
+}
+
+
+.user-project-detail-back-button {
+  flex-shrink: 0;
+
+  min-height: 36px;
+
+  padding: 7px 12px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+
+  color: #374151;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+
+.user-project-detail-back-button:hover {
+  background-color: #f9fafb;
+
+  border-color: #9ca3af;
+}
+
+
+.user-project-detail-header h2 {
+  margin: 0 0 6px;
+
+  color: #111827;
+
+  font-size: 22px;
+  font-weight: 700;
+}
+
+
+.user-project-detail-header p {
+  margin: 0;
+
+  color: #6b7280;
+
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+
+/* ========================================
+   Section
+======================================== */
+
+.user-project-detail-section {
+  margin-bottom: 28px;
+}
+
+
+.user-project-detail-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  margin-bottom: 13px;
+}
+
+
+.user-project-detail-section-header h3 {
+  margin: 0;
+
+  color: #1f2937;
+
+  font-size: 17px;
+  font-weight: 700;
+}
+
+
+.user-project-detail-section-header p {
+  margin: 5px 0 0;
+
+  color: #6b7280;
+
+  font-size: 13px;
+}
+
+
+/* ========================================
+   Project Information
+======================================== */
+
+.user-project-info-card {
+  overflow: hidden;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+
+.user-project-info-row {
+  display: grid;
+
+  grid-template-columns:
+    160px minmax(0, 1fr);
+
+  border-bottom: 1px solid #f3f4f6;
+}
+
+
+.user-project-info-row:last-child {
+  border-bottom: none;
+}
+
+
+.user-project-info-row > span {
+  padding: 15px 18px;
+
+  background-color: #f9fafb;
+
+  color: #6b7280;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+
+.user-project-info-row > strong {
+  min-width: 0;
+
+  padding: 15px 18px;
+
+  color: #374151;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  line-height: 1.6;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* ========================================
+   Analysis History Count
+======================================== */
+
+.user-analysis-history-count {
+  flex-shrink: 0;
+
+  padding: 5px 9px;
+
+  background-color: #f3f4f6;
+
+  border-radius: 999px;
+
+  color: #6b7280;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
+/* ========================================
+   Analysis History
+======================================== */
+
+.user-analysis-history-card {
+  overflow: hidden;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+
+.user-analysis-history-table-wrapper {
+  width: 100%;
+
+  overflow-x: auto;
+}
+
+
+.user-analysis-history-table {
+  width: 100%;
+  min-width: 680px;
+
+  border-collapse: collapse;
+}
+
+
+.user-analysis-history-table th {
+  padding: 13px 16px;
+
+  background-color: #f9fafb;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  color: #6b7280;
+
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+
+  white-space: nowrap;
+}
+
+
+.user-analysis-history-table td {
+  padding: 14px 16px;
+
+  border-bottom: 1px solid #f3f4f6;
+
+  color: #374151;
+
+  font-size: 13px;
+
+  vertical-align: middle;
+}
+
+
+.user-analysis-history-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+
+.user-analysis-history-table tbody tr:hover {
+  background-color: #fafafa;
+}
+
+
+.user-analysis-history-table tbody tr.selected {
+  background-color: #eff6ff;
+}
+
+
+.user-analysis-result-count {
+  color: #1f2937;
+
+  font-weight: 700;
+}
+
+
+.user-analysis-view-button {
+  min-height: 31px;
+
+  padding: 5px 11px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+
+  color: #374151;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+
+.user-analysis-view-button:hover {
+  background-color: #f9fafb;
+}
+
+
+.user-analysis-history-table tr.selected
+.user-analysis-view-button {
+  border-color: #2563eb;
+
+  color: #2563eb;
+}
+
+
+.user-analysis-history-empty {
+  padding: 30px 20px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  color: #9ca3af;
+
+  font-size: 13px;
+  text-align: center;
+}
+
+
+/* ========================================
+   Analysis Detail Header
+======================================== */
+
+.user-analysis-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  margin-bottom: 15px;
+}
+
+
+.user-analysis-detail-header h3 {
+  margin: 0;
+
+  color: #1f2937;
+
+  font-size: 17px;
+  font-weight: 700;
+}
+
+
+.user-analysis-detail-header p {
+  margin: 5px 0 0;
+
+  color: #6b7280;
+
+  font-size: 13px;
+}
+
+
+.user-analysis-completed-badge {
+  flex-shrink: 0;
+
+  padding: 5px 9px;
+
+  background-color: #ecfdf5;
+
+  border-radius: 999px;
+
+  color: #047857;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+
+/* ========================================
+   Analysis Summary
+======================================== */
+
+.user-analysis-summary-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr));
+
+  gap: 12px;
+
+  margin-bottom: 18px;
+}
+
+
+.user-analysis-summary-card {
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+
+  padding: 16px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+}
+
+
+.user-analysis-summary-card span {
+  color: #6b7280;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
+.user-analysis-summary-card strong {
+  color: #1f2937;
+
+  font-size: 22px;
+  font-weight: 700;
+}
+
+
+.user-analysis-summary-card.critical strong {
+  color: #991b1b;
+}
+
+
+.user-analysis-summary-card.high strong {
+  color: #dc2626;
+}
+
+
+.user-analysis-summary-card.medium strong {
+  color: #d97706;
+}
+
+
+.user-analysis-summary-card.low strong {
+  color: #2563eb;
+}
+
+
+/* ========================================
+   Vulnerability Card
+======================================== */
+
+.user-vulnerability-card {
+  overflow: hidden;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+
+.user-vulnerability-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding: 17px 18px;
+
+  border-bottom: 1px solid #e5e7eb;
+}
+
+
+.user-vulnerability-card-header h4 {
+  margin: 0;
+
+  color: #1f2937;
+
+  font-size: 15px;
+  font-weight: 700;
+}
+
+
+.user-vulnerability-card-header p {
+  margin: 5px 0 0;
+
+  color: #6b7280;
+
+  font-size: 12px;
+}
+
+
+.user-vulnerability-card-header > span {
+  flex-shrink: 0;
+
+  color: #6b7280;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
+/* ========================================
+   Vulnerability Table
+======================================== */
+
+.user-vulnerability-table-wrapper {
+  width: 100%;
+
+  overflow-x: auto;
+}
+
+
+.user-vulnerability-table {
+  width: 100%;
+  min-width: 920px;
+
+  border-collapse: collapse;
+}
+
+
+.user-vulnerability-table th {
+  padding: 12px 14px;
+
+  background-color: #f9fafb;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  color: #6b7280;
+
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+
+  white-space: nowrap;
+}
+
+
+.user-vulnerability-table td {
+  padding: 14px;
+
+  border-bottom: 1px solid #f3f4f6;
+
+  color: #374151;
+
+  font-size: 12px;
+
+  vertical-align: middle;
+}
+
+
+.user-vulnerability-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+
+.user-vulnerability-table tbody tr:hover {
+  background-color: #fafafa;
+}
+
+
+/* ========================================
+   KISA Identifier
+======================================== */
+
+.user-kisa-identifier {
+  display: inline-flex;
+
+  padding: 4px 7px;
+
+  background-color: #eff6ff;
+
+  border-radius: 6px;
+
+  color: #1d4ed8;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+
+/* ========================================
+   Vulnerability
+======================================== */
+
+.user-vulnerability-name {
+  color: #1f2937;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
+.user-vulnerability-location {
+  display: inline-block;
+
+  max-width: 300px;
+
+  color: #4b5563;
+
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+
+  font-size: 11px;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* ========================================
+   Severity
+======================================== */
+
+.user-vulnerability-severity {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 23px;
+
+  padding: 3px 7px;
+
+  border-radius: 999px;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+
+.user-vulnerability-severity.critical {
+  background-color: #fee2e2;
+
+  color: #991b1b;
+}
+
+
+.user-vulnerability-severity.high {
+  background-color: #fef2f2;
+
+  color: #dc2626;
+}
+
+
+.user-vulnerability-severity.medium {
+  background-color: #fffbeb;
+
+  color: #b45309;
+}
+
+
+.user-vulnerability-severity.low {
+  background-color: #eff6ff;
+
+  color: #2563eb;
+}
+
+
+/* ========================================
+   Detail Button
+======================================== */
+
+.user-vulnerability-detail-button {
+  min-height: 30px;
+
+  padding: 5px 10px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+
+  color: #374151;
+
+  font-size: 11px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+
+.user-vulnerability-detail-button:hover {
+  background-color: #f9fafb;
+
+  border-color: #9ca3af;
+}
+
+
+/* ========================================
+   Empty
+======================================== */
+
+.user-vulnerability-empty {
+  padding: 34px 20px;
+
+  text-align: center;
+}
+
+
+.user-vulnerability-empty strong {
+  display: block;
+
+  margin-bottom: 6px;
+
+  color: #374151;
+
+  font-size: 14px;
+}
+
+
+.user-vulnerability-empty p {
+  margin: 0;
+
+  color: #9ca3af;
+
+  font-size: 12px;
+}
+
+
+/* ========================================
+   Vulnerability Modal
+======================================== */
+
+.user-vulnerability-modal-overlay {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+
+  box-sizing: border-box;
+
+  background-color:
+    rgba(17, 24, 39, 0.45);
+}
+
+
+.user-vulnerability-modal {
+  width: 100%;
+  max-width: 760px;
+  max-height: 88vh;
+
+  overflow-y: auto;
+
+  padding: 24px;
+
+  box-sizing: border-box;
+
+  background-color: #ffffff;
+
+  border-radius: 12px;
+
+  box-shadow:
+    0 20px 40px
+    rgba(0, 0, 0, 0.16);
+}
+
+
+/* ========================================
+   Modal Header
+======================================== */
+
+.user-vulnerability-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  margin-bottom: 22px;
+}
+
+
+.user-vulnerability-modal-badges {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  margin-bottom: 9px;
+}
+
+
+.user-vulnerability-modal-header h3 {
+  margin: 0;
+
+  color: #111827;
+
+  font-size: 19px;
+  font-weight: 700;
+
+  line-height: 1.4;
+}
+
+
+.user-vulnerability-modal-close {
+  flex-shrink: 0;
+
+  width: 32px;
+  height: 32px;
+
+  padding: 0;
+
+  background: none;
+
+  border: none;
+
+  color: #6b7280;
+
+  font-size: 25px;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+
+.user-vulnerability-modal-close:hover {
+  color: #111827;
+}
+
+
+/* ========================================
+   Detail Grid
+======================================== */
+
+.user-vulnerability-detail-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 1px;
+
+  overflow: hidden;
+
+  margin-bottom: 20px;
+
+  background-color: #e5e7eb;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+
+.user-vulnerability-detail-grid > div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+
+  min-width: 0;
+
+  padding: 14px;
+
+  background-color: #ffffff;
+}
+
+
+.user-vulnerability-detail-grid span {
+  color: #6b7280;
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+
+.user-vulnerability-detail-grid strong {
+  color: #1f2937;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  overflow-wrap: anywhere;
+}
+
+
+.user-vulnerability-detail-location {
+  grid-column:
+    1 / -1;
+}
+
+
+/* ========================================
+   Detail Section
+======================================== */
+
+.user-vulnerability-detail-section {
+  margin-top: 16px;
+}
+
+
+.user-vulnerability-detail-section h4 {
+  margin: 0 0 8px;
+
+  color: #374151;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+
+.user-vulnerability-detail-section p,
+.user-vulnerability-detail-section pre {
+  margin: 0;
+
+  padding: 14px;
+
+  box-sizing: border-box;
+
+  background-color: #f9fafb;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+
+  color: #4b5563;
+
+  font-size: 12px;
+  line-height: 1.7;
+
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+
+.user-vulnerability-detail-section pre {
+  font-family:
+    Consolas,
+    "Courier New",
+    monospace;
+}
+
+
+/* ========================================
+   Modal Footer
+======================================== */
+
+.user-vulnerability-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+
+  margin-top: 22px;
+}
+
+
+.user-vulnerability-modal-footer button {
+  min-width: 72px;
+  min-height: 34px;
+
+  padding: 6px 13px;
+
+  background-color: #2563eb;
+
+  border: none;
+  border-radius: 7px;
+
+  color: #ffffff;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+
+.user-vulnerability-modal-footer button:hover {
+  background-color: #1d4ed8;
+}
+
+
+/* ========================================
+   Responsive - Tablet
+======================================== */
+
+@media (max-width: 800px) {
+
+  .user-analysis-summary-grid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+
+
+  .user-project-info-row {
+    grid-template-columns:
+      130px minmax(0, 1fr);
+  }
+
+}
+
+
+/* ========================================
+   Responsive - Mobile
+======================================== */
+
+@media (max-width: 500px) {
+
+  .user-project-detail-header {
+    flex-direction: column;
+  }
+
+
+  .user-project-detail-header h2 {
+    font-size: 20px;
+  }
+
+
+  .user-project-info-row {
+    grid-template-columns: 1fr;
+  }
+
+
+  .user-project-info-row > span {
+    padding-bottom: 7px;
+  }
+
+
+  .user-project-info-row > strong {
+    padding-top: 7px;
+  }
+
+
+  .user-analysis-detail-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+
+  .user-analysis-summary-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+
+  .user-vulnerability-modal-overlay {
+    padding: 12px;
+  }
+
+
+  .user-vulnerability-modal {
+    padding: 18px;
+  }
+
+
+  .user-vulnerability-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+
+  .user-vulnerability-detail-location {
+    grid-column: auto;
+  }
+
+}

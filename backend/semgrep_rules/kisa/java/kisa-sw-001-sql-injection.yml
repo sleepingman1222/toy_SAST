@@ -1,0 +1,35 @@
+rules:
+  - id: kisa.java.sql-injection.tainted-query
+
+    languages:
+      - java
+
+    message: >
+      외부 입력값이 SQL 문자열에 포함된 후
+      SQL 실행 메서드로 전달되고 있습니다.
+      PreparedStatement와 파라미터 바인딩을 사용하세요.
+
+    severity: ERROR
+
+    mode: taint
+
+    metadata:
+      kisa_identifier: KISA-SW-001
+      kisa_name: SQL 삽입
+      confidence: high
+      recommendation: >
+        외부 입력값을 SQL 문자열에 직접 연결하지 말고
+        PreparedStatement와 파라미터 바인딩을 사용하여
+        SQL 문과 데이터를 분리하세요.
+
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQUEST.getParameter(...)
+          - pattern: $REQUEST.getHeader(...)
+          - pattern: $REQUEST.getQueryString()
+
+    pattern-sinks:
+      - pattern-either:
+          - pattern: $STATEMENT.executeQuery($QUERY)
+          - pattern: $STATEMENT.executeUpdate($QUERY)
+          - pattern: $STATEMENT.execute($QUERY)

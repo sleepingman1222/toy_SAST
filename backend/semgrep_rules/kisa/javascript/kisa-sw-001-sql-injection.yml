@@ -1,0 +1,36 @@
+rules:
+  - id: kisa.javascript.sql-injection.tainted-query
+
+    languages:
+      - javascript
+
+    message: >
+      HTTP 요청에서 전달된 외부 입력값이
+      SQL 문자열에 포함된 후 데이터베이스 쿼리로
+      전달되고 있습니다.
+      파라미터 바인딩을 사용하세요.
+
+    severity: ERROR
+
+    mode: taint
+
+    metadata:
+      kisa_identifier: KISA-SW-001
+      kisa_name: SQL 삽입
+      confidence: high
+      recommendation: >
+        req.query, req.body, req.params 등의 외부 입력값을
+        SQL 문자열에 직접 연결하지 말고
+        데이터베이스 라이브러리가 제공하는
+        파라미터 바인딩 기능을 사용하세요.
+
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQ.query.$FIELD
+          - pattern: $REQ.body.$FIELD
+          - pattern: $REQ.params.$FIELD
+
+    pattern-sinks:
+      - pattern-either:
+          - pattern: $DB.query($QUERY, ...)
+          - pattern: $DB.execute($QUERY, ...)

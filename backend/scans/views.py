@@ -1,5 +1,11 @@
+from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import (
+    Count,
+    Max,
+    OuterRef,
+    Subquery,
+)
 from django.shortcuts import get_object_or_404
 
 from rest_framework import status
@@ -19,6 +25,8 @@ from .serializers import (
     AnalysisRunCreateSerializer,
     AnalysisRunSerializer,
 )
+
+from .tasks import run_analysis
 
 
 # ========================================
@@ -43,6 +51,134 @@ def can_view_project(
         project=project,
         user=user
     ).exists()
+
+
+# ========================================
+# 일반 사용자용 완료 분석 결과 응답
+#
+# 일반 사용자에게는 내부 분석 운영정보를
+# 노출하지 않고 화면에 필요한 최소 연결정보와
+# 취약점 상세 결과만 반환한다.
+#
+# 제외 정보 예시
+# - project_id
+# - engine
+# - 기존 단일 analysis_language
+# - executed_by / executed_by_id
+# - started_at
+# - failure_reason
+# - logs
+# - raw_result
+# - created_at / updated_at
+#
+# Vulnerability에서도 화면에서 사용하지 않는
+# 기술 Rule ID, 생성 시각 등은 제외한다.
+# ========================================
+
+def serialize_user_completed_analysis(
+    analysis_run
+):
+
+    serialized = (
+        AnalysisRunSerializer(
+            analysis_run
+        ).data
+    )
+
+
+    vulnerability_fields = [
+        "id",
+        "analysis_language",
+        "security_weakness_identifier",
+        "security_weakness_item_number",
+        "name",
+        "severity",
+        "confidence",
+        "file_path",
+        "line",
+        "start_line",
+        "start_column",
+        "end_line",
+        "end_column",
+        "message",
+        "evidence",
+        "recommendation",
+    ]
+
+
+    vulnerabilities = []
+
+
+    for vulnerability in (
+        serialized.get(
+            "vulnerabilities",
+            []
+        )
+    ):
+
+        vulnerabilities.append(
+            {
+                field:
+                    vulnerability.get(
+                        field
+                    )
+                for field
+                in vulnerability_fields
+            }
+        )
+
+
+    return {
+        "id":
+            serialized.get(
+                "id"
+            ),
+
+        # Frontend가 분석 결과와
+        # SourceVersion을 연결할 때 필요
+        "source_version_id":
+            serialized.get(
+                "source_version_id"
+            ),
+
+        # 완료 분석 이력에서 결과를
+        # 구분하기 위한 최소 식별 정보
+        "sequence":
+            serialized.get(
+                "sequence"
+            ),
+
+        # 일반 사용자 응답은 completed만
+        # 반환하므로 값은 항상 completed
+        # Frontend 호환을 위해 유지
+        "status":
+            AnalysisRun.Status.COMPLETED,
+
+        # 분석 실행 시 자동 감지된 언어 Snapshot
+        #
+        # 예:
+        # [
+        #     "javascript",
+        #     "python",
+        # ]
+        #
+        # 기존 단일 analysis_language는
+        # 일반 사용자에게 노출하지 않는다.
+        "analysis_languages":
+            serialized.get(
+                "analysis_languages"
+            )
+            or [],
+
+        # 완료 분석 이력 표시용
+        "completed_at":
+            serialized.get(
+                "completed_at"
+            ),
+
+        "vulnerabilities":
+            vulnerabilities,
+    }
 
 
 # ========================================
@@ -125,6 +261,8 @@ class ProjectAnalysisRunListCreateView(
         # 일반 사용자
         #
         # completed만 조회 가능
+        # + 내부 AnalysisRun 정보 제거
+        # + 취약점 상세 결과 중심으로 반환
         # --------------------------------
 
         if not request.user.is_staff:
@@ -136,6 +274,27 @@ class ProjectAnalysisRunListCreateView(
                 )
             )
 
+
+            user_results = [
+                serialize_user_completed_analysis(
+                    analysis_run
+                )
+                for analysis_run
+                in analysis_runs
+            ]
+
+
+            return Response(
+                user_results,
+                status=status.HTTP_200_OK
+            )
+
+
+        # --------------------------------
+        # 관리자
+        #
+        # 기존 전체 AnalysisRun 응답 유지
+        # --------------------------------
 
         serializer = AnalysisRunSerializer(
             analysis_runs,
@@ -199,8 +358,6 @@ class ProjectAnalysisRunListCreateView(
 
         # --------------------------------
         # Project 존재 확인
-        #
-        # 여기서는 아직 lock하지 않음
         # --------------------------------
 
         project = get_object_or_404(
@@ -213,7 +370,8 @@ class ProjectAnalysisRunListCreateView(
         # Transaction
         #
         # 같은 Project에서 동시에
-        # AnalysisRun을 만드는 것을 방지
+        # AnalysisRun 생성 요청이 들어와도
+        # sequence가 충돌하지 않도록 한다.
         # =================================
 
         with transaction.atomic():
@@ -304,7 +462,7 @@ class ProjectAnalysisRunListCreateView(
 
 
             # -----------------------------
-            # Project에 pending/running
+            # Project에 pending / running
             # AnalysisRun이 존재하면 차단
             # -----------------------------
 
@@ -367,12 +525,6 @@ class ProjectAnalysisRunListCreateView(
 
             # -----------------------------
             # 다음 Analysis sequence 계산
-            #
-            # Project 단위
-            #
-            # Analysis #1
-            # Analysis #2
-            # ...
             # -----------------------------
 
             sequence_result = (
@@ -406,10 +558,7 @@ class ProjectAnalysisRunListCreateView(
             # -----------------------------
             # AnalysisRun 생성
             #
-            # 실제 Semgrep은 아직 실행하지 않음
-            #
-            # Celery 연결 전이므로
-            # status=pending까지만 생성
+            # 최초 상태는 pending
             # -----------------------------
 
             analysis_run = (
@@ -429,12 +578,46 @@ class ProjectAnalysisRunListCreateView(
                     engine=
                         "Semgrep",
 
+                    # 분석 언어는 관리자가 입력하지 않는다.
+                    #
+                    # Celery Task가 실제 분석 대상을
+                    # 준비한 뒤 자동으로 감지하여
+                    # analysis_languages에 저장한다.
+                    #
+                    # 기존 단일 필드는 전환 기간 동안
+                    # 호환용으로만 빈 값으로 생성한다.
                     analysis_language=
-                        source_version.language,
+                        "",
+
+                    analysis_languages=
+                        [],
 
                     executed_by=
                         request.user,
                 )
+            )
+
+
+            # =================================
+            # Celery Task 등록
+            #
+            # AnalysisRun DB 저장이 실제로
+            # commit된 뒤 Celery에 전달한다.
+            #
+            # pending
+            #   ↓
+            # Celery
+            #   ↓
+            # running
+            #   ↓
+            # completed / failed
+            # =================================
+
+            transaction.on_commit(
+                lambda:
+                    run_analysis.delay(
+                        analysis_run.id
+                    )
             )
 
 
@@ -567,6 +750,29 @@ class ProjectAnalysisRunDetailView(
             )
 
 
+        # --------------------------------
+        # 일반 사용자
+        #
+        # completed 분석의 취약점 상세 결과와
+        # 화면 연결에 필요한 최소 정보만 반환
+        # --------------------------------
+
+        if not request.user.is_staff:
+
+            return Response(
+                serialize_user_completed_analysis(
+                    analysis_run
+                ),
+                status=status.HTTP_200_OK
+            )
+
+
+        # --------------------------------
+        # 관리자
+        #
+        # 기존 전체 AnalysisRun 상세 응답 유지
+        # --------------------------------
+
         serializer = AnalysisRunSerializer(
             analysis_run
         )
@@ -575,4 +781,278 @@ class ProjectAnalysisRunDetailView(
         return Response(
             serializer.data,
             status=status.HTTP_200_OK
+        )
+
+
+# ========================================
+# 관리자 요약
+#
+# GET
+# /api/admin/summary/
+#
+# 관리자 전용
+#
+# 반환 정보
+# - 전체 사용자
+# - 활성 사용자
+# - 전체 프로젝트
+# - 전체 AnalysisRun
+# - 현재 프로젝트별 분석 상태
+# - 최근 AnalysisRun 5건
+# ========================================
+
+class AdminSummaryView(
+    APIView
+):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def get(
+        self,
+        request
+    ):
+
+        # --------------------------------
+        # 관리자 전용
+        # --------------------------------
+
+        if not request.user.is_staff:
+
+            return Response(
+                {
+                    "detail":
+                        "관리자만 조회할 수 있습니다."
+                },
+                status=
+                    status.HTTP_403_FORBIDDEN
+            )
+
+
+        # =================================
+        # 사용자 통계
+        # =================================
+
+        total_users = (
+            User.objects.count()
+        )
+
+
+        active_users = (
+            User.objects
+            .filter(
+                is_active=True
+            )
+            .count()
+        )
+
+
+        # =================================
+        # 프로젝트 현재 분석 상태
+        #
+        # 각 Project의 current_source_version에
+        # 연결된 AnalysisRun 상태를 조회한다.
+        #
+        # SourceVersion이 없거나 현재 SourceVersion에
+        # AnalysisRun이 없으면 상태 통계에서 제외한다.
+        # =================================
+
+        latest_analysis_status_subquery = (
+            AnalysisRun.objects
+            .filter(
+                project_id=
+                    OuterRef(
+                        "pk"
+                    ),
+
+                source_version_id=
+                    OuterRef(
+                        "current_source_version_id"
+                    ),
+            )
+            .order_by(
+                "-sequence"
+            )
+            .values(
+                "status"
+            )[:1]
+        )
+
+
+        projects_with_status = (
+            Project.objects
+            .annotate(
+                latest_analysis_status=
+                    Subquery(
+                        latest_analysis_status_subquery
+                    )
+            )
+        )
+
+
+        total_projects = (
+            projects_with_status.count()
+        )
+
+
+        analysis_status = {
+            "pending": 0,
+            "running": 0,
+            "completed": 0,
+            "failed": 0,
+        }
+
+
+        status_rows = (
+            projects_with_status
+            .exclude(
+                latest_analysis_status__isnull=True
+            )
+            .values(
+                "latest_analysis_status"
+            )
+            .annotate(
+                total=Count(
+                    "id"
+                )
+            )
+        )
+
+
+        for row in status_rows:
+
+            current_status = (
+                row[
+                    "latest_analysis_status"
+                ]
+            )
+
+
+            if current_status in analysis_status:
+
+                analysis_status[
+                    current_status
+                ] = row[
+                    "total"
+                ]
+
+
+        # =================================
+        # 전체 AnalysisRun
+        # =================================
+
+        total_analysis_runs = (
+            AnalysisRun.objects
+            .count()
+        )
+
+
+        # =================================
+        # 최근 분석 이력
+        #
+        # 최근 생성된 AnalysisRun 5건
+        # =================================
+
+        recent_analysis_runs = (
+            AnalysisRun.objects
+            .select_related(
+                "project",
+                "source_version",
+                "executed_by"
+            )
+            .annotate(
+                result_count=
+                    Count(
+                        "vulnerabilities"
+                    )
+            )
+            .order_by(
+                "-created_at"
+            )[:5]
+        )
+
+
+        recent_analyses = []
+
+
+        for analysis in recent_analysis_runs:
+
+            recent_analyses.append(
+                {
+                    "id":
+                        analysis.id,
+
+                    "sequence":
+                        analysis.sequence,
+
+                    "project_id":
+                        analysis.project_id,
+
+                    "project_name":
+                        analysis.project.name,
+
+                    "source_version_id":
+                        analysis.source_version_id,
+
+                    "source_version":
+                        analysis.source_version.version,
+
+                    # 기존 단일 언어
+                    # 전환 기간 동안 호환용 유지
+                    "analysis_language":
+                        analysis.analysis_language,
+
+                    # 자동 감지된 다중 언어
+                    "analysis_languages":
+                        analysis.analysis_languages,
+
+                    "status":
+                        analysis.status,
+
+                    "result_count":
+                        analysis.result_count,
+
+                    "executed_by_username":
+                        analysis.executed_by.username,
+
+                    "started_at":
+                        analysis.started_at,
+
+                    "completed_at":
+                        analysis.completed_at,
+
+                    "created_at":
+                        analysis.created_at,
+                }
+            )
+
+
+        # =================================
+        # 응답
+        # =================================
+
+        return Response(
+            {
+                "total_users":
+                    total_users,
+
+                "active_users":
+                    active_users,
+
+                "total_projects":
+                    total_projects,
+
+                "total_analysis_runs":
+                    total_analysis_runs,
+
+                "analysis_status":
+                    analysis_status,
+
+                "recent_analyses":
+                    recent_analyses,
+            },
+            status=
+                status.HTTP_200_OK
         )

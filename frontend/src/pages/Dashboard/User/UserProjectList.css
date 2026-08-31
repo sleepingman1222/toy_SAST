@@ -1,0 +1,407 @@
+/* ========================================
+   User Project List
+======================================== */
+
+.user-project-list {
+  width: 100%;
+  max-width: 1200px;
+
+  margin: 0 auto;
+}
+
+
+/* ========================================
+   Header
+======================================== */
+
+.user-project-list-header {
+  margin-bottom: 24px;
+}
+
+
+.user-project-list-header h2 {
+  margin: 0 0 7px;
+
+  color: #111827;
+
+  font-size: 22px;
+  font-weight: 700;
+}
+
+
+.user-project-list-header p {
+  margin: 0;
+
+  color: #6b7280;
+
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+
+/* ========================================
+   Project Count
+======================================== */
+
+.user-project-status-area {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  width: fit-content;
+
+  margin-bottom: 20px;
+
+  padding: 14px 18px;
+
+  box-sizing: border-box;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
+}
+
+
+.user-project-status-label {
+  margin-right: 8px;
+
+  color: #6b7280;
+
+  font-size: 13px;
+  font-weight: 500;
+}
+
+
+.user-project-status-count {
+  color: #1f2937;
+
+  font-size: 20px;
+  font-weight: 700;
+
+  line-height: 1;
+}
+
+
+.user-project-status-unit {
+  color: #6b7280;
+
+  font-size: 13px;
+}
+
+
+/* ========================================
+   Toolbar
+======================================== */
+
+.user-project-toolbar {
+  display: flex;
+  align-items: center;
+
+  margin-bottom: 14px;
+}
+
+
+/* ========================================
+   Search
+======================================== */
+
+.user-project-search {
+  flex: 1;
+}
+
+
+.user-project-search input {
+  width: 100%;
+  max-width: 440px;
+
+  height: 40px;
+
+  padding: 0 13px;
+
+  box-sizing: border-box;
+
+  background-color: #ffffff;
+
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+
+  color: #1f2937;
+
+  font-size: 13px;
+
+  outline: none;
+}
+
+
+.user-project-search input::placeholder {
+  color: #9ca3af;
+}
+
+
+.user-project-search input:focus {
+  border-color: #2563eb;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(37, 99, 235, 0.08);
+}
+
+
+/* ========================================
+   Table Card
+======================================== */
+
+.user-project-table-card {
+  overflow: hidden;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
+}
+
+
+.user-project-table-wrapper {
+  width: 100%;
+
+  overflow-x: auto;
+}
+
+
+/* ========================================
+   Table
+======================================== */
+
+.user-project-table {
+  width: 100%;
+  min-width: 820px;
+
+  border-collapse: collapse;
+}
+
+
+.user-project-table th {
+  padding: 13px 16px;
+
+  background-color: #f9fafb;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  color: #6b7280;
+
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+
+  white-space: nowrap;
+}
+
+
+.user-project-table td {
+  padding: 15px 16px;
+
+  border-bottom: 1px solid #f3f4f6;
+
+  color: #374151;
+
+  font-size: 13px;
+
+  vertical-align: middle;
+}
+
+
+.user-project-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+
+.user-project-table tbody tr:hover {
+  background-color: #fafafa;
+}
+
+
+/* ========================================
+   Project Name
+======================================== */
+
+.user-project-name-cell {
+  display: flex;
+  flex-direction: column;
+
+  gap: 5px;
+}
+
+
+.user-project-name-button {
+  width: fit-content;
+
+  padding: 0;
+
+  background: none;
+
+  border: none;
+
+  color: #2563eb;
+
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+
+.user-project-name-button:hover {
+  text-decoration: underline;
+}
+
+
+.user-project-name-cell span {
+  color: #9ca3af;
+
+  font-size: 11px;
+}
+
+
+/* ========================================
+   Description
+======================================== */
+
+.user-project-description {
+  max-width: 280px;
+
+  overflow: hidden;
+
+  color: #4b5563;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* ========================================
+   Finding Count
+======================================== */
+
+.user-project-finding-count {
+  color: #1f2937;
+
+  font-weight: 600;
+}
+
+
+/* ========================================
+   View Button
+======================================== */
+
+.user-project-view-button {
+  min-height: 32px;
+
+  padding: 6px 11px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+
+  color: #374151;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  white-space: nowrap;
+}
+
+
+.user-project-view-button:hover {
+  background-color: #f9fafb;
+
+  border-color: #9ca3af;
+}
+
+
+/* ========================================
+   Empty / Error
+======================================== */
+
+.user-project-empty {
+  padding: 34px 20px !important;
+
+  color: #9ca3af !important;
+
+  text-align: center;
+}
+
+
+.user-project-empty.error {
+  color: #dc2626 !important;
+}
+
+
+/* ========================================
+   Footer
+======================================== */
+
+.user-project-list-footer {
+  margin-top: 12px;
+
+  color: #9ca3af;
+
+  font-size: 12px;
+  text-align: right;
+}
+
+
+.user-project-list-footer strong {
+  color: #6b7280;
+}
+
+
+/* ========================================
+   Responsive - Tablet
+======================================== */
+
+@media (max-width: 800px) {
+
+  .user-project-search input {
+    max-width: none;
+  }
+
+}
+
+
+/* ========================================
+   Responsive - Mobile
+======================================== */
+
+@media (max-width: 500px) {
+
+  .user-project-list-header {
+    margin-bottom: 20px;
+  }
+
+
+  .user-project-list-header h2 {
+    font-size: 20px;
+  }
+
+
+  .user-project-status-area {
+    width: 100%;
+
+    justify-content: center;
+  }
+
+}

@@ -20,6 +20,16 @@ class VulnerabilitySerializer(
 
         fields = [
             "id",
+
+            # --------------------------------
+            # 탐지 언어
+            #
+            # 다중 언어 프로젝트에서도
+            # 개별 취약점이 어떤 언어에서
+            # 탐지되었는지 구분
+            # --------------------------------
+            "analysis_language",
+
             "rule_id",
             "name",
             "severity",
@@ -148,7 +158,27 @@ class AnalysisRunSerializer(
             "sequence",
             "status",
             "engine",
+
+            # --------------------------------
+            # 기존 단일 언어 Snapshot
+            #
+            # 기존 데이터 / 코드 호환을 위해
+            # 전환 기간 동안 유지
+            # --------------------------------
             "analysis_language",
+
+            # --------------------------------
+            # 신규 다중 언어 Snapshot
+            #
+            # 예:
+            # [
+            #     "java",
+            #     "javascript",
+            #     "python",
+            # ]
+            # --------------------------------
+            "analysis_languages",
+
             "executed_by_id",
             "executed_by_username",
             "started_at",
@@ -172,6 +202,10 @@ class AnalysisRunSerializer(
 #
 # 실제 AnalysisRun 생성은
 # View에서 수행한다.
+#
+# 분석 언어는 요청으로 받지 않는다.
+# Backend가 실제 소스를 준비한 뒤
+# 자동으로 감지한다.
 # ========================================
 
 class AnalysisRunCreateSerializer(

@@ -30,6 +30,10 @@ from rest_framework.parsers import (
     MultiPartParser,
 )
 
+from rest_framework.permissions import (
+    IsAuthenticated,
+)
+
 from rest_framework.response import (
     Response,
 )
@@ -80,7 +84,7 @@ class ProjectViewSet(
     )
 
     permission_classes = [
-        IsAdminRole,
+        IsAuthenticated,
     ]
 
 
@@ -95,6 +99,101 @@ class ProjectViewSet(
         )
         .all()
     )
+
+
+    # ====================================
+    # Action별 권한
+    #
+    # 일반 사용자
+    # → Project list / retrieve GET만 허용
+    #
+    # SourceVersion 조회/등록/수정,
+    # ProjectAccess 관리,
+    # Project 생성/수정/삭제
+    # → 관리자만 허용
+    # ====================================
+
+    def get_permissions(
+        self,
+    ):
+
+        allow_user_read = (
+            self.action in [
+                "list",
+                "retrieve",
+            ]
+        )
+
+
+        if allow_user_read:
+
+            permission_classes = [
+                IsAuthenticated,
+            ]
+
+        else:
+
+            permission_classes = [
+                IsAdminRole,
+            ]
+
+
+        return [
+            permission()
+            for permission
+            in permission_classes
+        ]
+
+
+    # ====================================
+    # 프로젝트 조회 범위
+    #
+    # 관리자
+    # → 전체 프로젝트
+    #
+    # 일반 사용자
+    # → ProjectAccess가 부여된 프로젝트만 조회
+    #
+    # 분석 완료 여부는 프로젝트 조회 조건에
+    # 포함하지 않는다.
+    # 일반 사용자의 AnalysisRun API에서
+    # completed 상태만 별도로 노출한다.
+    # ====================================
+
+    def get_queryset(
+        self,
+    ):
+
+        queryset = (
+            super()
+            .get_queryset()
+        )
+
+
+        if self.request.user.is_staff:
+
+            return queryset
+
+
+        accessible_project_ids = (
+            ProjectAccess.objects
+            .filter(
+                user=self.request.user
+            )
+            .values_list(
+                "project_id",
+                flat=True,
+            )
+        )
+
+
+        return (
+            queryset
+            .filter(
+                id__in=
+                    accessible_project_ids
+            )
+        )
 
 
     # ====================================
@@ -307,6 +406,14 @@ class ProjectViewSet(
             request.method ==
             "GET"
         ):
+
+            # --------------------------------
+            # 관리자 전용
+            # → 모든 SourceVersion + 관리 정보
+            #
+            # 일반 사용자는 get_permissions()
+            # 단계에서 403 처리된다.
+            # --------------------------------
 
             source_versions = (
                 SourceVersion.objects
@@ -602,6 +709,14 @@ class ProjectViewSet(
             request.method ==
             "GET"
         ):
+
+            # --------------------------------
+            # 관리자 전용
+            # → SourceVersion 상세 조회
+            #
+            # 일반 사용자는 get_permissions()
+            # 단계에서 403 처리된다.
+            # --------------------------------
 
             source_version = (
                 get_object_or_404(

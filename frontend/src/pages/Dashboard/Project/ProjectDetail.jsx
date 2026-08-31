@@ -90,12 +90,6 @@ function ProjectDetail({
   ======================================== */
 
   const [
-    sourceLanguage,
-    setSourceLanguage,
-  ] = useState("Java");
-
-
-  const [
     sourceType,
     setSourceType,
   ] = useState("upload");
@@ -406,23 +400,124 @@ function ProjectDetail({
 
 
   /* ========================================
-     Source 언어
+     분석 언어
 
-     앞으로 언어 정보의 기준은
-     SourceVersion.language 하나만 사용.
+     Backend에서 자동 감지한 언어를 사용한다.
 
-     project.language 사용 X
-     analysisLanguage 사용 X
+     SourceVersion.detectedLanguages
+     → 현재 소스에서 감지된 언어
+
+     AnalysisRun.analysisLanguages
+     → 분석 실행 당시 언어 Snapshot
   ======================================== */
+
+  const getLanguageLabel = (
+    language
+  ) => {
+
+    switch (
+      language
+    ) {
+
+      case "java":
+        return "Java";
+
+      case "javascript":
+        return "JavaScript";
+
+      case "python":
+        return "Python";
+
+      default:
+        return (
+          language ||
+          "-"
+        );
+    }
+  };
+
+
+  const formatLanguages = (
+    languages,
+    fallback = "-"
+  ) => {
+
+    if (
+      !Array.isArray(
+        languages
+      ) ||
+      languages.length === 0
+    ) {
+
+      return fallback;
+    }
+
+
+    return languages
+      .map(
+        getLanguageLabel
+      )
+      .join(", ");
+  };
+
 
   const getSourceLanguage = (
     sourceVersion
   ) => {
 
-    return (
-      sourceVersion?.language ||
-      "-"
+    return formatLanguages(
+      sourceVersion?.detectedLanguages,
+      "분석 실행 시 자동 감지"
     );
+  };
+
+
+  const getAnalysisLanguage = (
+    analysis,
+    sourceVersion
+  ) => {
+
+    if (
+      analysis?.analysisLanguages
+        ?.length > 0
+    ) {
+
+      return formatLanguages(
+        analysis.analysisLanguages
+      );
+    }
+
+
+    if (
+      sourceVersion?.detectedLanguages
+        ?.length > 0
+    ) {
+
+      return formatLanguages(
+        sourceVersion.detectedLanguages
+      );
+    }
+
+
+    if (
+      analysis?.status ===
+      "pending"
+    ) {
+
+      return "자동 감지 예정";
+    }
+
+
+    if (
+      analysis?.status ===
+      "running"
+    ) {
+
+      return "자동 감지 중";
+    }
+
+
+    return "-";
   };
 
 
@@ -715,10 +810,6 @@ function ProjectDetail({
 
   const resetSourceForm = () => {
 
-    setSourceLanguage(
-      "Java"
-    );
-
     setSourceType(
       "upload"
     );
@@ -778,12 +869,6 @@ function ProjectDetail({
 
     setSourceModalMode(
       "edit"
-    );
-
-
-    setSourceLanguage(
-      currentSourceVersion.language ||
-      "Java"
     );
 
 
@@ -858,18 +943,6 @@ function ProjectDetail({
       );
 
 
-      if (
-        !sourceLanguage
-      ) {
-
-        setSourceError(
-          "분석 언어를 선택해주세요."
-        );
-
-        return;
-      }
-
-
       const uploadFileRequired =
         sourceType ===
           "upload" &&
@@ -922,9 +995,6 @@ function ProjectDetail({
 
 
       const sourceData = {
-
-        language:
-          sourceLanguage,
 
         sourceType:
           sourceType,
@@ -1627,7 +1697,7 @@ function ProjectDetail({
                       <div className="current-source-item">
 
                         <span>
-                          소스 언어
+                          분석 언어
                         </span>
 
                         <strong>
@@ -1828,7 +1898,7 @@ function ProjectDetail({
                         </th>
 
                         <th>
-                          소스 언어
+                          분석 언어
                         </th>
 
                         <th>
@@ -1907,7 +1977,8 @@ function ProjectDetail({
                                 <td>
 
                                   {
-                                    getSourceLanguage(
+                                    getAnalysisLanguage(
+                                      analysis,
                                       sourceVersion
                                     )
                                   }
@@ -2056,7 +2127,8 @@ function ProjectDetail({
                   {" · "}
 
                   {
-                    getSourceLanguage(
+                    getAnalysisLanguage(
+                      selectedAnalysis,
                       selectedSourceVersion
                     )
                   }
@@ -2792,44 +2864,8 @@ function ProjectDetail({
               >
 
 
-                <div className="source-form-group">
-
-                  <label>
-                    소스 언어
-                  </label>
-
-
-                  <select
-                    value={
-                      sourceLanguage
-                    }
-
-                    disabled={
-                      savingSource
-                    }
-
-                    onChange={
-                      (event) =>
-                        setSourceLanguage(
-                          event.target.value
-                        )
-                    }
-                  >
-
-                    <option value="Java">
-                      Java
-                    </option>
-
-                    <option value="JavaScript">
-                      JavaScript
-                    </option>
-
-                    <option value="Python">
-                      Python
-                    </option>
-
-                  </select>
-
+                <div className="current-file-info">
+                  ※ 분석 언어는 실제 소스코드에서 자동으로 감지됩니다.
                 </div>
 
 
@@ -3127,7 +3163,7 @@ function ProjectDetail({
                 <div>
 
                   <span>
-                    소스 언어
+                    분석 언어
                   </span>
 
                   <strong>
@@ -3455,6 +3491,25 @@ function ProjectDetail({
                     {
                       getConfidenceText(
                         selectedVulnerability.confidence
+                      )
+                    }
+
+                  </strong>
+
+                </div>
+
+
+                <div>
+
+                  <span>
+                    분석 언어
+                  </span>
+
+                  <strong>
+
+                    {
+                      getLanguageLabel(
+                        selectedVulnerability.analysisLanguage
                       )
                     }
 

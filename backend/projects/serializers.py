@@ -15,6 +15,17 @@ User = get_user_model()
 
 
 # ========================================
+# Upload 제한
+# ========================================
+
+MAX_UPLOAD_ZIP_SIZE = (
+    50
+    * 1024
+    * 1024
+)
+
+
+# ========================================
 # SourceVersion 조회 Serializer
 # ========================================
 
@@ -58,7 +69,14 @@ class SourceVersionSerializer(
             "id",
 
             "version",
+
+            # 기존 단일 언어 필드
+            # 전환 기간 동안 호환용으로 유지
             "language",
+
+            # Backend 자동 감지 다중 언어
+            "detected_languages",
+
             "source_type",
 
             "source_file_name",
@@ -76,6 +94,7 @@ class SourceVersionSerializer(
 
             "version",
             "language",
+            "detected_languages",
             "source_type",
 
             "source_file_name",
@@ -115,6 +134,41 @@ class SourceVersionSerializer(
 
 
 # ========================================
+# 일반 사용자용 SourceVersion 조회 Serializer
+#
+# 일반 사용자에게는 완료된 분석 결과를
+# 화면에 연결하는 데 필요한 최소 정보만 제공한다.
+# ========================================
+
+class UserSourceVersionSerializer(
+    serializers.ModelSerializer
+):
+
+    class Meta:
+
+        model = SourceVersion
+
+        fields = [
+            "id",
+            "version",
+
+            # 기존 데이터 호환용
+            "language",
+
+            # 일반 사용자 화면에서
+            # 완료 분석의 실제 감지 언어 표시
+            "detected_languages",
+        ]
+
+        read_only_fields = [
+            "id",
+            "version",
+            "language",
+            "detected_languages",
+        ]
+
+
+# ========================================
 # SourceVersion 등록 / 수정 Serializer
 #
 # POST /api/projects/{id}/sources/
@@ -138,7 +192,9 @@ class SourceVersionWriteSerializer(
         model = SourceVersion
 
         fields = [
-            "language",
+            # 분석 언어는 요청으로 받지 않는다.
+            # 실제 소스를 준비한 뒤 Backend가
+            # 자동으로 감지한다.
             "source_type",
 
             "source_file",
@@ -148,21 +204,106 @@ class SourceVersionWriteSerializer(
 
 
     # ====================================
-    # Language
+    # Upload File
+    #
+    # HTTP 요청 단계의 1차 검증
+    #
+    # 여기서는:
+    #
+    # - .zip 확장자
+    # - 빈 파일
+    # - 압축 파일 크기
+    #
+    # 만 빠르게 검사한다.
+    #
+    # 실제 ZIP 내부 보안 검사는
+    # Celery 분석 Task에서 수행한다.
     # ====================================
 
-    def validate_language(
+    def validate_source_file(
         self,
         value,
     ):
 
-        value = value.strip()
+        if value is None:
+
+            return value
 
 
-        if not value:
+        # --------------------------------
+        # 파일명
+        # --------------------------------
+
+        file_name = (
+            getattr(
+                value,
+                "name",
+                "",
+            )
+            or ""
+        ).strip()
+
+
+        if not file_name:
 
             raise serializers.ValidationError(
-                "분석 언어를 입력해주세요."
+                "업로드 파일명을 확인할 수 없습니다."
+            )
+
+
+        # --------------------------------
+        # ZIP 확장자
+        #
+        # 대소문자는 구분하지 않는다.
+        #
+        # example.zip
+        # EXAMPLE.ZIP
+        # --------------------------------
+
+        if not (
+            file_name
+            .lower()
+            .endswith(
+                ".zip"
+            )
+        ):
+
+            raise serializers.ValidationError(
+                "파일 업로드 방식은 ZIP 파일만 등록할 수 있습니다."
+            )
+
+
+        # --------------------------------
+        # 파일 크기
+        # --------------------------------
+
+        file_size = getattr(
+            value,
+            "size",
+            None,
+        )
+
+
+        if (
+            file_size is not None
+            and
+            file_size <= 0
+        ):
+
+            raise serializers.ValidationError(
+                "빈 ZIP 파일은 업로드할 수 없습니다."
+            )
+
+
+        if (
+            file_size is not None
+            and
+            file_size >
+            MAX_UPLOAD_ZIP_SIZE
+        ):
+
+            raise serializers.ValidationError(
+                "업로드 가능한 ZIP 파일의 최대 크기는 50MB입니다."
             )
 
 
@@ -349,7 +490,42 @@ class SourceVersionWriteSerializer(
 
                 raise serializers.ValidationError({
                     "source_file":
-                        "업로드 방식은 소스 파일이 필요합니다."
+                        "업로드 방식은 ZIP 파일이 필요합니다."
+                })
+
+
+            # --------------------------------
+            # 기존 SourceVersion 수정 시
+            #
+            # source_file이 요청에 포함되지 않으면
+            # validate_source_file()이 호출되지
+            # 않을 수 있다.
+            #
+            # 따라서 실제 적용될 파일도
+            # ZIP인지 다시 확인한다.
+            # --------------------------------
+
+            source_file_name = (
+                getattr(
+                    source_file,
+                    "name",
+                    "",
+                )
+                or ""
+            ).strip()
+
+
+            if not (
+                source_file_name
+                .lower()
+                .endswith(
+                    ".zip"
+                )
+            ):
+
+                raise serializers.ValidationError({
+                    "source_file":
+                        "파일 업로드 방식은 ZIP 파일만 사용할 수 있습니다."
                 })
 
 
@@ -621,6 +797,126 @@ class ProjectSerializer(
                 "user_id",
                 flat=True,
             )
+        )
+
+
+    # ====================================
+    # 역할별 Project 응답 분리
+    #
+    # 관리자
+    # → 기존 ProjectSerializer 응답
+    #
+    # 일반 사용자
+    # → UserProjectSerializer 응답
+    # ====================================
+
+    def to_representation(
+        self,
+        instance,
+    ):
+
+        request = self.context.get(
+            "request"
+        )
+
+
+        if (
+            request is not None
+            and
+            not request.user.is_staff
+        ):
+
+            return UserProjectSerializer(
+                instance,
+                context=self.context,
+            ).data
+
+
+        return super().to_representation(
+            instance
+        )
+
+
+# ========================================
+# 일반 사용자용 Project 조회 Serializer
+#
+# 일반 사용자는 완료된 분석 결과 조회에
+# 필요한 프로젝트 정보만 받는다.
+#
+# 제외:
+# - created_by_id
+# - current_source_version_id
+# - assigned_user_ids
+# - Source 파일명 / Repository URL / 내부 경로
+# - 분석되지 않았거나 완료되지 않은 SourceVersion
+# ========================================
+
+class UserProjectSerializer(
+    serializers.ModelSerializer
+):
+
+    created_by_username = serializers.CharField(
+        source="created_by.username",
+        read_only=True,
+    )
+
+
+    source_versions = (
+        serializers.SerializerMethodField()
+    )
+
+
+    class Meta:
+
+        model = Project
+
+        fields = [
+            "id",
+            "name",
+            "description",
+            "created_by_username",
+            "source_versions",
+            "created_at",
+        ]
+
+        read_only_fields = [
+            "id",
+            "name",
+            "description",
+            "created_by_username",
+            "source_versions",
+            "created_at",
+        ]
+
+
+    # ====================================
+    # 완료된 분석과 연결된 SourceVersion만
+    # 일반 사용자에게 제공
+    # ====================================
+
+    def get_source_versions(
+        self,
+        obj,
+    ):
+
+        source_versions = (
+            obj.source_versions
+            .filter(
+                analysis_runs__status=
+                    "completed"
+            )
+            .distinct()
+            .order_by(
+                "version"
+            )
+        )
+
+
+        return (
+            UserSourceVersionSerializer(
+                source_versions,
+                many=True,
+            ).data
         )
 
 

@@ -40,6 +40,34 @@
 
 
 /* ========================================
+   Loading / Error
+======================================== */
+
+.summary-state-card {
+  padding: 24px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  color: #6b7280;
+
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+
+.summary-state-card.error {
+  border-color: #fecaca;
+
+  background-color: #fef2f2;
+
+  color: #b91c1c;
+}
+
+
+/* ========================================
    Main Summary Card Grid
 ======================================== */
 
@@ -47,7 +75,7 @@
   display: grid;
 
   grid-template-columns:
-    repeat(5, minmax(0, 1fr));
+    repeat(3, minmax(0, 1fr));
 
   gap: 16px;
 
@@ -135,6 +163,16 @@
 
   font-size: 16px;
   font-weight: 700;
+}
+
+
+.summary-section-header p {
+  margin: 6px 0 0;
+
+  color: #6b7280;
+
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 
@@ -262,6 +300,154 @@
 
 
 /* ========================================
+   Recent Analysis
+======================================== */
+
+.recent-analysis-card {
+  overflow: hidden;
+
+  background-color: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.03);
+}
+
+
+.recent-analysis-table-wrapper {
+  width: 100%;
+
+  overflow-x: auto;
+}
+
+
+.recent-analysis-table {
+  width: 100%;
+  min-width: 760px;
+
+  border-collapse: collapse;
+}
+
+
+.recent-analysis-table th {
+  padding: 13px 16px;
+
+  background-color: #f9fafb;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  color: #6b7280;
+
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+
+  white-space: nowrap;
+}
+
+
+.recent-analysis-table td {
+  padding: 15px 16px;
+
+  border-bottom: 1px solid #f3f4f6;
+
+  color: #374151;
+
+  font-size: 13px;
+
+  vertical-align: middle;
+}
+
+
+.recent-analysis-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+
+.recent-analysis-project {
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+
+.recent-analysis-project strong {
+  color: #1f2937;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+
+.recent-analysis-project span {
+  color: #9ca3af;
+
+  font-size: 12px;
+}
+
+
+.recent-analysis-status {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 24px;
+
+  padding: 3px 8px;
+
+  box-sizing: border-box;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+
+.recent-analysis-status.pending {
+  background-color: #fff7ed;
+
+  color: #c2410c;
+}
+
+
+.recent-analysis-status.running {
+  background-color: #eff6ff;
+
+  color: #2563eb;
+}
+
+
+.recent-analysis-status.completed {
+  background-color: #ecfdf5;
+
+  color: #047857;
+}
+
+
+.recent-analysis-status.failed {
+  background-color: #fef2f2;
+
+  color: #dc2626;
+}
+
+
+.recent-analysis-empty {
+  padding: 28px 20px;
+
+  color: #9ca3af;
+
+  font-size: 13px;
+  text-align: center;
+}
+
+
+/* ========================================
    Responsive - Desktop
 ======================================== */
 
@@ -269,7 +455,7 @@
 
   .summary-card-grid {
     grid-template-columns:
-      repeat(3, minmax(0, 1fr));
+      repeat(2, minmax(0, 1fr));
   }
 
 
@@ -346,6 +532,12 @@
 
   .analysis-status-card strong {
     font-size: 22px;
+  }
+
+
+  .recent-analysis-table th,
+  .recent-analysis-table td {
+    padding: 12px 14px;
   }
 
 }

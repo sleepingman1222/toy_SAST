@@ -18,6 +18,8 @@ import AdminSummary from "./Admin/AdminSummary";
 import UserManagement from "./Admin/UserManagement";
 import ProjectManagement from "./Admin/ProjectManagement";
 
+import UserSummary from "./User/UserSummary";
+import UserProjectList from "./User/UserProjectList";
 import MyPage from "./MyPage/MyPage";
 
 import "./Dashboard.css";
@@ -83,6 +85,8 @@ function Dashboard() {
 
   /* ========================================
      사용자 목록 조회
+
+     관리자만 사용자 목록 조회
   ======================================== */
 
   useEffect(
@@ -191,6 +195,13 @@ function Dashboard() {
 
   /* ========================================
      프로젝트 목록 조회
+
+     관리자
+     → 전체 프로젝트
+
+     일반 사용자
+     → Backend에서 ProjectAccess가 있는
+       프로젝트만 반환하도록 수정 예정
   ======================================== */
 
   useEffect(
@@ -200,10 +211,7 @@ function Dashboard() {
         false;
 
 
-      if (
-        user?.role !==
-        "admin"
-      ) {
+      if (!user?.role) {
 
         setProjects([]);
         setProjectsLoading(false);
@@ -378,15 +386,7 @@ function Dashboard() {
 
           return (
 
-            <AdminSummary
-              users={
-                users
-              }
-
-              projects={
-                projects
-              }
-            />
+            <AdminSummary />
 
           );
 
@@ -464,15 +464,7 @@ function Dashboard() {
 
           return (
 
-            <AdminSummary
-              users={
-                users
-              }
-
-              projects={
-                projects
-              }
-            />
+            <AdminSummary />
 
           );
       }
@@ -490,6 +482,52 @@ function Dashboard() {
         selectedMenu
       ) {
 
+        case "summary":
+
+          return (
+
+            <UserSummary
+              projects={
+                projects
+              }
+
+              projectsLoading={
+                projectsLoading
+              }
+
+              projectsError={
+                projectsError
+              }
+            />
+
+          );
+
+
+        case "projects":
+
+          return (
+
+            <UserProjectList
+              projects={
+                projects
+              }
+
+              setProjects={
+                setProjects
+              }
+
+              projectsLoading={
+                projectsLoading
+              }
+
+              projectsError={
+                projectsError
+              }
+            />
+
+          );
+
+
         case "mypage":
 
           return (
@@ -500,7 +538,21 @@ function Dashboard() {
         default:
 
           return (
-            <MyPage />
+
+            <UserSummary
+              projects={
+                projects
+              }
+
+              projectsLoading={
+                projectsLoading
+              }
+
+              projectsError={
+                projectsError
+              }
+            />
+
           );
       }
     };
