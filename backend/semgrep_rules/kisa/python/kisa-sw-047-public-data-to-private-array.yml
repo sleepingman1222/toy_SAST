@@ -1,0 +1,40 @@
+rules:
+  - id: kisa.sw47.python.external-list-assigned-to-private-field
+    message: >-
+      외부에서 전달된 mutable 데이터가 private 성격의 필드에 직접 할당되고
+      있습니다. 외부 객체 변경이 내부 상태에 영향을 줄 수 있습니다.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-47"
+      kisa_name: "Private 배열에 Public 데이터 할당"
+      confidence: MEDIUM
+      recommendation: >-
+        생성자나 public 인터페이스를 통해 전달된 mutable list 또는 배열을
+        private 필드에 그대로 저장하지 말고 list(), copy(), tuple() 등의
+        방어적 복사를 수행하세요.
+      rule_version: "1.0.1"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-496
+      technology:
+        - python
+        - encapsulation
+
+    patterns:
+      - pattern-inside: |
+          def __init__(self, ...):
+              ...
+
+      - pattern: self.$FIELD = $DATA
+
+      - metavariable-regex:
+          metavariable: $FIELD
+          regex: '^_[A-Za-z][A-Za-z0-9_]*$'
+
+      - metavariable-regex:
+          metavariable: $DATA
+          regex: '^[A-Za-z][A-Za-z0-9_]*$'

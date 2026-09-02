@@ -1,0 +1,43 @@
+rules:
+  - id: kisa.sw14.javascript.external-input-to-bitwise-int
+    message: >-
+      정수형 오버플로우 관련 보안 패턴이 탐지되었습니다.
+      JavaScript Number를 bitwise 연산으로 32비트 정수화할 때 입력 범위를 검증하고 안전한 정수 범위를 확인하세요.
+    languages:
+      - javascript
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-14"
+      kisa_name: "정수형 오버플로우"
+      confidence: MEDIUM
+      recommendation: >-
+        JavaScript Number를 bitwise 연산으로 32비트 정수화할 때 입력 범위를 검증하고 안전한 정수 범위를 확인하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-190
+      technology:
+        - "javascript"
+        - "integer"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.query.$KEY
+              - pattern: >-
+                  $REQ.body.$KEY
+              - pattern: >-
+                  $REQ.params.$KEY
+              - pattern: >-
+                  $REQ.headers[$KEY]
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  $X | 0
+              - pattern: >-
+                  $X << $Y
+              - pattern: >-
+                  $X >> $Y

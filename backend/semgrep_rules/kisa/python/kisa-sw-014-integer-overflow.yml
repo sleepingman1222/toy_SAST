@@ -1,0 +1,47 @@
+rules:
+  - id: kisa.sw14.python.external-input-to-fixed-width-integer
+    message: >-
+      정수형 오버플로우 관련 보안 패턴이 탐지되었습니다.
+      Python 자체 정수는 임의정밀도이지만 ctypes 등 고정폭 정수로 변환할 때 범위를 명시적으로 검사하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-14"
+      kisa_name: "정수형 오버플로우"
+      confidence: MEDIUM
+      recommendation: >-
+        Python 자체 정수는 임의정밀도이지만 ctypes 등 고정폭 정수로 변환할 때 범위를 명시적으로 검사하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-190
+      technology:
+        - "python"
+        - "ctypes"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  input(...)
+              - pattern: >-
+                  $REQ.GET.get(...)
+              - pattern: >-
+                  $REQ.POST.get(...)
+              - pattern: >-
+                  $REQ.args.get(...)
+              - pattern: >-
+                  $REQ.form.get(...)
+              - pattern: >-
+                  $REQ.json.get(...)
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  ctypes.c_int($X)
+              - pattern: >-
+                  ctypes.c_int32($X)
+              - pattern: >-
+                  ctypes.c_uint32($X)

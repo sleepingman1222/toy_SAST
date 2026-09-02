@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw31.java.password-hash-without-salt
+    message: >-
+      솔트 없이 일방향 해쉬 함수 사용 관련 보안 패턴이 탐지되었습니다.
+      비밀번호 저장에는 단순 SHA 해시 대신 salt와 비용 인자를 가진 전용 password KDF를 사용하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-31"
+      kisa_name: "솔트 없이 일방향 해쉬 함수 사용"
+      confidence: HIGH
+      recommendation: >-
+        비밀번호 저장에는 단순 SHA 해시 대신 salt와 비용 인자를 가진 전용 password KDF를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-759
+      technology:
+        - "java"
+        - "password"
+        - "hash"
+
+    pattern-either:
+      - pattern: >-
+          MessageDigest.getInstance("SHA-256").digest($PASSWORD.getBytes(...))
+      - pattern: >-
+          MessageDigest.getInstance("SHA-512").digest($PASSWORD.getBytes(...))

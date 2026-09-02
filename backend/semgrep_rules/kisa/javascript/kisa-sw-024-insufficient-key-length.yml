@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw24.javascript.insufficient-rsa-key-length
+    message: >-
+      충분하지 않은 키 길이 사용 관련 보안 패턴이 탐지되었습니다.
+      RSA 키 생성 시 modulusLength를 최소 2048비트 이상으로 설정하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-24"
+      kisa_name: "충분하지 않은 키 길이 사용"
+      confidence: HIGH
+      recommendation: >-
+        RSA 키 생성 시 modulusLength를 최소 2048비트 이상으로 설정하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-326
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "cryptography"
+
+    patterns:
+      - pattern: >-
+          crypto.generateKeyPairSync("rsa", {modulusLength: $BITS, ...})
+      - metavariable-comparison:
+          metavariable: $BITS
+          comparison: $BITS < 2048

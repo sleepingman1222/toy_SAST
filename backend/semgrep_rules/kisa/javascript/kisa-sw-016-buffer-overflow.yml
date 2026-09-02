@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw16.javascript.unsafe-buffer-operation-review
+    message: >-
+      메모리 버퍼 오버플로우 관련 보안 패턴이 탐지되었습니다.
+      Node.js Buffer의 unsafe allocation 또는 offset/length 기반 쓰기는 경계와 초기화를 수동 검토하세요.
+    languages:
+      - javascript
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-16"
+      kisa_name: "메모리 버퍼 오버플로우"
+      confidence: LOW
+      recommendation: >-
+        Node.js Buffer의 unsafe allocation 또는 offset/length 기반 쓰기는 경계와 초기화를 수동 검토하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: manual_review
+      cwe:
+        - CWE-120
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "buffer"
+
+    pattern-either:
+      - pattern: >-
+          Buffer.allocUnsafe(...)
+      - pattern: >-
+          $BUF.write($DATA, $OFFSET, $LENGTH, ...)

@@ -1,37 +1,31 @@
 rules:
-  - id: kisa.python.code-injection.external-input-to-eval-exec
-
-    languages:
-      - python
-
-    message: >
-      외부 입력값이 동적 코드 실행 함수로 전달되고 있습니다.
-      eval/exec에 외부 입력값을 직접 전달하지 말고,
-      필요한 경우 허용목록 기반의 명시적인 동작 매핑을 사용하세요.
-
+  - id: kisa.sw02.python.external-input-to-eval-exec
+    message: >-
+      외부 입력값이 Python 동적 코드 실행 함수에 전달되고 있습니다.
+      eval/exec 사용을 제거하거나 실행 가능한 값을 허용목록으로 제한하세요.
+    languages: [python]
     severity: ERROR
-
     mode: taint
-
     metadata:
-      kisa_identifier: KISA-SW-002
+      kisa_identifier: KISA-SW-02
       kisa_name: 코드 삽입
-      confidence: high
-      recommendation: >
-        eval, exec와 같은 동적 코드 실행 함수의 사용을 피하세요.
-        반드시 필요한 경우 외부 입력값을 코드로 직접 실행하지 말고
-        허용목록 방식으로 검증된 값만 처리하세요.
-
+      confidence: HIGH
+      recommendation: >-
+        외부 입력을 eval, exec 또는 compile의 코드 인자로 직접 전달하지 마세요.
+        동적 실행이 필요하면 허용목록에서 동작을 선택하고 외부 입력은 데이터로만 처리하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      cwe: [CWE-94, CWE-95]
+      technology: [python]
     pattern-sources:
       - pattern-either:
-          - pattern: request.args.get(...)
-          - pattern: request.form.get(...)
-          - pattern: request.values.get(...)
-          - pattern: request.GET.get(...)
-          - pattern: request.POST.get(...)
           - pattern: input(...)
-
+          - pattern: $REQ.GET.get(...)
+          - pattern: $REQ.POST.get(...)
+          - pattern: $REQ.GET[...]
+          - pattern: $REQ.POST[...]
     pattern-sinks:
       - pattern-either:
-          - pattern: eval($CODE)
-          - pattern: exec($CODE)
+          - pattern: eval($X)
+          - pattern: exec($X)
+          - pattern: compile($X, ...)

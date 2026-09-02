@@ -1,0 +1,50 @@
+rules:
+  - id: kisa.sw05.python.external-input-to-command
+    message: >-
+      운영체제 명령어 삽입 관련 보안 패턴이 탐지되었습니다.
+      외부 입력을 shell 명령 문자열에 연결하지 말고 shell=False와 인자 배열, 허용목록을 사용하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-05"
+      kisa_name: "운영체제 명령어 삽입"
+      confidence: HIGH
+      recommendation: >-
+        외부 입력을 shell 명령 문자열에 연결하지 말고 shell=False와 인자 배열, 허용목록을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-78
+      technology:
+        - "python"
+        - "os"
+        - "subprocess"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  input(...)
+              - pattern: >-
+                  $REQ.GET.get(...)
+              - pattern: >-
+                  $REQ.POST.get(...)
+              - pattern: >-
+                  $REQ.args.get(...)
+              - pattern: >-
+                  $REQ.form.get(...)
+              - pattern: >-
+                  $REQ.json.get(...)
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  os.system($CMD)
+              - pattern: >-
+                  subprocess.call($CMD, shell=True)
+              - pattern: >-
+                  subprocess.run($CMD, shell=True, ...)
+              - pattern: >-
+                  subprocess.Popen($CMD, shell=True, ...)

@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw19.java.external-id-object-access-review
+    message: >-
+      부적절한 인가 관련 보안 패턴이 탐지되었습니다.
+      요청 파라미터의 객체 ID만으로 자원 접근을 허용하지 말고 현재 인증 주체의 소유권 또는 권한 검사를 추가하세요.
+    languages:
+      - java
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-19"
+      kisa_name: "부적절한 인가"
+      confidence: LOW
+      recommendation: >-
+        요청 파라미터의 객체 ID만으로 자원 접근을 허용하지 말고 현재 인증 주체의 소유권 또는 권한 검사를 추가하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-862
+      technology:
+        - "java"
+        - "web"
+        - "authorization"
+
+    pattern-either:
+      - pattern: >-
+          $REPO.findById($REQ.getParameter(...))
+      - pattern: >-
+          $REPO.getById($REQ.getParameter(...))
+      - pattern: >-
+          $REPO.findOne($REQ.getParameter(...))

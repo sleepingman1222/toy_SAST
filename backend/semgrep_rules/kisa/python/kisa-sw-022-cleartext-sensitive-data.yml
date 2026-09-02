@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw22.python.cleartext-http-transport-review
+    message: >-
+      암호화되지 않은 중요정보 관련 보안 패턴이 탐지되었습니다.
+      중요정보 전송 가능성이 있는 HTTP 평문 통신을 검토하고 HTTPS/TLS를 사용하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-22"
+      kisa_name: "암호화되지 않은 중요정보"
+      confidence: MEDIUM
+      recommendation: >-
+        중요정보 전송 가능성이 있는 HTTP 평문 통신을 검토하고 HTTPS/TLS를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-319
+      technology:
+        - "python"
+        - "http"
+        - "tls"
+
+    pattern-either:
+      - pattern: >-
+          requests.post("http://...", ...)
+      - pattern: >-
+          requests.put("http://...", ...)
+      - pattern: >-
+          urllib.request.urlopen("http://...")

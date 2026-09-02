@@ -1,0 +1,35 @@
+rules:
+  - id: kisa.sw38.python.overbroad-exception-default-return
+    message: >-
+      부적절한 예외 처리 관련 보안 패턴이 탐지되었습니다.
+      지나치게 넓은 예외를 잡아 정상값처럼 반환하지 말고 구체적 예외별 처리와 실패 전달 정책을 구현하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-38"
+      kisa_name: "부적절한 예외 처리"
+      confidence: HIGH
+      recommendation: >-
+        지나치게 넓은 예외를 잡아 정상값처럼 반환하지 말고 구체적 예외별 처리와 실패 전달 정책을 구현하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-755
+      technology:
+        - "python"
+        - "error-handling"
+
+    pattern-either:
+      - pattern: |
+          try:
+              ...
+          except Exception:
+              return None
+      - pattern: |
+          try:
+              ...
+          except BaseException:
+              ...

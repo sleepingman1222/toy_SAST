@@ -1,0 +1,34 @@
+rules:
+  - id: kisa.sw20.java.world-accessible-permission
+    message: >-
+      중요한 자원에 대한 잘못된 권한 설정 관련 보안 패턴이 탐지되었습니다.
+      파일 권한을 모든 사용자에게 열지 말고 소유자/필요 그룹에 필요한 최소 권한만 부여하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-20"
+      kisa_name: "중요한 자원에 대한 잘못된 권한 설정"
+      confidence: HIGH
+      recommendation: >-
+        파일 권한을 모든 사용자에게 열지 말고 소유자/필요 그룹에 필요한 최소 권한만 부여하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-732
+      technology:
+        - "java"
+        - "filesystem"
+        - "permissions"
+
+    pattern-either:
+      - pattern: >-
+          $FILE.setReadable(true, false)
+      - pattern: >-
+          $FILE.setWritable(true, false)
+      - pattern: >-
+          $FILE.setExecutable(true, false)
+      - pattern: >-
+          Files.setPosixFilePermissions($PATH, PosixFilePermissions.fromString("rwxrwxrwx"))

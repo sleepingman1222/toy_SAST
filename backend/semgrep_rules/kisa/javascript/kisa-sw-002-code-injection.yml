@@ -1,38 +1,37 @@
 rules:
-  - id: kisa.javascript.code-injection.external-input-to-dynamic-code
-
-    languages:
-      - javascript
-
-    message: >
-      외부 입력값이 동적 코드 실행 함수로 전달되고 있습니다.
-      eval 또는 Function 생성자에 외부 입력값을 직접 전달하지 말고,
-      필요한 경우 허용목록 기반의 명시적인 동작 매핑을 사용하세요.
-
+  - id: kisa.sw02.javascript.external-input-to-dynamic-code
+    message: >-
+      외부 입력값이 JavaScript 동적 코드 실행 기능에 전달되고 있습니다.
+      eval 또는 Function 생성자로 외부 입력을 실행하지 마세요.
+    languages: [javascript]
     severity: ERROR
-
     mode: taint
 
     metadata:
-      kisa_identifier: KISA-SW-002
+      kisa_identifier: KISA-SW-02
       kisa_name: 코드 삽입
-      confidence: high
-      recommendation: >
-        eval, Function과 같은 동적 코드 실행 기능의 사용을 피하세요.
-        반드시 필요한 경우 외부 입력값을 코드로 직접 실행하지 말고
-        허용목록 방식으로 검증된 값만 처리하세요.
+      confidence: HIGH
+      recommendation: >-
+        요청 파라미터, 본문, 쿼리스트링 등의 외부 입력을 eval, Function 또는
+        문자열 기반 동적 실행 함수에 전달하지 말고 명시적인 함수 매핑을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      cwe: [CWE-94, CWE-95]
+      technology: [javascript, nodejs]
 
     pattern-sources:
       - pattern-either:
-          - pattern: $REQ.query.$FIELD
-          - pattern: $REQ.body.$FIELD
-          - pattern: $REQ.params.$FIELD
-          - pattern: $REQ.query[$FIELD]
-          - pattern: $REQ.body[$FIELD]
-          - pattern: $REQ.params[$FIELD]
+          - pattern: $REQ.query.$KEY
+          - pattern: $REQ.body.$KEY
+          - pattern: $REQ.params.$KEY
+          - pattern: $REQ.query[...]
+          - pattern: $REQ.body[...]
+          - pattern: $REQ.params[...]
 
     pattern-sinks:
       - pattern-either:
-          - pattern: eval($CODE)
-          - pattern: new Function($CODE)
-          - pattern: Function($CODE)
+          - pattern: eval($X)
+          - pattern: Function($X)
+          - pattern: new Function($X)
+          - pattern: setTimeout($X, ...)
+          - pattern: setInterval($X, ...)

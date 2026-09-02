@@ -1,0 +1,50 @@
+rules:
+  - id: kisa.sw03.javascript.external-input-to-file-path
+    message: >-
+      경로 조작 및 자원 삽입 관련 보안 패턴이 탐지되었습니다.
+      요청값을 파일 경로로 직접 사용하지 말고 path.basename/resolve와 허용 루트 검증을 적용하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-03"
+      kisa_name: "경로 조작 및 자원 삽입"
+      confidence: HIGH
+      recommendation: >-
+        요청값을 파일 경로로 직접 사용하지 말고 path.basename/resolve와 허용 루트 검증을 적용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-22
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "filesystem"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.query.$KEY
+              - pattern: >-
+                  $REQ.body.$KEY
+              - pattern: >-
+                  $REQ.params.$KEY
+              - pattern: >-
+                  $REQ.headers[$KEY]
+    pattern-sanitizers:
+      - pattern-either:
+              - pattern: >-
+                  path.basename(...)
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  fs.readFileSync($PATH, ...)
+              - pattern: >-
+                  fs.readFile($PATH, ...)
+              - pattern: >-
+                  fs.writeFileSync($PATH, ...)
+              - pattern: >-
+                  fs.unlinkSync($PATH)

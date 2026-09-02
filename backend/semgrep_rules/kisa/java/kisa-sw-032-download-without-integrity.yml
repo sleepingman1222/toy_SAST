@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw32.java.remote-code-loader-review
+    message: >-
+      무결성 검사 없는 코드 다운로드 관련 보안 패턴이 탐지되었습니다.
+      원격 코드/라이브러리를 로드하기 전에 서명 또는 고정된 신뢰 해시로 무결성을 확인하세요.
+    languages:
+      - java
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-32"
+      kisa_name: "무결성 검사 없는 코드 다운로드"
+      confidence: MEDIUM
+      recommendation: >-
+        원격 코드/라이브러리를 로드하기 전에 서명 또는 고정된 신뢰 해시로 무결성을 확인하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-494
+      technology:
+        - "java"
+        - "download"
+        - "classloader"
+        - "integrity"
+
+    pattern-either:
+      - pattern: >-
+          new URLClassLoader(new URL[]{new URL($URL)})
+      - pattern: >-
+          new URLClassLoader($URLS)

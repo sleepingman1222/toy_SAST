@@ -1,0 +1,46 @@
+rules:
+  - id: kisa.sw05.javascript.external-input-to-command
+    message: >-
+      운영체제 명령어 삽입 관련 보안 패턴이 탐지되었습니다.
+      외부 입력을 shell command 문자열에 연결하지 말고 execFile/spawn의 인자 배열과 허용목록을 사용하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-05"
+      kisa_name: "운영체제 명령어 삽입"
+      confidence: HIGH
+      recommendation: >-
+        외부 입력을 shell command 문자열에 연결하지 말고 execFile/spawn의 인자 배열과 허용목록을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-78
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "child_process"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.query.$KEY
+              - pattern: >-
+                  $REQ.body.$KEY
+              - pattern: >-
+                  $REQ.params.$KEY
+              - pattern: >-
+                  $REQ.headers[$KEY]
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  child_process.exec($CMD, ...)
+              - pattern: >-
+                  child_process.execSync($CMD, ...)
+              - pattern: >-
+                  exec($CMD, ...)
+              - pattern: >-
+                  execSync($CMD, ...)

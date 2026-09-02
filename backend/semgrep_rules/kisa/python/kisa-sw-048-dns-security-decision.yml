@@ -1,0 +1,36 @@
+rules:
+  - id: kisa.sw48.python.dns-result-used-for-security-decision-review
+    message: >-
+      DNS lookup에 의존한 보안결정 관련 보안 패턴이 탐지되었습니다.
+      DNS lookup 결과만으로 신뢰/인가를 결정하지 말고 암호학적 인증 또는 신뢰된 네트워크 식별 수단을 사용하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-48"
+      kisa_name: "DNS lookup에 의존한 보안결정"
+      confidence: MEDIUM
+      recommendation: >-
+        DNS lookup 결과만으로 신뢰/인가를 결정하지 말고 암호학적 인증 또는 신뢰된 네트워크 식별 수단을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-247
+      technology:
+        - "python"
+        - "dns"
+        - "authorization"
+
+    pattern-either:
+      - pattern: |
+          $IP = socket.gethostbyname($HOST)
+          ...
+          if $IP == $TRUSTED:
+              ...
+      - pattern: |
+          $NAME = socket.gethostbyaddr($IP)
+          ...
+          if $NAME == $TRUSTED:
+              ...

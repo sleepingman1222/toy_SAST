@@ -1,0 +1,33 @@
+rules:
+  - id: kisa.sw38.javascript.overbroad-exception-default-return
+    message: >-
+      부적절한 예외 처리 관련 보안 패턴이 탐지되었습니다.
+      예외를 null 등 정상값으로 숨기지 말고 실패 상태를 명확히 전파하거나 구체적으로 복구하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-38"
+      kisa_name: "부적절한 예외 처리"
+      confidence: HIGH
+      recommendation: >-
+        예외를 null 등 정상값으로 숨기지 말고 실패 상태를 명확히 전파하거나 구체적으로 복구하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-755
+      technology:
+        - "javascript"
+        - "error-handling"
+
+    pattern-either:
+      - pattern: |
+          try {
+            ...
+          } catch ($E) {
+            return null;
+          }
+      - pattern: >-
+          $PROMISE.catch(($E) => null)

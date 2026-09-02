@@ -1,36 +1,27 @@
 rules:
-  - id: kisa.javascript.sql-injection.tainted-query
-
+  - id: kisa.sw01.javascript.sql-client-string-built-query
+    message: >-
+      문자열 결합으로 생성한 SQL을 query/execute 계열 함수에 전달하고
+      있습니다. SQL Parameter Binding을 사용하세요.
     languages:
       - javascript
-
-    message: >
-      HTTP 요청에서 전달된 외부 입력값이
-      SQL 문자열에 포함된 후 데이터베이스 쿼리로
-      전달되고 있습니다.
-      파라미터 바인딩을 사용하세요.
-
     severity: ERROR
 
-    mode: taint
-
     metadata:
-      kisa_identifier: KISA-SW-001
+      kisa_identifier: KISA-SW-01
       kisa_name: SQL 삽입
-      confidence: high
-      recommendation: >
-        req.query, req.body, req.params 등의 외부 입력값을
-        SQL 문자열에 직접 연결하지 말고
-        데이터베이스 라이브러리가 제공하는
-        파라미터 바인딩 기능을 사용하세요.
+      confidence: MEDIUM
+      recommendation: >-
+        요청값이나 외부 입력을 SQL 문자열에 직접 결합하지 말고 사용 중인
+        SQL Client의 placeholder와 parameter binding 기능을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      cwe:
+        - CWE-89
+      technology:
+        - javascript
+        - sql-client
 
-    pattern-sources:
-      - pattern-either:
-          - pattern: $REQ.query.$FIELD
-          - pattern: $REQ.body.$FIELD
-          - pattern: $REQ.params.$FIELD
-
-    pattern-sinks:
-      - pattern-either:
-          - pattern: $DB.query($QUERY, ...)
-          - pattern: $DB.execute($QUERY, ...)
+    pattern-either:
+      - pattern: $DB.query($SQL + $INPUT, ...)
+      - pattern: $DB.execute($SQL + $INPUT, ...)

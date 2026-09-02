@@ -1,0 +1,38 @@
+rules:
+  - id: kisa.sw34.java.check-then-use-file
+    message: >-
+      경쟁조건 : 검사 시점과 사용 시점(TOCTOU) 관련 보안 패턴이 탐지되었습니다.
+      검사 시점과 사용 시점 사이 경로가 바뀔 수 있으므로 atomic 파일 API와 안전한 open 옵션을 사용하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-34"
+      kisa_name: "경쟁조건 : 검사 시점과 사용 시점(TOCTOU)"
+      confidence: HIGH
+      recommendation: >-
+        검사 시점과 사용 시점 사이 경로가 바뀔 수 있으므로 atomic 파일 API와 안전한 open 옵션을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-367
+      technology:
+        - "java"
+        - "filesystem"
+        - "race-condition"
+
+    pattern-either:
+      - pattern: |
+          if (Files.exists($PATH)) {
+              ...
+              Files.newInputStream($PATH);
+              ...
+          }
+      - pattern: |
+          if ($FILE.exists()) {
+              ...
+              new FileInputStream($FILE);
+              ...
+          }

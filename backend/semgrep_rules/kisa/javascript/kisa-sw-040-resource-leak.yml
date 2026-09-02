@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw40.javascript.open-file-descriptor-review
+    message: >-
+      부적절한 자원 해제 관련 보안 패턴이 탐지되었습니다.
+      열린 file descriptor가 모든 경로에서 close되는지 검토하고 가능하면 readFile/writeFile 같은 자동 관리 API를 사용하세요.
+    languages:
+      - javascript
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-40"
+      kisa_name: "부적절한 자원 해제"
+      confidence: MEDIUM
+      recommendation: >-
+        열린 file descriptor가 모든 경로에서 close되는지 검토하고 가능하면 readFile/writeFile 같은 자동 관리 API를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-772
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "resource-management"
+
+    pattern-either:
+      - pattern: >-
+          $FD = fs.openSync(...)
+      - pattern: >-
+          fs.open($PATH, $FLAGS, $CALLBACK)

@@ -1,0 +1,37 @@
+rules:
+  - id: kisa.sw38.java.overbroad-exception-default-return
+    message: >-
+      부적절한 예외 처리 관련 보안 패턴이 탐지되었습니다.
+      Exception/Throwable을 과도하게 잡아 null 등 정상값으로 숨기지 말고 구체적 예외 처리와 실패 전파를 사용하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-38"
+      kisa_name: "부적절한 예외 처리"
+      confidence: HIGH
+      recommendation: >-
+        Exception/Throwable을 과도하게 잡아 null 등 정상값으로 숨기지 말고 구체적 예외 처리와 실패 전파를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-755
+      technology:
+        - "java"
+        - "error-handling"
+
+    pattern-either:
+      - pattern: |
+          try {
+              ...
+          } catch (Exception $E) {
+              return null;
+          }
+      - pattern: |
+          try {
+              ...
+          } catch (Throwable $E) {
+              ...
+          }

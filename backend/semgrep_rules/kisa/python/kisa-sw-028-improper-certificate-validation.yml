@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw28.python.certificate-validation-disabled
+    message: >-
+      부적절한 인증서 유효성 검증 관련 보안 패턴이 탐지되었습니다.
+      TLS 인증서 검증을 비활성화하지 말고 신뢰할 수 있는 CA와 hostname 검증을 사용하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-28"
+      kisa_name: "부적절한 인증서 유효성 검증"
+      confidence: HIGH
+      recommendation: >-
+        TLS 인증서 검증을 비활성화하지 말고 신뢰할 수 있는 CA와 hostname 검증을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-295
+      technology:
+        - "python"
+        - "tls"
+        - "certificate"
+
+    pattern-either:
+      - pattern: >-
+          requests.get(..., verify=False, ...)
+      - pattern: >-
+          requests.post(..., verify=False, ...)
+      - pattern: >-
+          ssl._create_unverified_context(...)

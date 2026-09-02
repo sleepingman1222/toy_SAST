@@ -1,0 +1,35 @@
+rules:
+  - id: kisa.sw37.python.swallowed-exception
+    message: >-
+      오류상황 대응 부재 관련 보안 패턴이 탐지되었습니다.
+      예외를 아무 처리 없이 무시하지 말고 필요한 복구, 롤백, 로깅 또는 상위 전달을 수행하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-37"
+      kisa_name: "오류상황 대응 부재"
+      confidence: HIGH
+      recommendation: >-
+        예외를 아무 처리 없이 무시하지 말고 필요한 복구, 롤백, 로깅 또는 상위 전달을 수행하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-703
+      technology:
+        - "python"
+        - "error-handling"
+
+    pattern-either:
+      - pattern: |
+          try:
+              ...
+          except:
+              pass
+      - pattern: |
+          try:
+              ...
+          except Exception:
+              pass

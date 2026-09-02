@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw36.python.exception-detail-to-response
+    message: >-
+      오류 메시지 정보노출 관련 보안 패턴이 탐지되었습니다.
+      사용자 응답에는 내부 예외/스택 상세를 노출하지 말고 서버 로그에는 별도 correlation id와 함께 기록하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-36"
+      kisa_name: "오류 메시지 정보노출"
+      confidence: HIGH
+      recommendation: >-
+        사용자 응답에는 내부 예외/스택 상세를 노출하지 말고 서버 로그에는 별도 correlation id와 함께 기록하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-209
+      technology:
+        - "python"
+        - "web"
+        - "error-handling"
+
+    pattern-either:
+      - pattern: >-
+          return HttpResponse(str($E), ...)
+      - pattern: >-
+          return JsonResponse({...,"error": str($E),...}, ...)
+      - pattern: >-
+          jsonify(..., error=str($E), ...)

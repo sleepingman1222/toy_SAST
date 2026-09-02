@@ -1,0 +1,38 @@
+rules:
+  - id: kisa.sw34.python.check-then-use-file
+    message: >-
+      경쟁조건 : 검사 시점과 사용 시점(TOCTOU) 관련 보안 패턴이 탐지되었습니다.
+      파일 존재/권한을 먼저 검사한 뒤 같은 경로를 다시 사용하는 check-then-use를 피하고 atomic API 또는 열린 descriptor를 기준으로 처리하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-34"
+      kisa_name: "경쟁조건 : 검사 시점과 사용 시점(TOCTOU)"
+      confidence: HIGH
+      recommendation: >-
+        파일 존재/권한을 먼저 검사한 뒤 같은 경로를 다시 사용하는 check-then-use를 피하고 atomic API 또는 열린 descriptor를 기준으로 처리하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-367
+      technology:
+        - "python"
+        - "filesystem"
+        - "race-condition"
+
+    pattern-either:
+      - pattern: |
+          if os.path.exists($PATH):
+              ...
+              open($PATH, ...)
+      - pattern: |
+          if Path($PATH).exists():
+              ...
+              open($PATH, ...)
+      - pattern: |
+          if os.access($PATH, ...):
+              ...
+              open($PATH, ...)

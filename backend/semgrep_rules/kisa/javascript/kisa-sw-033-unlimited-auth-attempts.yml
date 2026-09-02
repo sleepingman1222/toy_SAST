@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw33.javascript.login-route-rate-limit-review
+    message: >-
+      반복된 인증시도 제한 기능 부재 관련 보안 패턴이 탐지되었습니다.
+      로그인 route에 사용자/IP 조합 기준 rate limit, 실패 횟수 제한, 지연/잠금 정책이 적용되는지 수동 검토하세요.
+    languages:
+      - javascript
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-33"
+      kisa_name: "반복된 인증시도 제한 기능 부재"
+      confidence: LOW
+      recommendation: >-
+        로그인 route에 사용자/IP 조합 기준 rate limit, 실패 횟수 제한, 지연/잠금 정책이 적용되는지 수동 검토하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: manual_review
+      cwe:
+        - CWE-307
+      technology:
+        - "javascript"
+        - "express"
+        - "authentication"
+        - "rate-limit"
+
+    pattern-either:
+      - pattern: >-
+          $APP.post("/login", $HANDLER)
+      - pattern: >-
+          $ROUTER.post("/login", $HANDLER)

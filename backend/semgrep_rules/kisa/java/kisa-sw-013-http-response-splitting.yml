@@ -1,0 +1,40 @@
+rules:
+  - id: kisa.sw13.java.external-input-to-response-header
+    message: >-
+      HTTP 응답분할 관련 보안 패턴이 탐지되었습니다.
+      응답 헤더 값에 외부 입력을 직접 사용하지 말고 CR/LF를 거부하고 필요한 값만 허용목록으로 검증하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-13"
+      kisa_name: "HTTP 응답분할"
+      confidence: HIGH
+      recommendation: >-
+        응답 헤더 값에 외부 입력을 직접 사용하지 말고 CR/LF를 거부하고 필요한 값만 허용목록으로 검증하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-113
+      technology:
+        - "java"
+        - "servlet"
+        - "http"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.getParameter(...)
+              - pattern: >-
+                  $REQ.getHeader(...)
+              - pattern: >-
+                  $REQ.getQueryString()
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  $RESP.setHeader($NAME, $VALUE)
+              - pattern: >-
+                  $RESP.addHeader($NAME, $VALUE)

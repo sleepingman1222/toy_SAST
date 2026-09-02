@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw29.python.insecure-cookie-flags
+    message: >-
+      사용자 하드디스크에 저장되는 쿠키를 통한 정보노출 관련 보안 패턴이 탐지되었습니다.
+      중요정보/세션 쿠키에는 Secure, HttpOnly 및 적절한 SameSite 정책을 적용하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-29"
+      kisa_name: "사용자 하드디스크에 저장되는 쿠키를 통한 정보노출"
+      confidence: MEDIUM
+      recommendation: >-
+        중요정보/세션 쿠키에는 Secure, HttpOnly 및 적절한 SameSite 정책을 적용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-614
+      technology:
+        - "python"
+        - "web"
+        - "cookie"
+
+    pattern-either:
+      - pattern: >-
+          $RESP.set_cookie(..., secure=False, ...)
+      - pattern: >-
+          $RESP.set_cookie(..., httponly=False, ...)

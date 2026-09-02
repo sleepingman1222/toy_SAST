@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw49.javascript.dangerous-api-use
+    message: >-
+      취약한 API 사용 관련 보안 패턴이 탐지되었습니다.
+      eval/Function/구식 Buffer 생성자 등 위험 API를 피하고 명시적 함수 매핑 및 Buffer.from/alloc을 사용하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-49"
+      kisa_name: "취약한 API 사용"
+      confidence: HIGH
+      recommendation: >-
+        eval/Function/구식 Buffer 생성자 등 위험 API를 피하고 명시적 함수 매핑 및 Buffer.from/alloc을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-676
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "dangerous-api"
+
+    pattern-either:
+      - pattern: >-
+          eval(...)
+      - pattern: >-
+          new Function(...)
+      - pattern: >-
+          Buffer($DATA)

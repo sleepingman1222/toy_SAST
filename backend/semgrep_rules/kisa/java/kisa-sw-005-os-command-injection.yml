@@ -1,0 +1,41 @@
+rules:
+  - id: kisa.sw05.java.external-input-to-command
+    message: >-
+      운영체제 명령어 삽입 관련 보안 패턴이 탐지되었습니다.
+      외부 입력으로 명령 전체를 구성하지 말고 실행 가능한 명령을 허용목록으로 제한하고 인자를 분리하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-05"
+      kisa_name: "운영체제 명령어 삽입"
+      confidence: HIGH
+      recommendation: >-
+        외부 입력으로 명령 전체를 구성하지 말고 실행 가능한 명령을 허용목록으로 제한하고 인자를 분리하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-78
+      technology:
+        - "java"
+        - "process"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.getParameter(...)
+              - pattern: >-
+                  $REQ.getHeader(...)
+              - pattern: >-
+                  $REQ.getQueryString()
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  Runtime.getRuntime().exec($CMD)
+              - pattern: >-
+                  new ProcessBuilder($CMD)
+              - pattern: >-
+                  new ProcessBuilder($CMD, ...)

@@ -1,0 +1,43 @@
+rules:
+  - id: kisa.sw48.javascript.dns-result-used-for-security-decision-review
+    message: >-
+      DNS lookup에 의존한 보안결정 관련 보안 패턴이 탐지되었습니다.
+      DNS lookup/reverse 결과만으로 신뢰 여부를 결정하지 말고 인증서/서명/검증된 서버 측 권한 정책을 사용하세요.
+    languages:
+      - javascript
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-48"
+      kisa_name: "DNS lookup에 의존한 보안결정"
+      confidence: MEDIUM
+      recommendation: >-
+        DNS lookup/reverse 결과만으로 신뢰 여부를 결정하지 말고 인증서/서명/검증된 서버 측 권한 정책을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-247
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "dns"
+        - "authorization"
+
+    pattern-either:
+      - pattern: |
+          dns.lookup($HOST, ($ERR, $ADDRESS) => {
+            ...
+            if ($ADDRESS === $TRUSTED) {
+              ...
+            }
+            ...
+          })
+      - pattern: |
+          dns.reverse($IP, ($ERR, $HOSTS) => {
+            ...
+            if ($HOSTS.includes($TRUSTED)) {
+              ...
+            }
+            ...
+          })

@@ -1,0 +1,33 @@
+rules:
+  - id: kisa.sw35.javascript.obvious-infinite-loop
+    message: >-
+      종료되지 않는 반복문 또는 재귀함수 관련 보안 패턴이 탐지되었습니다.
+      무조건 반복되는 루프에는 종료 조건, timeout 또는 반복 상한을 보장하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-35"
+      kisa_name: "종료되지 않는 반복문 또는 재귀함수"
+      confidence: HIGH
+      recommendation: >-
+        무조건 반복되는 루프에는 종료 조건, timeout 또는 반복 상한을 보장하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-835
+      technology:
+        - "javascript"
+        - "control-flow"
+
+    pattern-either:
+      - pattern: |
+          while (true) {
+            ...
+          }
+      - pattern: |
+          for (;;) {
+            ...
+          }

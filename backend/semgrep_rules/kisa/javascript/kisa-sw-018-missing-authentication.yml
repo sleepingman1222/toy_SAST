@@ -1,0 +1,34 @@
+rules:
+  - id: kisa.sw18.javascript.route-without-auth-middleware-review
+    message: >-
+      적절한 인증 없는 중요 기능 허용 관련 보안 패턴이 탐지되었습니다.
+      상태 변경 route에 인증 middleware가 누락되었는지 수동 검토하세요. 공개 API라면 예외 근거를 문서화하세요.
+    languages:
+      - javascript
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-18"
+      kisa_name: "적절한 인증 없는 중요 기능 허용"
+      confidence: LOW
+      recommendation: >-
+        상태 변경 route에 인증 middleware가 누락되었는지 수동 검토하세요. 공개 API라면 예외 근거를 문서화하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: manual_review
+      cwe:
+        - CWE-306
+      technology:
+        - "javascript"
+        - "express"
+        - "authentication"
+
+    pattern-either:
+      - pattern: >-
+          $APP.post($PATH, $HANDLER)
+      - pattern: >-
+          $APP.put($PATH, $HANDLER)
+      - pattern: >-
+          $APP.patch($PATH, $HANDLER)
+      - pattern: >-
+          $APP.delete($PATH, $HANDLER)

@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw24.python.insufficient-rsa-key-length
+    message: >-
+      충분하지 않은 키 길이 사용 관련 보안 패턴이 탐지되었습니다.
+      RSA 키는 최소 2048비트 이상 등 현재 보안 기준에 맞는 충분한 길이를 사용하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-24"
+      kisa_name: "충분하지 않은 키 길이 사용"
+      confidence: HIGH
+      recommendation: >-
+        RSA 키는 최소 2048비트 이상 등 현재 보안 기준에 맞는 충분한 길이를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-326
+      technology:
+        - "python"
+        - "cryptography"
+
+    patterns:
+      - pattern: >-
+          RSA.generate($BITS)
+      - metavariable-comparison:
+          metavariable: $BITS
+          comparison: $BITS < 2048

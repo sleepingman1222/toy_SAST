@@ -1,0 +1,35 @@
+rules:
+  - id: kisa.sw15.python.external-input-controls-security-decision
+    message: >-
+      보안기능 결정에 사용되는 부적절한 입력값 관련 보안 패턴이 탐지되었습니다.
+      클라이언트가 전달한 role/admin/permission 값을 권한 결정의 근거로 사용하지 말고 서버 측 인증 주체의 권한 정보를 사용하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-15"
+      kisa_name: "보안기능 결정에 사용되는 부적절한 입력값"
+      confidence: MEDIUM
+      recommendation: >-
+        클라이언트가 전달한 role/admin/permission 값을 권한 결정의 근거로 사용하지 말고 서버 측 인증 주체의 권한 정보를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-807
+      technology:
+        - "python"
+        - "web"
+        - "authorization"
+
+    pattern-either:
+      - pattern: |
+          if $REQ.GET.get("is_admin"):
+              ...
+      - pattern: |
+          if $REQ.GET.get("role") == "admin":
+              ...
+      - pattern: |
+          if $REQ.POST.get("role") == "admin":
+              ...

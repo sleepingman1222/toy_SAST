@@ -1,0 +1,40 @@
+rules:
+  - id: kisa.sw09.java.external-input-to-xpath
+    message: >-
+      XML 삽입 관련 보안 패턴이 탐지되었습니다.
+      외부 입력으로 XPath/XQuery 문자열 구조를 만들지 말고 변수 바인딩 또는 허용목록을 사용하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-09"
+      kisa_name: "XML 삽입"
+      confidence: HIGH
+      recommendation: >-
+        외부 입력으로 XPath/XQuery 문자열 구조를 만들지 말고 변수 바인딩 또는 허용목록을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-643
+      technology:
+        - "java"
+        - "xml"
+        - "xpath"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.getParameter(...)
+              - pattern: >-
+                  $REQ.getHeader(...)
+              - pattern: >-
+                  $REQ.getQueryString()
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  $XPATH.evaluate($QUERY, ...)
+              - pattern: >-
+                  $XPATH.compile($QUERY)

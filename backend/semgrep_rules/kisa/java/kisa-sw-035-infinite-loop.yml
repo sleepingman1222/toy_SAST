@@ -1,0 +1,33 @@
+rules:
+  - id: kisa.sw35.java.obvious-infinite-loop
+    message: >-
+      종료되지 않는 반복문 또는 재귀함수 관련 보안 패턴이 탐지되었습니다.
+      무한 반복 구문에 종료 조건, break, timeout 또는 반복 상한이 보장되는지 검토하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-35"
+      kisa_name: "종료되지 않는 반복문 또는 재귀함수"
+      confidence: HIGH
+      recommendation: >-
+        무한 반복 구문에 종료 조건, break, timeout 또는 반복 상한이 보장되는지 검토하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-835
+      technology:
+        - "java"
+        - "control-flow"
+
+    pattern-either:
+      - pattern: |
+          while (true) {
+              ...
+          }
+      - pattern: |
+          for (;;) {
+              ...
+          }

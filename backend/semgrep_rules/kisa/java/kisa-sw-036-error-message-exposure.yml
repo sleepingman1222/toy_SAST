@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw36.java.exception-detail-to-response
+    message: >-
+      오류 메시지 정보노출 관련 보안 패턴이 탐지되었습니다.
+      예외 메시지/스택을 HTTP 응답으로 직접 보내지 말고 일반화된 오류 메시지를 반환하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-36"
+      kisa_name: "오류 메시지 정보노출"
+      confidence: HIGH
+      recommendation: >-
+        예외 메시지/스택을 HTTP 응답으로 직접 보내지 말고 일반화된 오류 메시지를 반환하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-209
+      technology:
+        - "java"
+        - "web"
+        - "error-handling"
+
+    pattern-either:
+      - pattern: >-
+          $RESP.getWriter().print($E.getMessage())
+      - pattern: >-
+          $RESP.getWriter().write($E.getMessage())
+      - pattern: >-
+          $RESP.sendError($CODE, $E.getMessage())

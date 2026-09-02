@@ -1,0 +1,33 @@
+rules:
+  - id: kisa.sw08.java.unsafe-xml-external-entity
+    message: >-
+      부적절한 XML 외부 개체 참조 관련 보안 패턴이 탐지되었습니다.
+      DOCTYPE과 external general/parameter entity를 비활성화하고 secure processing을 적용하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-08"
+      kisa_name: "부적절한 XML 외부 개체 참조"
+      confidence: HIGH
+      recommendation: >-
+        DOCTYPE과 external general/parameter entity를 비활성화하고 secure processing을 적용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-611
+      technology:
+        - "java"
+        - "xml"
+
+    pattern-either:
+      - pattern: >-
+          $F.setExpandEntityReferences(true)
+      - pattern: >-
+          $F.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false)
+      - pattern: >-
+          $F.setFeature("http://xml.org/sax/features/external-general-entities", true)
+      - pattern: >-
+          $F.setFeature("http://xml.org/sax/features/external-parameter-entities", true)

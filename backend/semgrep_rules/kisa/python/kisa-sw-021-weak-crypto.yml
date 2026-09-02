@@ -1,0 +1,35 @@
+rules:
+  - id: kisa.sw21.python.weak-cryptographic-algorithm
+    message: >-
+      취약한 암호화 알고리즘 사용 관련 보안 패턴이 탐지되었습니다.
+      MD5/SHA-1/DES/RC4 등 취약하거나 용도에 부적합한 알고리즘 대신 검증된 현대 암호 알고리즘을 사용하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-21"
+      kisa_name: "취약한 암호화 알고리즘 사용"
+      confidence: HIGH
+      recommendation: >-
+        MD5/SHA-1/DES/RC4 등 취약하거나 용도에 부적합한 알고리즘 대신 검증된 현대 암호 알고리즘을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-327
+      technology:
+        - "python"
+        - "cryptography"
+
+    pattern-either:
+      - pattern: >-
+          hashlib.md5(...)
+      - pattern: >-
+          hashlib.sha1(...)
+      - pattern: >-
+          Crypto.Cipher.DES.new(...)
+      - pattern: >-
+          DES.new(...)
+      - pattern: >-
+          ARC4.new(...)

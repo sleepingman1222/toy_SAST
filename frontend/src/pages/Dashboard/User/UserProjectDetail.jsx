@@ -6,6 +6,17 @@ import {
 import "./UserProjectDetail.css";
 
 
+const SEVERITY_RANK = {
+  critical: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+};
+
+
+const VULNERABILITY_PAGE_SIZE = 10;
+
+
 function UserProjectDetail({
   project,
   onBack,
@@ -25,6 +36,18 @@ function UserProjectDetail({
     selectedVulnerability,
     setSelectedVulnerability,
   ] = useState(null);
+
+
+  const [
+    severitySortDescending,
+    setSeveritySortDescending,
+  ] = useState(false);
+
+
+  const [
+    vulnerabilityPage,
+    setVulnerabilityPage,
+  ] = useState(1);
 
 
   /* ========================================
@@ -77,6 +100,14 @@ function UserProjectDetail({
 
     setSelectedVulnerability(
       null
+    );
+
+    setSeveritySortDescending(
+      false
+    );
+
+    setVulnerabilityPage(
+      1
     );
 
   }, [
@@ -349,10 +380,66 @@ function UserProjectDetail({
   const getSecurityWeaknessIdentifier =
     (vulnerability) => {
 
-      return (
+      const identifier =
         vulnerability
-          .securityWeaknessIdentifier ||
-        "-"
+          ?.securityWeaknessIdentifier ||
+        vulnerability
+          ?.security_weakness_identifier ||
+        "";
+
+
+      if (identifier) {
+
+        return identifier;
+      }
+
+
+      const itemNumber =
+        vulnerability
+          ?.securityWeaknessItemNumber ??
+        vulnerability
+          ?.security_weakness_item_number ??
+        null;
+
+
+      if (
+        itemNumber !== null
+      ) {
+
+        return (
+          `KISA-SW-${String(
+            itemNumber
+          ).padStart(
+            2,
+            "0"
+          )}`
+        );
+      }
+
+
+      return "-";
+    };
+
+
+  const getVulnerabilityDisplayName =
+    (vulnerability) => {
+
+      const identifier =
+        getSecurityWeaknessIdentifier(
+          vulnerability
+        );
+
+
+      const name =
+        vulnerability
+          ?.name ||
+        "-";
+
+
+      return (
+        identifier !== "-"
+          ? `${identifier} · ${name}`
+          : name
       );
     };
 
@@ -446,6 +533,78 @@ function UserProjectDetail({
     [];
 
 
+  const displayedVulnerabilities =
+    severitySortDescending
+      ? [
+          ...selectedVulnerabilities,
+        ].sort(
+          (a, b) => {
+
+            const aSeverity =
+              String(
+                a.severity ||
+                ""
+              ).toLowerCase();
+
+            const bSeverity =
+              String(
+                b.severity ||
+                ""
+              ).toLowerCase();
+
+
+            return (
+              (
+                SEVERITY_RANK[
+                  bSeverity
+                ] ||
+                0
+              ) -
+              (
+                SEVERITY_RANK[
+                  aSeverity
+                ] ||
+                0
+              )
+            );
+          }
+        )
+      : selectedVulnerabilities;
+
+
+  const vulnerabilityTotalPages =
+    Math.max(
+      1,
+      Math.ceil(
+        displayedVulnerabilities.length /
+        VULNERABILITY_PAGE_SIZE
+      )
+    );
+
+
+  const safeVulnerabilityPage =
+    Math.min(
+      vulnerabilityPage,
+      vulnerabilityTotalPages
+    );
+
+
+  const vulnerabilityPageStart =
+    (
+      safeVulnerabilityPage -
+      1
+    ) *
+    VULNERABILITY_PAGE_SIZE;
+
+
+  const paginatedVulnerabilities =
+    displayedVulnerabilities.slice(
+      vulnerabilityPageStart,
+      vulnerabilityPageStart +
+        VULNERABILITY_PAGE_SIZE
+    );
+
+
   /* ========================================
      Analysis Summary
 
@@ -487,6 +646,18 @@ function UserProjectDetail({
               "low"
           ).length,
       };
+
+
+  useEffect(() => {
+
+    setVulnerabilityPage(
+      1
+    );
+
+  }, [
+    selectedAnalysisId,
+    severitySortDescending,
+  ]);
 
 
   /* ========================================
@@ -997,11 +1168,11 @@ function UserProjectDetail({
                 <div>
 
                   <h4>
-                    보안약점 진단 결과
+                    취약점 상세 정보
                   </h4>
 
                   <p>
-                    분석에서 탐지된 보안약점의 위치와 진단 정보를 확인합니다.
+                    분석에서 탐지된 취약점의 위치와 진단 정보를 확인합니다.
                   </p>
 
                 </div>
@@ -1029,15 +1200,44 @@ function UserProjectDetail({
                           <tr>
 
                             <th>
-                              KISA 기준
+
+                              <button
+                                type="button"
+
+                                title="심각도 높은 순으로 정렬"
+
+                                aria-pressed={
+                                  severitySortDescending
+                                }
+
+                                onClick={() =>
+                                  setSeveritySortDescending(
+                                    true
+                                  )
+                                }
+
+                                style={{
+                                  padding: 0,
+                                  color: "inherit",
+                                  background: "none",
+                                  border: "none",
+                                  font: "inherit",
+                                  fontWeight: "inherit",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                심각도
+                                {
+                                  severitySortDescending
+                                    ? " ↓"
+                                    : ""
+                                }
+                              </button>
+
                             </th>
 
                             <th>
-                              보안약점
-                            </th>
-
-                            <th>
-                              심각도
+                              취약점
                             </th>
 
                             <th>
@@ -1060,7 +1260,7 @@ function UserProjectDetail({
                         <tbody>
 
                           {
-                            selectedVulnerabilities.map(
+                            paginatedVulnerabilities.map(
                               (vulnerability) => (
 
                                 <tr
@@ -1068,30 +1268,6 @@ function UserProjectDetail({
                                     vulnerability.id
                                   }
                                 >
-
-                                  <td>
-
-                                    <span className="user-kisa-identifier">
-                                      {
-                                        getSecurityWeaknessIdentifier(
-                                          vulnerability
-                                        )
-                                      }
-                                    </span>
-
-                                  </td>
-
-
-                                  <td>
-
-                                    <strong className="user-vulnerability-name">
-                                      {
-                                        vulnerability.name ||
-                                        "-"
-                                      }
-                                    </strong>
-
-                                  </td>
 
 
                                   <td>
@@ -1107,6 +1283,19 @@ function UserProjectDetail({
                                         )
                                       }
                                     </span>
+
+                                  </td>
+
+
+                                  <td>
+
+                                    <strong className="user-vulnerability-name">
+                                      {
+                                        getVulnerabilityDisplayName(
+                                          vulnerability
+                                        )
+                                      }
+                                    </strong>
 
                                   </td>
 
@@ -1160,6 +1349,168 @@ function UserProjectDetail({
                         </tbody>
 
                       </table>
+
+
+                      {
+                        vulnerabilityTotalPages > 1 && (
+
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "6px",
+                              padding: "16px",
+                              borderTop:
+                                "1px solid #f0f1f3",
+                            }}
+                          >
+
+                            <button
+                              type="button"
+
+                              disabled={
+                                safeVulnerabilityPage <=
+                                1
+                              }
+
+                              onClick={() =>
+                                setVulnerabilityPage(
+                                  (current) =>
+                                    Math.max(
+                                      1,
+                                      current - 1
+                                    )
+                                )
+                              }
+
+                              style={{
+                                padding: "6px 10px",
+                                border:
+                                  "1px solid #d1d5db",
+                                borderRadius: "6px",
+                                backgroundColor:
+                                  "#ffffff",
+                                cursor:
+                                  safeVulnerabilityPage <= 1
+                                    ? "not-allowed"
+                                    : "pointer",
+                                opacity:
+                                  safeVulnerabilityPage <= 1
+                                    ? 0.5
+                                    : 1,
+                              }}
+                            >
+                              이전
+                            </button>
+
+
+                            {
+                              Array.from(
+                                {
+                                  length:
+                                    vulnerabilityTotalPages,
+                                },
+                                (_, index) =>
+                                  index + 1
+                              ).map(
+                                (pageNumber) => (
+
+                                  <button
+                                    key={
+                                      pageNumber
+                                    }
+
+                                    type="button"
+
+                                    onClick={() =>
+                                      setVulnerabilityPage(
+                                        pageNumber
+                                      )
+                                    }
+
+                                    aria-current={
+                                      pageNumber ===
+                                      safeVulnerabilityPage
+                                        ? "page"
+                                        : undefined
+                                    }
+
+                                    style={{
+                                      minWidth: "34px",
+                                      padding: "6px 9px",
+                                      color:
+                                        pageNumber ===
+                                        safeVulnerabilityPage
+                                          ? "#ffffff"
+                                          : "#374151",
+                                      backgroundColor:
+                                        pageNumber ===
+                                        safeVulnerabilityPage
+                                          ? "#2563eb"
+                                          : "#ffffff",
+                                      border:
+                                        pageNumber ===
+                                        safeVulnerabilityPage
+                                          ? "1px solid #2563eb"
+                                          : "1px solid #d1d5db",
+                                      borderRadius: "6px",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    {pageNumber}
+                                  </button>
+
+                                )
+                              )
+                            }
+
+
+                            <button
+                              type="button"
+
+                              disabled={
+                                safeVulnerabilityPage >=
+                                vulnerabilityTotalPages
+                              }
+
+                              onClick={() =>
+                                setVulnerabilityPage(
+                                  (current) =>
+                                    Math.min(
+                                      vulnerabilityTotalPages,
+                                      current + 1
+                                    )
+                                )
+                              }
+
+                              style={{
+                                padding: "6px 10px",
+                                border:
+                                  "1px solid #d1d5db",
+                                borderRadius: "6px",
+                                backgroundColor:
+                                  "#ffffff",
+                                cursor:
+                                  safeVulnerabilityPage >=
+                                  vulnerabilityTotalPages
+                                    ? "not-allowed"
+                                    : "pointer",
+                                opacity:
+                                  safeVulnerabilityPage >=
+                                  vulnerabilityTotalPages
+                                    ? 0.5
+                                    : 1,
+                              }}
+                            >
+                              다음
+                            </button>
+
+                          </div>
+
+                        )
+                      }
 
                     </div>
 
@@ -1238,8 +1589,9 @@ function UserProjectDetail({
 
                   <h3>
                     {
-                      selectedVulnerability.name ||
-                      "보안약점 상세"
+                      getVulnerabilityDisplayName(
+                        selectedVulnerability
+                      )
                     }
                   </h3>
 

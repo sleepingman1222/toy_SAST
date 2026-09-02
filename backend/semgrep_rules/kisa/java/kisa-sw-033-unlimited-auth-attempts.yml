@@ -1,0 +1,36 @@
+rules:
+  - id: kisa.sw33.java.login-handler-rate-limit-review
+    message: >-
+      반복된 인증시도 제한 기능 부재 관련 보안 패턴이 탐지되었습니다.
+      로그인 handler에 반복 실패 제한, 계정/IP별 rate limit 및 잠금 정책이 적용되는지 수동 검토하세요.
+    languages:
+      - java
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-33"
+      kisa_name: "반복된 인증시도 제한 기능 부재"
+      confidence: LOW
+      recommendation: >-
+        로그인 handler에 반복 실패 제한, 계정/IP별 rate limit 및 잠금 정책이 적용되는지 수동 검토하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: manual_review
+      cwe:
+        - CWE-307
+      technology:
+        - "java"
+        - "authentication"
+        - "rate-limit"
+
+    patterns:
+      - pattern: |
+          $RET $F(...) {
+              ...
+              $AUTH.authenticate(...);
+              ...
+          }
+      - metavariable-regex:
+          metavariable: $F
+          regex: >-
+            (?i).*login.*

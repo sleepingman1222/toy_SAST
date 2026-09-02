@@ -1,0 +1,34 @@
+rules:
+  - id: kisa.sw19.python.external-id-object-access-review
+    message: >-
+      부적절한 인가 관련 보안 패턴이 탐지되었습니다.
+      외부에서 받은 객체 ID만으로 중요 자원을 조회하지 말고 request.user의 소유권/권한 조건을 함께 적용하세요.
+    languages:
+      - python
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-19"
+      kisa_name: "부적절한 인가"
+      confidence: LOW
+      recommendation: >-
+        외부에서 받은 객체 ID만으로 중요 자원을 조회하지 말고 request.user의 소유권/권한 조건을 함께 적용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-862
+      technology:
+        - "python"
+        - "django"
+        - "authorization"
+
+    pattern-either:
+      - pattern: >-
+          $MODEL.objects.get(id=$REQ.GET.get(...))
+      - pattern: >-
+          $MODEL.objects.get(pk=$REQ.GET.get(...))
+      - pattern: >-
+          $MODEL.objects.filter(user_id=$REQ.GET.get(...))
+      - pattern: >-
+          $MODEL.objects.get(id=$REQ.POST.get(...))

@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw15.java.external-input-controls-security-decision
+    message: >-
+      보안기능 결정에 사용되는 부적절한 입력값 관련 보안 패턴이 탐지되었습니다.
+      request parameter를 권한 결정에 사용하지 말고 인증된 Principal/SecurityContext의 서버 측 권한을 사용하세요.
+    languages:
+      - java
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-15"
+      kisa_name: "보안기능 결정에 사용되는 부적절한 입력값"
+      confidence: MEDIUM
+      recommendation: >-
+        request parameter를 권한 결정에 사용하지 말고 인증된 Principal/SecurityContext의 서버 측 권한을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-807
+      technology:
+        - "java"
+        - "web"
+        - "authorization"
+
+    pattern-either:
+      - pattern: >-
+          $REQ.getParameter("role").equals("admin")
+      - pattern: >-
+          "admin".equals($REQ.getParameter("role"))
+      - pattern: >-
+          Boolean.parseBoolean($REQ.getParameter("is_admin"))

@@ -1,0 +1,34 @@
+rules:
+  - id: kisa.sw15.javascript.external-input-controls-security-decision
+    message: >-
+      보안기능 결정에 사용되는 부적절한 입력값 관련 보안 패턴이 탐지되었습니다.
+      request의 role/is_admin 값을 인가 결정에 사용하지 말고 서버 세션/토큰에서 검증된 권한 정보를 사용하세요.
+    languages:
+      - javascript
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-15"
+      kisa_name: "보안기능 결정에 사용되는 부적절한 입력값"
+      confidence: MEDIUM
+      recommendation: >-
+        request의 role/is_admin 값을 인가 결정에 사용하지 말고 서버 세션/토큰에서 검증된 권한 정보를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-807
+      technology:
+        - "javascript"
+        - "web"
+        - "authorization"
+
+    pattern-either:
+      - pattern: >-
+          $REQ.query.role === "admin"
+      - pattern: >-
+          $REQ.body.role === "admin"
+      - pattern: >-
+          $REQ.query.is_admin
+      - pattern: >-
+          $REQ.body.is_admin

@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw27.javascript.decode-without-signature-verification
+    message: >-
+      부적절한 전자서명 확인 관련 보안 패턴이 탐지되었습니다.
+      JWT decode 결과를 인증 근거로 사용하지 말고 jwt.verify로 서명과 알고리즘을 검증하세요.
+    languages:
+      - javascript
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-27"
+      kisa_name: "부적절한 전자서명 확인"
+      confidence: MEDIUM
+      recommendation: >-
+        JWT decode 결과를 인증 근거로 사용하지 말고 jwt.verify로 서명과 알고리즘을 검증하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-347
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "jwt"
+        - "signature"
+
+    pattern-either:
+      - pattern: >-
+          jwt.decode($TOKEN, ...)
+      - pattern: >-
+          jsonwebtoken.decode($TOKEN, ...)

@@ -1,0 +1,27 @@
+rules:
+  - id: kisa.sw30.python.sensitive-info-comment
+    message: >-
+      주석문 안에 포함된 시스템 주요정보 관련 보안 패턴이 탐지되었습니다.
+      주석에 비밀번호, 키, 토큰 등 시스템 중요정보를 남기지 말고 즉시 제거·회전하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-30"
+      kisa_name: "주석문 안에 포함된 시스템 주요정보"
+      confidence: HIGH
+      recommendation: >-
+        주석에 비밀번호, 키, 토큰 등 시스템 중요정보를 남기지 말고 즉시 제거·회전하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-615
+      technology:
+        - "python"
+        - "comments"
+        - "secrets"
+
+    pattern-regex: >-
+      (?i)\#[^\n]*(password|passwd|secret|api[_-]?key|access[_-]?token)[^\n]*

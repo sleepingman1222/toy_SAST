@@ -1,0 +1,36 @@
+rules:
+  - id: kisa.sw28.java.certificate-validation-disabled
+    message: >-
+      부적절한 인증서 유효성 검증 관련 보안 패턴이 탐지되었습니다.
+      모든 호스트/인증서를 신뢰하는 검증기를 사용하지 말고 기본 PKIX/hostname 검증을 유지하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-28"
+      kisa_name: "부적절한 인증서 유효성 검증"
+      confidence: HIGH
+      recommendation: >-
+        모든 호스트/인증서를 신뢰하는 검증기를 사용하지 말고 기본 PKIX/hostname 검증을 유지하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-295
+      technology:
+        - "java"
+        - "tls"
+        - "certificate"
+
+    pattern-either:
+      - pattern: |
+          new HostnameVerifier() {
+              ...
+              public boolean verify(...) {
+                  return true;
+              }
+              ...
+          }
+      - pattern: >-
+          $CONNECTION.setHostnameVerifier(($HOST, $SESSION) -> true)

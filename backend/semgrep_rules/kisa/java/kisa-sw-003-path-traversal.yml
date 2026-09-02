@@ -1,0 +1,43 @@
+rules:
+  - id: kisa.sw03.java.external-input-to-file-path
+    message: >-
+      경로 조작 및 자원 삽입 관련 보안 패턴이 탐지되었습니다.
+      외부 입력 경로를 직접 사용하지 말고 기준 디렉터리 기준으로 normalize한 후 허용 루트 내부인지 검증하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-03"
+      kisa_name: "경로 조작 및 자원 삽입"
+      confidence: HIGH
+      recommendation: >-
+        외부 입력 경로를 직접 사용하지 말고 기준 디렉터리 기준으로 normalize한 후 허용 루트 내부인지 검증하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-22
+      technology:
+        - "java"
+        - "filesystem"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.getParameter(...)
+              - pattern: >-
+                  $REQ.getHeader(...)
+              - pattern: >-
+                  $REQ.getQueryString()
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  new File($PATH)
+              - pattern: >-
+                  Paths.get($PATH, ...)
+              - pattern: >-
+                  Files.readAllBytes($PATH)
+              - pattern: >-
+                  Files.delete($PATH)

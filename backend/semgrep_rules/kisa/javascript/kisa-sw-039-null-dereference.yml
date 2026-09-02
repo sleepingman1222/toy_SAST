@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw39.javascript.nullable-search-result-dereference
+    message: >-
+      Null Pointer 역참조 관련 보안 패턴이 탐지되었습니다.
+      find/get 등의 결과가 undefined일 수 있으므로 optional chaining 또는 명시적 존재 검사를 사용하세요.
+    languages:
+      - javascript
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-39"
+      kisa_name: "Null Pointer 역참조"
+      confidence: MEDIUM
+      recommendation: >-
+        find/get 등의 결과가 undefined일 수 있으므로 optional chaining 또는 명시적 존재 검사를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-476
+      technology:
+        - "javascript"
+        - "null-safety"
+
+    pattern-either:
+      - pattern: >-
+          $ARRAY.find(...).$PROP
+      - pattern: >-
+          $ARRAY.find(...).$METHOD(...)
+      - pattern: >-
+          $MAP.get($KEY).$PROP

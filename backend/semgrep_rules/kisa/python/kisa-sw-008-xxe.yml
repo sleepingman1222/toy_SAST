@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw08.python.unsafe-xml-external-entity
+    message: >-
+      부적절한 XML 외부 개체 참조 관련 보안 패턴이 탐지되었습니다.
+      XML 외부 엔터티/DTD 해석을 비활성화하거나 defusedxml 등 안전한 파서를 사용하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-08"
+      kisa_name: "부적절한 XML 외부 개체 참조"
+      confidence: HIGH
+      recommendation: >-
+        XML 외부 엔터티/DTD 해석을 비활성화하거나 defusedxml 등 안전한 파서를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-611
+      technology:
+        - "python"
+        - "xml"
+        - "lxml"
+
+    pattern-either:
+      - pattern: >-
+          etree.XMLParser(..., resolve_entities=True, ...)
+      - pattern: >-
+          etree.XMLParser(..., load_dtd=True, ...)
+      - pattern: >-
+          etree.XMLParser(..., no_network=False, ...)

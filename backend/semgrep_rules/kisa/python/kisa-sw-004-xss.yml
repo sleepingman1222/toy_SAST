@@ -1,0 +1,54 @@
+rules:
+  - id: kisa.sw04.python.external-input-to-html-response
+    message: >-
+      크로스사이트 스크립트 관련 보안 패턴이 탐지되었습니다.
+      외부 입력을 HTML 응답에 직접 삽입하지 말고 템플릿 자동 이스케이프 또는 명시적 HTML escaping을 사용하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-04"
+      kisa_name: "크로스사이트 스크립트"
+      confidence: HIGH
+      recommendation: >-
+        외부 입력을 HTML 응답에 직접 삽입하지 말고 템플릿 자동 이스케이프 또는 명시적 HTML escaping을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-79
+      technology:
+        - "python"
+        - "django"
+        - "web"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  input(...)
+              - pattern: >-
+                  $REQ.GET.get(...)
+              - pattern: >-
+                  $REQ.POST.get(...)
+              - pattern: >-
+                  $REQ.args.get(...)
+              - pattern: >-
+                  $REQ.form.get(...)
+              - pattern: >-
+                  $REQ.json.get(...)
+    pattern-sanitizers:
+      - pattern-either:
+              - pattern: >-
+                  escape(...)
+              - pattern: >-
+                  html.escape(...)
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  mark_safe($X)
+              - pattern: >-
+                  Markup($X)
+              - pattern: >-
+                  HttpResponse($X)

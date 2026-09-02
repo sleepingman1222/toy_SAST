@@ -1,0 +1,33 @@
+rules:
+  - id: kisa.sw24.java.insufficient-rsa-key-length
+    message: >-
+      충분하지 않은 키 길이 사용 관련 보안 패턴이 탐지되었습니다.
+      RSA KeyPairGenerator는 최소 2048비트 이상의 충분한 키 길이를 사용하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-24"
+      kisa_name: "충분하지 않은 키 길이 사용"
+      confidence: HIGH
+      recommendation: >-
+        RSA KeyPairGenerator는 최소 2048비트 이상의 충분한 키 길이를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-326
+      technology:
+        - "java"
+        - "cryptography"
+
+    patterns:
+      - pattern: >-
+          $GEN.initialize($BITS)
+      - pattern-inside: |
+          $GEN = KeyPairGenerator.getInstance("RSA");
+          ...
+      - metavariable-comparison:
+          metavariable: $BITS
+          comparison: $BITS < 2048

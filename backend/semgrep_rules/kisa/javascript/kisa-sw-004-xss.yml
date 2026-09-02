@@ -1,0 +1,50 @@
+rules:
+  - id: kisa.sw04.javascript.external-input-to-html-response
+    message: >-
+      크로스사이트 스크립트 관련 보안 패턴이 탐지되었습니다.
+      외부 입력을 HTML 응답에 직접 전달하지 말고 템플릿 엔진의 escaping 또는 신뢰할 수 있는 HTML encoder를 사용하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-04"
+      kisa_name: "크로스사이트 스크립트"
+      confidence: HIGH
+      recommendation: >-
+        외부 입력을 HTML 응답에 직접 전달하지 말고 템플릿 엔진의 escaping 또는 신뢰할 수 있는 HTML encoder를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-79
+      technology:
+        - "javascript"
+        - "express"
+        - "web"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.query.$KEY
+              - pattern: >-
+                  $REQ.body.$KEY
+              - pattern: >-
+                  $REQ.params.$KEY
+              - pattern: >-
+                  $REQ.headers[$KEY]
+    pattern-sanitizers:
+      - pattern-either:
+              - pattern: >-
+                  escapeHtml(...)
+              - pattern: >-
+                  encodeURIComponent(...)
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  $RES.send($X)
+              - pattern: >-
+                  $RES.write($X)
+              - pattern: >-
+                  $RES.end($X)

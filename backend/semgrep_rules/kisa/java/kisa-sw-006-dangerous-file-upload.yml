@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw06.java.unvalidated-upload-filename
+    message: >-
+      위험한 형식 파일 업로드 관련 보안 패턴이 탐지되었습니다.
+      MultipartFile의 original filename을 저장 경로로 직접 사용하지 말고 서버 생성 이름과 파일 형식 허용목록 검증을 적용하세요.
+    languages:
+      - java
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-06"
+      kisa_name: "위험한 형식 파일 업로드"
+      confidence: MEDIUM
+      recommendation: >-
+        MultipartFile의 original filename을 저장 경로로 직접 사용하지 말고 서버 생성 이름과 파일 형식 허용목록 검증을 적용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-434
+      technology:
+        - "java"
+        - "spring"
+        - "file-upload"
+
+    pattern-either:
+      - pattern: >-
+          $UPLOAD.transferTo(new File($UPLOAD.getOriginalFilename()))
+      - pattern: >-
+          $UPLOAD.transferTo(Paths.get($UPLOAD.getOriginalFilename()))

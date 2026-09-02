@@ -1,0 +1,35 @@
+rules:
+  - id: kisa.sw21.java.weak-cryptographic-algorithm
+    message: >-
+      취약한 암호화 알고리즘 사용 관련 보안 패턴이 탐지되었습니다.
+      MD5/SHA-1/DES/RC4를 보안 목적으로 사용하지 말고 SHA-256 이상 및 AES-GCM 등 안전한 알고리즘을 사용하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-21"
+      kisa_name: "취약한 암호화 알고리즘 사용"
+      confidence: HIGH
+      recommendation: >-
+        MD5/SHA-1/DES/RC4를 보안 목적으로 사용하지 말고 SHA-256 이상 및 AES-GCM 등 안전한 알고리즘을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-327
+      technology:
+        - "java"
+        - "cryptography"
+
+    pattern-either:
+      - pattern: >-
+          MessageDigest.getInstance("MD5")
+      - pattern: >-
+          MessageDigest.getInstance("SHA-1")
+      - pattern: >-
+          Cipher.getInstance("DES")
+      - pattern: >-
+          Cipher.getInstance("DES/...")
+      - pattern: >-
+          Cipher.getInstance("RC4")

@@ -1,35 +1,30 @@
 rules:
-  - id: kisa.java.sql-injection.tainted-query
-
+  - id: kisa.sw01.java.jdbc-string-built-query
+    message: >-
+      문자열 결합으로 생성한 SQL을 JDBC Statement 실행 함수에 전달하고
+      있습니다. PreparedStatement와 바인딩 변수를 사용하세요.
     languages:
       - java
-
-    message: >
-      외부 입력값이 SQL 문자열에 포함된 후
-      SQL 실행 메서드로 전달되고 있습니다.
-      PreparedStatement와 파라미터 바인딩을 사용하세요.
-
     severity: ERROR
 
-    mode: taint
-
     metadata:
-      kisa_identifier: KISA-SW-001
+      kisa_identifier: KISA-SW-01
       kisa_name: SQL 삽입
-      confidence: high
-      recommendation: >
-        외부 입력값을 SQL 문자열에 직접 연결하지 말고
-        PreparedStatement와 파라미터 바인딩을 사용하여
-        SQL 문과 데이터를 분리하세요.
+      confidence: MEDIUM
+      recommendation: >-
+        사용자 입력값을 SQL 문자열에 직접 결합하지 말고 PreparedStatement를
+        사용하여 ? placeholder와 setString/setInt 등의 바인딩 API로 값을
+        전달하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      cwe:
+        - CWE-89
+      technology:
+        - java
+        - jdbc
 
-    pattern-sources:
-      - pattern-either:
-          - pattern: $REQUEST.getParameter(...)
-          - pattern: $REQUEST.getHeader(...)
-          - pattern: $REQUEST.getQueryString()
-
-    pattern-sinks:
-      - pattern-either:
-          - pattern: $STATEMENT.executeQuery($QUERY)
-          - pattern: $STATEMENT.executeUpdate($QUERY)
-          - pattern: $STATEMENT.execute($QUERY)
+    pattern-either:
+      - pattern: $STMT.executeQuery($SQL + $INPUT)
+      - pattern: $STMT.executeUpdate($SQL + $INPUT)
+      - pattern: $STMT.execute($SQL + $INPUT)
+      - pattern: $STMT.addBatch($SQL + $INPUT)

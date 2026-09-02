@@ -1,0 +1,33 @@
+rules:
+  - id: kisa.sw32.javascript.downloaded-code-executed-review
+    message: >-
+      무결성 검사 없는 코드 다운로드 관련 보안 패턴이 탐지되었습니다.
+      원격에서 받은 코드를 바로 실행하지 말고 서명/해시 무결성 검증과 신뢰된 배포 경로를 사용하세요.
+    languages:
+      - javascript
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-32"
+      kisa_name: "무결성 검사 없는 코드 다운로드"
+      confidence: MEDIUM
+      recommendation: >-
+        원격에서 받은 코드를 바로 실행하지 말고 서명/해시 무결성 검증과 신뢰된 배포 경로를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-494
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "download"
+        - "integrity"
+
+    pattern-either:
+      - pattern: >-
+          eval((await axios.get($URL)).data)
+      - pattern: >-
+          eval((await fetch($URL)).text())
+      - pattern: >-
+          new Function((await axios.get($URL)).data)

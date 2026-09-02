@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw08.javascript.unsafe-xml-external-entity
+    message: >-
+      부적절한 XML 외부 개체 참조 관련 보안 패턴이 탐지되었습니다.
+      외부 엔터티 확장을 비활성화하고 DTD/네트워크 접근을 허용하지 않는 XML parser 설정을 사용하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-08"
+      kisa_name: "부적절한 XML 외부 개체 참조"
+      confidence: HIGH
+      recommendation: >-
+        외부 엔터티 확장을 비활성화하고 DTD/네트워크 접근을 허용하지 않는 XML parser 설정을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-611
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "xml"
+
+    pattern-either:
+      - pattern: >-
+          $XML.parseXml($DATA, {noent: true, ...})
+      - pattern: >-
+          $XML.parseXmlString($DATA, {noent: true, ...})
+      - pattern: >-
+          libxmljs.parseXml($DATA, {noent: true, ...})

@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw18.java.public-sensitive-endpoint-review
+    message: >-
+      적절한 인증 없는 중요 기능 허용 관련 보안 패턴이 탐지되었습니다.
+      permitAll/@PermitAll이 중요 기능에 적용되었는지 검토하고 인증이 필요한 기능에는 인증 정책을 적용하세요.
+    languages:
+      - java
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-18"
+      kisa_name: "적절한 인증 없는 중요 기능 허용"
+      confidence: LOW
+      recommendation: >-
+        permitAll/@PermitAll이 중요 기능에 적용되었는지 검토하고 인증이 필요한 기능에는 인증 정책을 적용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: manual_review
+      cwe:
+        - CWE-306
+      technology:
+        - "java"
+        - "authentication"
+
+    pattern-either:
+      - pattern: >-
+          $AUTH.requestMatchers(...).permitAll()
+      - pattern: |
+          @PermitAll
+          $RET $METHOD(...) {
+              ...
+          }

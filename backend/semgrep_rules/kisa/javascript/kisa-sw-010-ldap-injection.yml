@@ -1,0 +1,42 @@
+rules:
+  - id: kisa.sw10.javascript.external-input-to-ldap-filter
+    message: >-
+      LDAP 삽입 관련 보안 패턴이 탐지되었습니다.
+      LDAP filter 문자열에 외부 입력을 직접 결합하지 말고 LDAP escaping 및 안전한 filter builder를 사용하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-10"
+      kisa_name: "LDAP 삽입"
+      confidence: HIGH
+      recommendation: >-
+        LDAP filter 문자열에 외부 입력을 직접 결합하지 말고 LDAP escaping 및 안전한 filter builder를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-90
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "ldap"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.query.$KEY
+              - pattern: >-
+                  $REQ.body.$KEY
+              - pattern: >-
+                  $REQ.params.$KEY
+              - pattern: >-
+                  $REQ.headers[$KEY]
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  $CLIENT.search($BASE, {filter: $FILTER, ...}, ...)
+              - pattern: >-
+                  $CLIENT.search($BASE, $FILTER, ...)

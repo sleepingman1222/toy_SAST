@@ -1,0 +1,34 @@
+rules:
+  - id: kisa.sw11.python.csrf-protection-disabled
+    message: >-
+      크로스사이트 요청 위조 관련 보안 패턴이 탐지되었습니다.
+      상태 변경 요청의 CSRF 보호를 해제하지 말고 프레임워크 CSRF 토큰 검증을 유지하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-11"
+      kisa_name: "크로스사이트 요청 위조"
+      confidence: MEDIUM
+      recommendation: >-
+        상태 변경 요청의 CSRF 보호를 해제하지 말고 프레임워크 CSRF 토큰 검증을 유지하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-352
+      technology:
+        - "python"
+        - "django"
+        - "csrf"
+
+    pattern-either:
+      - pattern: |
+          @csrf_exempt
+          def $F(...):
+              ...
+      - pattern: |
+          @method_decorator(csrf_exempt, ...)
+          class $C(...):
+              ...

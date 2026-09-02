@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw45.python.debug-code-leftover
+    message: >-
+      제거되지 않고 남은 디버그 코드 관련 보안 패턴이 탐지되었습니다.
+      배포 코드에서 breakpoint/pdb/ipdb 디버그 중단점을 제거하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-45"
+      kisa_name: "제거되지 않고 남은 디버그 코드"
+      confidence: HIGH
+      recommendation: >-
+        배포 코드에서 breakpoint/pdb/ipdb 디버그 중단점을 제거하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-489
+      technology:
+        - "python"
+        - "debug"
+
+    pattern-either:
+      - pattern: >-
+          breakpoint()
+      - pattern: >-
+          pdb.set_trace()
+      - pattern: >-
+          ipdb.set_trace()

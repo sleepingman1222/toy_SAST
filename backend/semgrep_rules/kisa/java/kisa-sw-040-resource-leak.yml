@@ -1,0 +1,36 @@
+rules:
+  - id: kisa.sw40.java.closeable-without-try-with-resources-review
+    message: >-
+      부적절한 자원 해제 관련 보안 패턴이 탐지되었습니다.
+      Closeable 자원은 try-with-resources로 관리하여 모든 경로에서 해제되도록 하세요.
+    languages:
+      - java
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-40"
+      kisa_name: "부적절한 자원 해제"
+      confidence: MEDIUM
+      recommendation: >-
+        Closeable 자원은 try-with-resources로 관리하여 모든 경로에서 해제되도록 하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-772
+      technology:
+        - "java"
+        - "resource-management"
+
+    patterns:
+      - pattern-either:
+          - pattern: >-
+              $S = new FileInputStream(...)
+          - pattern: >-
+              $S = new FileOutputStream(...)
+          - pattern: >-
+              $S = Files.newInputStream(...)
+      - pattern-not-inside: |
+          try ($T $S = ...) {
+              ...
+          }

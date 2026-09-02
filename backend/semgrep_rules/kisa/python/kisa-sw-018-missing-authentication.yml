@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw18.python.public-sensitive-endpoint-review
+    message: >-
+      적절한 인증 없는 중요 기능 허용 관련 보안 패턴이 탐지되었습니다.
+      AllowAny가 설정된 endpoint가 중요 기능인지 수동 검토하고, 중요 기능에는 인증 permission을 적용하세요.
+    languages:
+      - python
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-18"
+      kisa_name: "적절한 인증 없는 중요 기능 허용"
+      confidence: LOW
+      recommendation: >-
+        AllowAny가 설정된 endpoint가 중요 기능인지 수동 검토하고, 중요 기능에는 인증 permission을 적용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: manual_review
+      cwe:
+        - CWE-306
+      technology:
+        - "python"
+        - "django-rest-framework"
+        - "authentication"
+
+    pattern-either:
+      - pattern: |
+          @permission_classes([AllowAny])
+          def $F(...):
+              ...
+      - pattern: |
+          permission_classes = [AllowAny]

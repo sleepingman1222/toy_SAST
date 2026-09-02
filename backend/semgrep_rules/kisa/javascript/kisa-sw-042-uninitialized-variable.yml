@@ -1,0 +1,33 @@
+rules:
+  - id: kisa.sw42.javascript.uninitialized-variable-use-review
+    message: >-
+      초기화되지 않은 변수 사용 관련 보안 패턴이 탐지되었습니다.
+      let/var 선언 후 값이 설정되기 전에 사용되는 경로가 없는지 검토하고 선언 시 초기화하세요.
+    languages:
+      - javascript
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-42"
+      kisa_name: "초기화되지 않은 변수 사용"
+      confidence: MEDIUM
+      recommendation: >-
+        let/var 선언 후 값이 설정되기 전에 사용되는 경로가 없는지 검토하고 선언 시 초기화하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-457
+      technology:
+        - "javascript"
+        - "variables"
+
+    pattern-either:
+      - pattern: |
+          let $X;
+          ...
+          $F($X)
+      - pattern: |
+          var $X;
+          ...
+          return $X

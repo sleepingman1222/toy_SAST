@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw31.javascript.password-hash-without-salt
+    message: >-
+      솔트 없이 일방향 해쉬 함수 사용 관련 보안 패턴이 탐지되었습니다.
+      비밀번호 저장에는 createHash 단순 해시 대신 scrypt/bcrypt/Argon2 등 salt 기반 KDF를 사용하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-31"
+      kisa_name: "솔트 없이 일방향 해쉬 함수 사용"
+      confidence: HIGH
+      recommendation: >-
+        비밀번호 저장에는 createHash 단순 해시 대신 scrypt/bcrypt/Argon2 등 salt 기반 KDF를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-759
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "password"
+        - "hash"
+
+    pattern-either:
+      - pattern: >-
+          crypto.createHash("sha256").update($PASSWORD).digest(...)
+      - pattern: >-
+          crypto.createHash("sha512").update($PASSWORD).digest(...)

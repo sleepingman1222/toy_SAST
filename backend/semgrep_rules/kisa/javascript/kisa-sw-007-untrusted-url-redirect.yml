@@ -1,0 +1,40 @@
+rules:
+  - id: kisa.sw07.javascript.external-input-to-redirect
+    message: >-
+      신뢰되지 않는 URL 주소로 자동접속 연결 관련 보안 패턴이 탐지되었습니다.
+      리다이렉트 대상은 내부 상대경로 또는 사전 허용된 호스트만 허용하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-07"
+      kisa_name: "신뢰되지 않는 URL 주소로 자동접속 연결"
+      confidence: HIGH
+      recommendation: >-
+        리다이렉트 대상은 내부 상대경로 또는 사전 허용된 호스트만 허용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-601
+      technology:
+        - "javascript"
+        - "express"
+        - "web"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.query.$KEY
+              - pattern: >-
+                  $REQ.body.$KEY
+              - pattern: >-
+                  $REQ.params.$KEY
+              - pattern: >-
+                  $REQ.headers[$KEY]
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  $RES.redirect($URL)

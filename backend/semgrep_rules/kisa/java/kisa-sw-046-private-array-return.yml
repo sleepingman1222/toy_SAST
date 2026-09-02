@@ -1,0 +1,36 @@
+rules:
+  - id: kisa.sw46.java.private-array-return
+    message: >-
+      Public 메서드로부터 반환된 Private 배열 관련 보안 패턴이 탐지되었습니다.
+      private 배열을 직접 반환하지 말고 Arrays.copyOf/clone 등 방어적 복사를 반환하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-46"
+      kisa_name: "Public 메서드로부터 반환된 Private 배열"
+      confidence: HIGH
+      recommendation: >-
+        private 배열을 직접 반환하지 말고 Arrays.copyOf/clone 등 방어적 복사를 반환하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-495
+      technology:
+        - "java"
+        - "encapsulation"
+
+    pattern-either:
+      - pattern: |
+          class $C {
+              ...
+              private $TYPE[] $FIELD;
+              ...
+              public $TYPE[] $METHOD(...) {
+                  ...
+                  return $FIELD;
+              }
+              ...
+          }

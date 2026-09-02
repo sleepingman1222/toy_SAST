@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw19.javascript.external-id-object-access-review
+    message: >-
+      부적절한 인가 관련 보안 패턴이 탐지되었습니다.
+      URL의 객체 ID만으로 중요 자원을 조회하지 말고 인증 사용자의 tenant/owner/permission 조건을 함께 적용하세요.
+    languages:
+      - javascript
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-19"
+      kisa_name: "부적절한 인가"
+      confidence: LOW
+      recommendation: >-
+        URL의 객체 ID만으로 중요 자원을 조회하지 말고 인증 사용자의 tenant/owner/permission 조건을 함께 적용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-862
+      technology:
+        - "javascript"
+        - "web"
+        - "authorization"
+
+    pattern-either:
+      - pattern: >-
+          $MODEL.findById($REQ.params.id)
+      - pattern: >-
+          $MODEL.findOne({_id: $REQ.params.id})
+      - pattern: >-
+          $MODEL.findOne({id: $REQ.params.id})

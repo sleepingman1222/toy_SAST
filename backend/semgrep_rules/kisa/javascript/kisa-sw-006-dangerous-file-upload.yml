@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw06.javascript.unvalidated-upload-filename
+    message: >-
+      위험한 형식 파일 업로드 관련 보안 패턴이 탐지되었습니다.
+      업로드 originalname을 저장 경로로 직접 사용하지 말고 서버 생성 파일명과 확장자/MIME/signature 허용목록 검증을 적용하세요.
+    languages:
+      - javascript
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-06"
+      kisa_name: "위험한 형식 파일 업로드"
+      confidence: MEDIUM
+      recommendation: >-
+        업로드 originalname을 저장 경로로 직접 사용하지 말고 서버 생성 파일명과 확장자/MIME/signature 허용목록 검증을 적용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-434
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "file-upload"
+
+    pattern-either:
+      - pattern: >-
+          fs.writeFileSync($FILE.originalname, ...)
+      - pattern: >-
+          fs.writeFile($FILE.originalname, ...)
+      - pattern: >-
+          fs.renameSync($FILE.path, $FILE.originalname)

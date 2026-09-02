@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw25.java.insecure-random-for-security
+    message: >-
+      적절하지 않은 난수 값 사용 관련 보안 패턴이 탐지되었습니다.
+      보안 목적 난수에는 java.util.Random/Math.random 대신 SecureRandom을 사용하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-25"
+      kisa_name: "적절하지 않은 난수 값 사용"
+      confidence: HIGH
+      recommendation: >-
+        보안 목적 난수에는 java.util.Random/Math.random 대신 SecureRandom을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-338
+      technology:
+        - "java"
+        - "random"
+        - "security"
+
+    pattern-either:
+      - pattern: >-
+          new Random(...)
+      - pattern: >-
+          Math.random()

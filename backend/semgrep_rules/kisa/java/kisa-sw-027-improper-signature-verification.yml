@@ -1,0 +1,27 @@
+rules:
+  - id: kisa.sw27.java.signature-result-ignored-review
+    message: >-
+      부적절한 전자서명 확인 관련 보안 패턴이 탐지되었습니다.
+      Signature.verify 결과를 무시하지 말고 검증 실패 시 처리를 중단하세요.
+    languages:
+      - java
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-27"
+      kisa_name: "부적절한 전자서명 확인"
+      confidence: MEDIUM
+      recommendation: >-
+        Signature.verify 결과를 무시하지 말고 검증 실패 시 처리를 중단하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-347
+      technology:
+        - "java"
+        - "signature"
+
+    pattern-either:
+      - pattern: >-
+          $SIGNATURE.verify($BYTES);

@@ -1,0 +1,37 @@
+rules:
+  - id: kisa.sw34.javascript.check-then-use-file
+    message: >-
+      경쟁조건 : 검사 시점과 사용 시점(TOCTOU) 관련 보안 패턴이 탐지되었습니다.
+      exists/access 검사 후 다시 파일을 여는 패턴 대신 원자적 open 플래그와 직접 오류 처리를 사용하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-34"
+      kisa_name: "경쟁조건 : 검사 시점과 사용 시점(TOCTOU)"
+      confidence: HIGH
+      recommendation: >-
+        exists/access 검사 후 다시 파일을 여는 패턴 대신 원자적 open 플래그와 직접 오류 처리를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-367
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "filesystem"
+        - "race-condition"
+
+    pattern-either:
+      - pattern: |
+          if (fs.existsSync($PATH)) {
+            ...
+            fs.readFileSync($PATH, ...)
+            ...
+          }
+      - pattern: |
+          fs.access($PATH, ...);
+          ...
+          fs.readFile($PATH, ...)

@@ -1,0 +1,34 @@
+rules:
+  - id: kisa.sw44.python.request-data-to-global-state-review
+    message: >-
+      잘못된 세션에 의한 데이터 정보노출 관련 보안 패턴이 탐지되었습니다.
+      요청/세션별 데이터를 프로세스 전역 상태에 저장하지 말고 요청 또는 사용자 세션에 격리하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-44"
+      kisa_name: "잘못된 세션에 의한 데이터 정보노출"
+      confidence: MEDIUM
+      recommendation: >-
+        요청/세션별 데이터를 프로세스 전역 상태에 저장하지 말고 요청 또는 사용자 세션에 격리하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-488
+      technology:
+        - "python"
+        - "session"
+        - "state"
+
+    pattern-either:
+      - pattern: |
+          global $X
+          ...
+          $X = $REQ.GET.get(...)
+      - pattern: |
+          global $X
+          ...
+          $X = $REQ.POST.get(...)

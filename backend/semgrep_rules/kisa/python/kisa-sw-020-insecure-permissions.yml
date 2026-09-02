@@ -1,0 +1,34 @@
+rules:
+  - id: kisa.sw20.python.world-writable-permission
+    message: >-
+      중요한 자원에 대한 잘못된 권한 설정 관련 보안 패턴이 탐지되었습니다.
+      파일/디렉터리에 최소 권한을 적용하고 world-writable 권한(0666/0777)을 사용하지 마세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-20"
+      kisa_name: "중요한 자원에 대한 잘못된 권한 설정"
+      confidence: HIGH
+      recommendation: >-
+        파일/디렉터리에 최소 권한을 적용하고 world-writable 권한(0666/0777)을 사용하지 마세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-732
+      technology:
+        - "python"
+        - "filesystem"
+        - "permissions"
+
+    pattern-either:
+      - pattern: >-
+          os.chmod($PATH, 0o777)
+      - pattern: >-
+          os.chmod($PATH, 0o666)
+      - pattern: >-
+          $PATH.chmod(0o777)
+      - pattern: >-
+          $PATH.chmod(0o666)

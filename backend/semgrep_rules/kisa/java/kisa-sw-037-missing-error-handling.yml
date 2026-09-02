@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw37.java.empty-catch-block
+    message: >-
+      오류상황 대응 부재 관련 보안 패턴이 탐지되었습니다.
+      빈 catch 블록으로 오류를 무시하지 말고 복구/로깅/재throw 등 명시적 대응을 구현하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-37"
+      kisa_name: "오류상황 대응 부재"
+      confidence: HIGH
+      recommendation: >-
+        빈 catch 블록으로 오류를 무시하지 말고 복구/로깅/재throw 등 명시적 대응을 구현하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-703
+      technology:
+        - "java"
+        - "error-handling"
+
+    pattern-either:
+      - pattern: |
+          try {
+              ...
+          } catch ($EX $E) {
+          }

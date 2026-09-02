@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw27.python.signature-verification-disabled
+    message: >-
+      부적절한 전자서명 확인 관련 보안 패턴이 탐지되었습니다.
+      전자서명/JWT 검증을 비활성화하지 말고 신뢰할 수 있는 키와 허용 알고리즘으로 서명을 검증하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-27"
+      kisa_name: "부적절한 전자서명 확인"
+      confidence: MEDIUM
+      recommendation: >-
+        전자서명/JWT 검증을 비활성화하지 말고 신뢰할 수 있는 키와 허용 알고리즘으로 서명을 검증하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-347
+      technology:
+        - "python"
+        - "jwt"
+        - "signature"
+
+    pattern-either:
+      - pattern: >-
+          jwt.decode(..., options={..., "verify_signature": False, ...}, ...)
+      - pattern: >-
+          jwt.decode(..., options={..., 'verify_signature': False, ...}, ...)

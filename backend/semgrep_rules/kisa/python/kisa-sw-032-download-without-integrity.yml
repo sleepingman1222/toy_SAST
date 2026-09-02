@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw32.python.downloaded-code-executed-review
+    message: >-
+      무결성 검사 없는 코드 다운로드 관련 보안 패턴이 탐지되었습니다.
+      다운로드한 코드/실행파일은 서명 또는 신뢰된 해시로 무결성을 검증한 후 사용하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-32"
+      kisa_name: "무결성 검사 없는 코드 다운로드"
+      confidence: MEDIUM
+      recommendation: >-
+        다운로드한 코드/실행파일은 서명 또는 신뢰된 해시로 무결성을 검증한 후 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-494
+      technology:
+        - "python"
+        - "download"
+        - "integrity"
+
+    pattern-either:
+      - pattern: >-
+          exec(requests.get(...).text)
+      - pattern: >-
+          eval(requests.get(...).text)
+      - pattern: >-
+          exec(urllib.request.urlopen(...).read())

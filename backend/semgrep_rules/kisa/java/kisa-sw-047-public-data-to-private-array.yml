@@ -1,0 +1,36 @@
+rules:
+  - id: kisa.sw47.java.public-array-assigned-to-private-field
+    message: >-
+      Private 배열에 Public 데이터 할당 관련 보안 패턴이 탐지되었습니다.
+      public parameter 배열을 private 필드에 그대로 저장하지 말고 Arrays.copyOf/clone으로 방어적 복사하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-47"
+      kisa_name: "Private 배열에 Public 데이터 할당"
+      confidence: HIGH
+      recommendation: >-
+        public parameter 배열을 private 필드에 그대로 저장하지 말고 Arrays.copyOf/clone으로 방어적 복사하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-496
+      technology:
+        - "java"
+        - "encapsulation"
+
+    pattern-either:
+      - pattern: |
+          class $C {
+              ...
+              private $TYPE[] $FIELD;
+              ...
+              public $C(..., $TYPE[] $DATA, ...) {
+                  ...
+                  this.$FIELD = $DATA;
+              }
+              ...
+          }

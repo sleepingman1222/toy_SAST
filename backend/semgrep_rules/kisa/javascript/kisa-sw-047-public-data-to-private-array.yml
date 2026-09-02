@@ -1,0 +1,35 @@
+rules:
+  - id: kisa.sw47.javascript.public-array-assigned-to-private-field
+    message: >-
+      Private 배열에 Public 데이터 할당 관련 보안 패턴이 탐지되었습니다.
+      constructor 인자의 mutable 배열을 private field에 그대로 저장하지 말고 spread/copy를 사용하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-47"
+      kisa_name: "Private 배열에 Public 데이터 할당"
+      confidence: HIGH
+      recommendation: >-
+        constructor 인자의 mutable 배열을 private field에 그대로 저장하지 말고 spread/copy를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-496
+      technology:
+        - "javascript"
+        - "encapsulation"
+
+    pattern-either:
+      - pattern: |
+          class $C {
+            #$FIELD;
+            ...
+            constructor(..., $DATA, ...) {
+              ...
+              this.#$FIELD = $DATA;
+            }
+            ...
+          }

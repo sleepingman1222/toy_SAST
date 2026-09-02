@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw44.java.request-data-to-static-state-review
+    message: >-
+      잘못된 세션에 의한 데이터 정보노출 관련 보안 패턴이 탐지되었습니다.
+      사용자별 요청 데이터를 static 공유 상태에 저장하지 말고 request/session scope 또는 사용자 키 기반 저장소를 사용하세요.
+    languages:
+      - java
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-44"
+      kisa_name: "잘못된 세션에 의한 데이터 정보노출"
+      confidence: MEDIUM
+      recommendation: >-
+        사용자별 요청 데이터를 static 공유 상태에 저장하지 말고 request/session scope 또는 사용자 키 기반 저장소를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-488
+      technology:
+        - "java"
+        - "session"
+        - "state"
+
+    pattern-either:
+      - pattern: >-
+          $CLASS.$STATIC = $REQ.getParameter(...)
+      - pattern: >-
+          $CLASS.$STATIC = $REQ.getHeader(...)

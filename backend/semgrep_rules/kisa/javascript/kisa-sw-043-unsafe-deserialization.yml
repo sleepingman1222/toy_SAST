@@ -1,0 +1,44 @@
+rules:
+  - id: kisa.sw43.javascript.external-input-to-unsafe-deserializer
+    message: >-
+      신뢰할 수 없는 데이터의 역직렬화 관련 보안 패턴이 탐지되었습니다.
+      외부 입력을 executable object deserializer에 전달하지 말고 JSON 등 안전한 형식과 schema validation을 사용하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-43"
+      kisa_name: "신뢰할 수 없는 데이터의 역직렬화"
+      confidence: HIGH
+      recommendation: >-
+        외부 입력을 executable object deserializer에 전달하지 말고 JSON 등 안전한 형식과 schema validation을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-502
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "deserialization"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.query.$KEY
+              - pattern: >-
+                  $REQ.body.$KEY
+              - pattern: >-
+                  $REQ.params.$KEY
+              - pattern: >-
+                  $REQ.headers[$KEY]
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  serialize.unserialize($DATA)
+              - pattern: >-
+                  nodeSerialize.unserialize($DATA)
+              - pattern: >-
+                  yaml.load($DATA)

@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw35.python.obvious-infinite-loop
+    message: >-
+      종료되지 않는 반복문 또는 재귀함수 관련 보안 패턴이 탐지되었습니다.
+      무조건 참인 반복문의 종료 조건, break 경로, timeout 또는 반복 상한을 검토하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-35"
+      kisa_name: "종료되지 않는 반복문 또는 재귀함수"
+      confidence: HIGH
+      recommendation: >-
+        무조건 참인 반복문의 종료 조건, break 경로, timeout 또는 반복 상한을 검토하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-835
+      technology:
+        - "python"
+        - "control-flow"
+
+    pattern-either:
+      - pattern: |
+          while True:
+              ...
+      - pattern: |
+          while 1:
+              ...

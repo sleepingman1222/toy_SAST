@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw39.python.nullable-get-result-dereference
+    message: >-
+      Null Pointer 역참조 관련 보안 패턴이 탐지되었습니다.
+      None을 반환할 수 있는 get 결과를 즉시 역참조하지 말고 null/None 여부를 확인하거나 기본값을 사용하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-39"
+      kisa_name: "Null Pointer 역참조"
+      confidence: MEDIUM
+      recommendation: >-
+        None을 반환할 수 있는 get 결과를 즉시 역참조하지 말고 null/None 여부를 확인하거나 기본값을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-476
+      technology:
+        - "python"
+        - "null-safety"
+
+    pattern-either:
+      - pattern: >-
+          $DICT.get($KEY).$METHOD(...)
+      - pattern: >-
+          $REQ.GET.get($KEY).$METHOD(...)
+      - pattern: >-
+          $REQ.POST.get($KEY).$METHOD(...)

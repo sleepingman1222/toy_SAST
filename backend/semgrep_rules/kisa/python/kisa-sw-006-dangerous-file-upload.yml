@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw06.python.unvalidated-upload-filename
+    message: >-
+      위험한 형식 파일 업로드 관련 보안 패턴이 탐지되었습니다.
+      업로드 원본 파일명을 저장 경로로 직접 사용하지 말고 서버가 새 파일명을 생성하며 확장자/MIME/signature를 허용목록으로 검증하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-06"
+      kisa_name: "위험한 형식 파일 업로드"
+      confidence: MEDIUM
+      recommendation: >-
+        업로드 원본 파일명을 저장 경로로 직접 사용하지 말고 서버가 새 파일명을 생성하며 확장자/MIME/signature를 허용목록으로 검증하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-434
+      technology:
+        - "python"
+        - "file-upload"
+
+    pattern-either:
+      - pattern: >-
+          $FILE.save($FILE.filename)
+      - pattern: >-
+          open($FILE.filename, ...)
+      - pattern: >-
+          open($UPLOAD.name, ...)

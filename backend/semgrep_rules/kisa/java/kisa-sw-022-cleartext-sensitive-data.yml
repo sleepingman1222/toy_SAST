@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw22.java.cleartext-http-transport-review
+    message: >-
+      암호화되지 않은 중요정보 관련 보안 패턴이 탐지되었습니다.
+      중요정보가 전송될 수 있는 HTTP endpoint를 검토하고 HTTPS/TLS를 사용하세요.
+    languages:
+      - java
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-22"
+      kisa_name: "암호화되지 않은 중요정보"
+      confidence: MEDIUM
+      recommendation: >-
+        중요정보가 전송될 수 있는 HTTP endpoint를 검토하고 HTTPS/TLS를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-319
+      technology:
+        - "java"
+        - "http"
+        - "tls"
+
+    pattern-either:
+      - pattern: >-
+          new URL("http://...")
+      - pattern: >-
+          URI.create("http://...")
+      - pattern: >-
+          HttpRequest.newBuilder(URI.create("http://..."))

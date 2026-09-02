@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw29.javascript.insecure-cookie-flags
+    message: >-
+      사용자 하드디스크에 저장되는 쿠키를 통한 정보노출 관련 보안 패턴이 탐지되었습니다.
+      세션/중요 쿠키에 secure:true, httpOnly:true와 적절한 sameSite를 설정하세요.
+    languages:
+      - javascript
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-29"
+      kisa_name: "사용자 하드디스크에 저장되는 쿠키를 통한 정보노출"
+      confidence: MEDIUM
+      recommendation: >-
+        세션/중요 쿠키에 secure:true, httpOnly:true와 적절한 sameSite를 설정하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-614
+      technology:
+        - "javascript"
+        - "express"
+        - "cookie"
+
+    pattern-either:
+      - pattern: >-
+          $RES.cookie($NAME, $VALUE, {..., secure: false, ...})
+      - pattern: >-
+          $RES.cookie($NAME, $VALUE, {..., httpOnly: false, ...})

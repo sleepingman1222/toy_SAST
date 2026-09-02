@@ -1,0 +1,39 @@
+rules:
+  - id: kisa.sw43.java.external-input-to-object-deserialization
+    message: >-
+      신뢰할 수 없는 데이터의 역직렬화 관련 보안 패턴이 탐지되었습니다.
+      외부 입력을 Java native serialization로 역직렬화하지 말고 허용 타입 제한과 안전한 직렬화 형식을 사용하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-43"
+      kisa_name: "신뢰할 수 없는 데이터의 역직렬화"
+      confidence: HIGH
+      recommendation: >-
+        외부 입력을 Java native serialization로 역직렬화하지 말고 허용 타입 제한과 안전한 직렬화 형식을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-502
+      technology:
+        - "java"
+        - "deserialization"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.getParameter(...)
+              - pattern: >-
+                  $REQ.getHeader(...)
+              - pattern: >-
+                  $REQ.getQueryString()
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  new ObjectInputStream($STREAM).readObject()
+              - pattern: >-
+                  $OIS.readObject()

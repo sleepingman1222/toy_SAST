@@ -1503,12 +1503,6 @@ export async function createSourceVersion(
 
 
   formData.append(
-    "language",
-    sourceData.language
-  );
-
-
-  formData.append(
     "source_type",
     sourceData.sourceType
   );
@@ -1606,12 +1600,6 @@ export async function updateSourceVersion(
 
   const formData =
     new FormData();
-
-
-  formData.append(
-    "language",
-    sourceData.language
-  );
 
 
   formData.append(

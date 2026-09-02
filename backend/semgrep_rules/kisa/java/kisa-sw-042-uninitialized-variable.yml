@@ -1,0 +1,29 @@
+rules:
+  - id: kisa.sw42.java.declaration-without-initializer-review
+    message: >-
+      초기화되지 않은 변수 사용 관련 보안 패턴이 탐지되었습니다.
+      지역 변수가 사용 전에 모든 경로에서 초기화되는지 확인하세요. Java 컴파일러가 막는 경우도 있지만 필드/복잡한 흐름은 별도 검토가 필요합니다.
+    languages:
+      - java
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-42"
+      kisa_name: "초기화되지 않은 변수 사용"
+      confidence: LOW
+      recommendation: >-
+        지역 변수가 사용 전에 모든 경로에서 초기화되는지 확인하세요. Java 컴파일러가 막는 경우도 있지만 필드/복잡한 흐름은 별도 검토가 필요합니다.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: manual_review
+      cwe:
+        - CWE-457
+      technology:
+        - "java"
+        - "variables"
+
+    pattern-either:
+      - pattern: |
+          $TYPE $X;
+          ...
+          $F($X);

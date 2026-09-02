@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw45.java.debug-code-leftover
+    message: >-
+      제거되지 않고 남은 디버그 코드 관련 보안 패턴이 탐지되었습니다.
+      배포 코드의 임시 stdout/stderr/printStackTrace 디버그 출력을 제거하고 표준 로깅 정책을 사용하세요.
+    languages:
+      - java
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-45"
+      kisa_name: "제거되지 않고 남은 디버그 코드"
+      confidence: HIGH
+      recommendation: >-
+        배포 코드의 임시 stdout/stderr/printStackTrace 디버그 출력을 제거하고 표준 로깅 정책을 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-489
+      technology:
+        - "java"
+        - "debug"
+
+    pattern-either:
+      - pattern: >-
+          System.out.println(...)
+      - pattern: >-
+          System.err.println(...)
+      - pattern: >-
+          $E.printStackTrace()

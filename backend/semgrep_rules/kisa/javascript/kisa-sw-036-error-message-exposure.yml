@@ -1,0 +1,34 @@
+rules:
+  - id: kisa.sw36.javascript.exception-detail-to-response
+    message: >-
+      오류 메시지 정보노출 관련 보안 패턴이 탐지되었습니다.
+      err.stack/message를 사용자 응답에 직접 노출하지 말고 일반 오류 메시지와 서버 측 로그를 분리하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-36"
+      kisa_name: "오류 메시지 정보노출"
+      confidence: HIGH
+      recommendation: >-
+        err.stack/message를 사용자 응답에 직접 노출하지 말고 일반 오류 메시지와 서버 측 로그를 분리하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-209
+      technology:
+        - "javascript"
+        - "express"
+        - "error-handling"
+
+    pattern-either:
+      - pattern: >-
+          $RES.status($CODE).send($ERR.stack)
+      - pattern: >-
+          $RES.status($CODE).send($ERR.message)
+      - pattern: >-
+          $RES.json({...,$KEY: $ERR.stack,...})
+      - pattern: >-
+          $RES.json({...,$KEY: $ERR.message,...})

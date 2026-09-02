@@ -1,0 +1,55 @@
+rules:
+  - id: kisa.sw03.python.external-input-to-file-path
+    message: >-
+      경로 조작 및 자원 삽입 관련 보안 패턴이 탐지되었습니다.
+      외부 입력을 파일 경로로 직접 사용하지 말고 기준 디렉터리와 결합한 뒤 resolve/realpath 결과가 허용된 루트 내부인지 확인하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-03"
+      kisa_name: "경로 조작 및 자원 삽입"
+      confidence: HIGH
+      recommendation: >-
+        외부 입력을 파일 경로로 직접 사용하지 말고 기준 디렉터리와 결합한 뒤 resolve/realpath 결과가 허용된 루트 내부인지 확인하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-22
+      technology:
+        - "python"
+        - "filesystem"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  input(...)
+              - pattern: >-
+                  $REQ.GET.get(...)
+              - pattern: >-
+                  $REQ.POST.get(...)
+              - pattern: >-
+                  $REQ.args.get(...)
+              - pattern: >-
+                  $REQ.form.get(...)
+              - pattern: >-
+                  $REQ.json.get(...)
+    pattern-sanitizers:
+      - pattern-either:
+              - pattern: >-
+                  os.path.basename(...)
+              - pattern: >-
+                  Path(...).name
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  open($PATH, ...)
+              - pattern: >-
+                  Path($PATH)
+              - pattern: >-
+                  os.remove($PATH)
+              - pattern: >-
+                  os.unlink($PATH)

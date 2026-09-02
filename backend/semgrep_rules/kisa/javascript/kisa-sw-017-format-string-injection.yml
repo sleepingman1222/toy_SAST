@@ -1,0 +1,42 @@
+rules:
+  - id: kisa.sw17.javascript.external-input-as-format-string
+    message: >-
+      포맷 스트링 삽입 관련 보안 패턴이 탐지되었습니다.
+      외부 입력을 format string 위치에 사용하지 말고 고정 format과 데이터 인자를 분리하세요.
+    languages:
+      - javascript
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-17"
+      kisa_name: "포맷 스트링 삽입"
+      confidence: MEDIUM
+      recommendation: >-
+        외부 입력을 format string 위치에 사용하지 말고 고정 format과 데이터 인자를 분리하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-134
+      technology:
+        - "javascript"
+        - "nodejs"
+        - "format-string"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.query.$KEY
+              - pattern: >-
+                  $REQ.body.$KEY
+              - pattern: >-
+                  $REQ.params.$KEY
+              - pattern: >-
+                  $REQ.headers[$KEY]
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  util.format($FMT, ...)
+              - pattern: >-
+                  console.log($FMT, ...)

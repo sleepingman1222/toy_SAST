@@ -1,0 +1,31 @@
+rules:
+  - id: kisa.sw49.python.dangerous-api-use
+    message: >-
+      취약한 API 사용 관련 보안 패턴이 탐지되었습니다.
+      보안상 위험하거나 안전한 대안이 있는 API를 피하고 tempfile.NamedTemporaryFile, safe_load 등 안전한 API를 사용하세요.
+    languages:
+      - python
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-49"
+      kisa_name: "취약한 API 사용"
+      confidence: HIGH
+      recommendation: >-
+        보안상 위험하거나 안전한 대안이 있는 API를 피하고 tempfile.NamedTemporaryFile, safe_load 등 안전한 API를 사용하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-676
+      technology:
+        - "python"
+        - "dangerous-api"
+
+    pattern-either:
+      - pattern: >-
+          tempfile.mktemp(...)
+      - pattern: >-
+          yaml.load($DATA)
+      - pattern: >-
+          eval(...)

@@ -1,0 +1,29 @@
+rules:
+  - id: kisa.sw45.javascript.debug-code-leftover
+    message: >-
+      제거되지 않고 남은 디버그 코드 관련 보안 패턴이 탐지되었습니다.
+      배포 코드의 debugger/console.debug 임시 디버그 구문을 제거하세요.
+    languages:
+      - javascript
+    severity: ERROR
+
+    metadata:
+      kisa_identifier: "KISA-SW-45"
+      kisa_name: "제거되지 않고 남은 디버그 코드"
+      confidence: HIGH
+      recommendation: >-
+        배포 코드의 debugger/console.debug 임시 디버그 구문을 제거하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: implemented
+      cwe:
+        - CWE-489
+      technology:
+        - "javascript"
+        - "debug"
+
+    pattern-either:
+      - pattern: >-
+          debugger
+      - pattern: >-
+          console.debug(...)

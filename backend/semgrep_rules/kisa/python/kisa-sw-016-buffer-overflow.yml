@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw16.python.native-memory-operation-review
+    message: >-
+      메모리 버퍼 오버플로우 관련 보안 패턴이 탐지되었습니다.
+      Python 코드라도 ctypes로 native memory를 다룰 때 길이와 대상 버퍼 크기를 수동 검증하세요.
+    languages:
+      - python
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-16"
+      kisa_name: "메모리 버퍼 오버플로우"
+      confidence: LOW
+      recommendation: >-
+        Python 코드라도 ctypes로 native memory를 다룰 때 길이와 대상 버퍼 크기를 수동 검증하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: manual_review
+      cwe:
+        - CWE-120
+      technology:
+        - "python"
+        - "ctypes"
+        - "native-memory"
+
+    pattern-either:
+      - pattern: >-
+          ctypes.memmove(...)
+      - pattern: >-
+          ctypes.memset(...)
+      - pattern: >-
+          ctypes.string_at(...)

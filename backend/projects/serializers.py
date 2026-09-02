@@ -15,17 +15,6 @@ User = get_user_model()
 
 
 # ========================================
-# Upload 제한
-# ========================================
-
-MAX_UPLOAD_ZIP_SIZE = (
-    50
-    * 1024
-    * 1024
-)
-
-
-# ========================================
 # SourceVersion 조회 Serializer
 # ========================================
 
@@ -69,14 +58,7 @@ class SourceVersionSerializer(
             "id",
 
             "version",
-
-            # 기존 단일 언어 필드
-            # 전환 기간 동안 호환용으로 유지
             "language",
-
-            # Backend 자동 감지 다중 언어
-            "detected_languages",
-
             "source_type",
 
             "source_file_name",
@@ -94,7 +76,6 @@ class SourceVersionSerializer(
 
             "version",
             "language",
-            "detected_languages",
             "source_type",
 
             "source_file_name",
@@ -151,20 +132,13 @@ class UserSourceVersionSerializer(
         fields = [
             "id",
             "version",
-
-            # 기존 데이터 호환용
             "language",
-
-            # 일반 사용자 화면에서
-            # 완료 분석의 실제 감지 언어 표시
-            "detected_languages",
         ]
 
         read_only_fields = [
             "id",
             "version",
             "language",
-            "detected_languages",
         ]
 
 
@@ -181,6 +155,25 @@ class SourceVersionWriteSerializer(
     serializers.ModelSerializer
 ):
 
+    # ====================================
+    # Language
+    #
+    # 사용자가 분석 언어를 직접 선택하지 않는다.
+    # SourceVersion 생성 시에는 빈 문자열로 저장하고,
+    # 실제 분석 실행 시 Snapshot / Planner가 감지한
+    # 언어를 scans.tasks.save_detected_languages()에서
+    # 자동으로 갱신한다.
+    #
+    # PATCH(partial=True)에서는 HiddenField default가
+    # 적용되지 않으므로 기존 language 값도 임의로
+    # 덮어쓰지 않는다.
+    # ====================================
+
+    language = serializers.HiddenField(
+        default="",
+    )
+
+
     source_file = serializers.FileField(
         required=False,
         allow_null=True,
@@ -192,122 +185,13 @@ class SourceVersionWriteSerializer(
         model = SourceVersion
 
         fields = [
-            # 분석 언어는 요청으로 받지 않는다.
-            # 실제 소스를 준비한 뒤 Backend가
-            # 자동으로 감지한다.
+            "language",
             "source_type",
 
             "source_file",
             "repository_url",
             "internal_path",
         ]
-
-
-    # ====================================
-    # Upload File
-    #
-    # HTTP 요청 단계의 1차 검증
-    #
-    # 여기서는:
-    #
-    # - .zip 확장자
-    # - 빈 파일
-    # - 압축 파일 크기
-    #
-    # 만 빠르게 검사한다.
-    #
-    # 실제 ZIP 내부 보안 검사는
-    # Celery 분석 Task에서 수행한다.
-    # ====================================
-
-    def validate_source_file(
-        self,
-        value,
-    ):
-
-        if value is None:
-
-            return value
-
-
-        # --------------------------------
-        # 파일명
-        # --------------------------------
-
-        file_name = (
-            getattr(
-                value,
-                "name",
-                "",
-            )
-            or ""
-        ).strip()
-
-
-        if not file_name:
-
-            raise serializers.ValidationError(
-                "업로드 파일명을 확인할 수 없습니다."
-            )
-
-
-        # --------------------------------
-        # ZIP 확장자
-        #
-        # 대소문자는 구분하지 않는다.
-        #
-        # example.zip
-        # EXAMPLE.ZIP
-        # --------------------------------
-
-        if not (
-            file_name
-            .lower()
-            .endswith(
-                ".zip"
-            )
-        ):
-
-            raise serializers.ValidationError(
-                "파일 업로드 방식은 ZIP 파일만 등록할 수 있습니다."
-            )
-
-
-        # --------------------------------
-        # 파일 크기
-        # --------------------------------
-
-        file_size = getattr(
-            value,
-            "size",
-            None,
-        )
-
-
-        if (
-            file_size is not None
-            and
-            file_size <= 0
-        ):
-
-            raise serializers.ValidationError(
-                "빈 ZIP 파일은 업로드할 수 없습니다."
-            )
-
-
-        if (
-            file_size is not None
-            and
-            file_size >
-            MAX_UPLOAD_ZIP_SIZE
-        ):
-
-            raise serializers.ValidationError(
-                "업로드 가능한 ZIP 파일의 최대 크기는 50MB입니다."
-            )
-
-
-        return value
 
 
     # ====================================
@@ -490,42 +374,7 @@ class SourceVersionWriteSerializer(
 
                 raise serializers.ValidationError({
                     "source_file":
-                        "업로드 방식은 ZIP 파일이 필요합니다."
-                })
-
-
-            # --------------------------------
-            # 기존 SourceVersion 수정 시
-            #
-            # source_file이 요청에 포함되지 않으면
-            # validate_source_file()이 호출되지
-            # 않을 수 있다.
-            #
-            # 따라서 실제 적용될 파일도
-            # ZIP인지 다시 확인한다.
-            # --------------------------------
-
-            source_file_name = (
-                getattr(
-                    source_file,
-                    "name",
-                    "",
-                )
-                or ""
-            ).strip()
-
-
-            if not (
-                source_file_name
-                .lower()
-                .endswith(
-                    ".zip"
-                )
-            ):
-
-                raise serializers.ValidationError({
-                    "source_file":
-                        "파일 업로드 방식은 ZIP 파일만 사용할 수 있습니다."
+                        "업로드 방식은 소스 파일이 필요합니다."
                 })
 
 

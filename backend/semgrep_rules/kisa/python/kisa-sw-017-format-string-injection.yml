@@ -1,0 +1,45 @@
+rules:
+  - id: kisa.sw17.python.external-input-as-format-string
+    message: >-
+      포맷 스트링 삽입 관련 보안 패턴이 탐지되었습니다.
+      외부 입력을 format string 자체로 사용하지 말고 고정된 format string의 데이터 인자로만 전달하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-17"
+      kisa_name: "포맷 스트링 삽입"
+      confidence: MEDIUM
+      recommendation: >-
+        외부 입력을 format string 자체로 사용하지 말고 고정된 format string의 데이터 인자로만 전달하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-134
+      technology:
+        - "python"
+        - "format-string"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  input(...)
+              - pattern: >-
+                  $REQ.GET.get(...)
+              - pattern: >-
+                  $REQ.POST.get(...)
+              - pattern: >-
+                  $REQ.args.get(...)
+              - pattern: >-
+                  $REQ.form.get(...)
+              - pattern: >-
+                  $REQ.json.get(...)
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  $FMT % $ARGS
+              - pattern: >-
+                  $FMT.format(...)

@@ -1,0 +1,35 @@
+rules:
+  - id: kisa.sw46.python.private-list-return-review
+    message: >-
+      private 성격의 mutable 필드를 외부에 직접 반환하고 있습니다.
+      내부 데이터가 외부에서 변경되지 않도록 방어적 복사를 반환하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-46"
+      kisa_name: "Public 메서드로부터 반환된 Private 배열"
+      confidence: MEDIUM
+      recommendation: >-
+        내부 mutable list 또는 배열을 직접 반환하지 말고 list(), copy(),
+        tuple() 등의 방어적 복사 또는 불변 형태를 반환하세요.
+      rule_version: "1.0.1"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-495
+      technology:
+        - python
+        - encapsulation
+
+    patterns:
+      - pattern: return self.$FIELD
+
+      - pattern-inside: |
+          class $CLASS:
+              ...
+
+      - metavariable-regex:
+          metavariable: $FIELD
+          regex: '^_[A-Za-z][A-Za-z0-9_]*$'

@@ -1,0 +1,32 @@
+rules:
+  - id: kisa.sw16.java.unsafe-native-memory-operation-review
+    message: >-
+      메모리 버퍼 오버플로우 관련 보안 패턴이 탐지되었습니다.
+      sun.misc.Unsafe 등 native memory API 사용을 피하고, 불가피하면 크기/경계 검증을 수동 점검하세요.
+    languages:
+      - java
+    severity: INFO
+
+    metadata:
+      kisa_identifier: "KISA-SW-16"
+      kisa_name: "메모리 버퍼 오버플로우"
+      confidence: LOW
+      recommendation: >-
+        sun.misc.Unsafe 등 native memory API 사용을 피하고, 불가피하면 크기/경계 검증을 수동 점검하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: manual_review
+      cwe:
+        - CWE-120
+      technology:
+        - "java"
+        - "unsafe"
+        - "native-memory"
+
+    pattern-either:
+      - pattern: >-
+          $UNSAFE.copyMemory(...)
+      - pattern: >-
+          $UNSAFE.putAddress(...)
+      - pattern: >-
+          $UNSAFE.putByte(...)

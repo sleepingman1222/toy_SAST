@@ -1,0 +1,41 @@
+rules:
+  - id: kisa.sw17.java.external-input-as-format-string
+    message: >-
+      포맷 스트링 삽입 관련 보안 패턴이 탐지되었습니다.
+      외부 입력을 format 문자열로 사용하지 말고 고정된 format에 데이터 인자로 전달하세요.
+    languages:
+      - java
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-17"
+      kisa_name: "포맷 스트링 삽입"
+      confidence: MEDIUM
+      recommendation: >-
+        외부 입력을 format 문자열로 사용하지 말고 고정된 format에 데이터 인자로 전달하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-134
+      technology:
+        - "java"
+        - "format-string"
+
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+              - pattern: >-
+                  $REQ.getParameter(...)
+              - pattern: >-
+                  $REQ.getHeader(...)
+              - pattern: >-
+                  $REQ.getQueryString()
+    pattern-sinks:
+      - pattern-either:
+              - pattern: >-
+                  String.format($FMT, ...)
+              - pattern: >-
+                  System.out.printf($FMT, ...)
+              - pattern: >-
+                  $FORMATTER.format($FMT, ...)

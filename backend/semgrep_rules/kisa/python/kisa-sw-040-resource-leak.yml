@@ -1,0 +1,30 @@
+rules:
+  - id: kisa.sw40.python.file-handle-without-context-review
+    message: >-
+      부적절한 자원 해제 관련 보안 패턴이 탐지되었습니다.
+      파일/소켓/DB 자원은 context manager 또는 finally에서 확실히 해제하세요.
+    languages:
+      - python
+    severity: WARNING
+
+    metadata:
+      kisa_identifier: "KISA-SW-40"
+      kisa_name: "부적절한 자원 해제"
+      confidence: MEDIUM
+      recommendation: >-
+        파일/소켓/DB 자원은 context manager 또는 finally에서 확실히 해제하세요.
+      rule_version: "1.0.0"
+      kisa_guide_version: "2021.12.29"
+      automation_level: partial
+      cwe:
+        - CWE-772
+      technology:
+        - "python"
+        - "resource-management"
+
+    patterns:
+      - pattern: >-
+          $F = open(...)
+      - pattern-not-inside: |
+          with open(...) as $F:
+              ...
