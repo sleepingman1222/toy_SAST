@@ -163,6 +163,18 @@ class KisaSecurityWeakness(models.Model):
         )
 
 
+class AnalysisRunQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        if "pipeline_version" in kwargs:
+            raise ValueError("pipeline_version is immutable after creation")
+        return super().update(**kwargs)
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        if "pipeline_version" in fields:
+            raise ValueError("pipeline_version is immutable after creation")
+        return super().bulk_update(objs, fields, batch_size=batch_size)
+
+
 # ========================================
 # AnalysisRun
 #
@@ -173,6 +185,8 @@ class KisaSecurityWeakness(models.Model):
 # ========================================
 
 class AnalysisRun(models.Model):
+
+    objects = AnalysisRunQuerySet.as_manager()
 
     class PipelineVersion(models.TextChoices):
         CHUNK_V1 = "chunk_v1", "Chunk v1"
@@ -1573,6 +1587,13 @@ class ScanExecution(models.Model):
             models.CheckConstraint(condition=models.Q(scope_root="."), name="scan_execution_root_dot"),
             models.CheckConstraint(condition=models.Q(retry_count__lte=models.F("max_retries")), name="scan_execution_retry_bounds"),
             models.CheckConstraint(condition=models.Q(normalization_retry_count__lte=models.F("max_normalization_retries")), name="scan_normalization_retry_bounds"),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(status__in=["completed", "failed", "cancelled"], completed_at__isnull=False)
+                    | models.Q(status__in=["pending", "queued", "running", "retry_pending", "normalization_pending", "normalizing"], completed_at__isnull=True)
+                ),
+                name="scan_execution_terminal_time",
+            ),
         ]
 
 
@@ -1590,6 +1611,7 @@ class ScanAttempt(models.Model):
     attempt_no = models.PositiveIntegerField()
     execution_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     celery_task_id = models.CharField(max_length=255, blank=True, default="", db_index=True)
+    process_group_id = models.PositiveIntegerField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.RUNNING)
     started_at = models.DateTimeField(default=timezone.now)
     heartbeat_at = models.DateTimeField(default=timezone.now)
@@ -1605,6 +1627,13 @@ class ScanAttempt(models.Model):
             models.UniqueConstraint(fields=["execution", "attempt_no"], name="unique_scan_attempt_number"),
             models.UniqueConstraint(fields=["execution"], condition=models.Q(status="running"), name="unique_running_scan_attempt"),
             models.UniqueConstraint(fields=["execution"], condition=models.Q(status="completed"), name="unique_completed_scan_attempt"),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(status="running", completed_at__isnull=True)
+                    | models.Q(status__in=["completed", "failed", "worker_lost", "timed_out", "cancelled", "superseded"], completed_at__isnull=False)
+                ),
+                name="scan_attempt_status_time",
+            ),
         ]
 
 
@@ -1636,6 +1665,17 @@ class ScanArtifact(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["execution"], condition=models.Q(kind="semgrep_json", is_canonical=True), name="unique_canonical_scan_artifact"),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(state="ready")
+                    | (
+                        models.Q(published_at__isnull=False, size_bytes__gt=0)
+                        & ~models.Q(relative_path="")
+                        & ~models.Q(sha256="")
+                    )
+                ),
+                name="scan_artifact_ready_metadata",
+            ),
         ]
 
 
@@ -1703,6 +1743,13 @@ class ScanNormalizationAttempt(models.Model):
             models.UniqueConstraint(fields=["execution", "attempt_no"], name="unique_normalization_attempt_number"),
             models.UniqueConstraint(fields=["execution"], condition=models.Q(status="running"), name="unique_running_normalization_attempt"),
             models.UniqueConstraint(fields=["execution"], condition=models.Q(status="completed"), name="unique_completed_normalization_attempt"),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(status="running", completed_at__isnull=True)
+                    | models.Q(status__in=["completed", "failed", "worker_lost", "timed_out", "cancelled"], completed_at__isnull=False)
+                ),
+                name="normalization_attempt_status_time",
+            ),
         ]
 
 

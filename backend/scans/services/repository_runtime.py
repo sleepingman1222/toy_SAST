@@ -29,7 +29,7 @@ from .source_snapshot import (
 )
 
 
-SEMGREP_PINNED_VERSION = "1.136.0"
+SEMGREP_PINNED_VERSION = "1.175.0"
 
 
 class RepositoryRuntimeError(RuntimeError):
@@ -161,6 +161,14 @@ def execute_repository_scan(attempt):
             stderr=error_handle,
             start_new_session=True,
         )
+        updated = ScanAttempt.objects.filter(
+            pk=attempt.pk,
+            status=ScanAttempt.Status.RUNNING,
+            execution_token=attempt.execution_token,
+        ).update(process_group_id=process.pid)
+        if updated != 1:
+            _terminate_process_group(process)
+            raise RepositoryRuntimeError("engine ownership was lost before launch")
         deadline = time.monotonic() + REPOSITORY_SCAN_TIMEOUT_SECONDS
         while process.poll() is None:
             output_handle.flush()
