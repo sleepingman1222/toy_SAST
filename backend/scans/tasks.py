@@ -74,11 +74,15 @@ from .services.source_snapshot import (
 )
 from .services.repository_manifest import build_repository_manifest
 from .services.repository_runtime import execute_repository_scan
+from .services.repository_normalization import normalize_repository_artifact
+from .services.repository_recovery import run_repository_recovery_cycle
 from .services.repository_state import (
     claim_repository_engine,
+    claim_repository_normalization,
     dispatch_repository_outboxes,
     enqueue_normalization,
     fail_repository_engine,
+    fail_repository_normalization,
     plan_repository_execution,
 )
 
@@ -122,6 +126,36 @@ def run_repository_scan(self, execution_id):
         }
 
 
+@shared_task(
+    bind=True,
+    name="scans.tasks.normalize_repository_scan",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def normalize_repository_scan(self, execution_id):
+    attempt = claim_repository_normalization(execution_id)
+    if attempt is None:
+        return {"success": False, "claimed": False, "execution_id": execution_id}
+    attempt = type(attempt).objects.select_related("execution").get(pk=attempt.pk)
+    try:
+        result = normalize_repository_artifact(attempt)
+        return {
+            "success": True,
+            "claimed": True,
+            "execution_id": execution_id,
+            "attempt_id": attempt.id,
+            **result,
+        }
+    except Exception as error:
+        fail_repository_normalization(execution_id, attempt.id, error, retryable=True)
+        dispatch_repository_outboxes()
+        return {
+            "success": False,
+            "claimed": True,
+            "execution_id": execution_id,
+            "attempt_id": attempt.id,
+            "reason": truncate_log(str(error)),
+        }
 @shared_task(
     bind=True,
     name=ANALYSIS_CHUNK_TASK_NAME,
@@ -639,10 +673,10 @@ def dispatch_analysis_outboxes():
     reject_on_worker_lost=True,
 )
 def run_analysis_recovery():
-
-    return (
-        run_recovery_cycle()
-    )
+    return {
+        "chunk_v1": run_recovery_cycle(),
+        "repository_v2": run_repository_recovery_cycle(),
+    }
 
 def get_snapshot_languages(
     snapshot_files,

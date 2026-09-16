@@ -4,5 +4,5 @@ django-cors-headers
 psycopg[binary]
 celery
 redis
-semgrep==1.136.0
+semgrep==1.175.0
 djangorestframework-simplejwt
