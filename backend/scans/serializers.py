@@ -158,6 +158,9 @@ class AnalysisRunSerializer(
             "sequence",
             "status",
             "engine",
+            "pipeline_version",
+            "snapshot_digest",
+            "finding_fingerprint_version",
 
             # --------------------------------
             # 기존 단일 언어 Snapshot
@@ -185,7 +188,6 @@ class AnalysisRunSerializer(
             "completed_at",
             "failure_reason",
             "logs",
-            "raw_result",
             "summary",
             "vulnerabilities",
             "created_at",

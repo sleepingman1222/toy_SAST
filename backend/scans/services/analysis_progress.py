@@ -28,6 +28,87 @@ TERMINAL_CHUNK_STATUSES = {
 }
 
 
+REPOSITORY_PROGRESS_MILESTONES = {
+    "pending": 0,
+    "queued": 10,
+    "running": 25,
+    "retry_pending": 25,
+    "normalization_pending": 50,
+    "normalizing": 75,
+    "completed": 100,
+    "failed": 100,
+    "cancelled": 100,
+}
+
+
+def _build_repository_progress(analysis_run):
+    try:
+        execution = analysis_run.scan_execution
+    except Exception:
+        execution = None
+    languages = list(getattr(analysis_run, "analysis_languages", []) or [])
+    if execution is None:
+        return {
+            "analysis_run_id": analysis_run.id,
+            "pipeline_version": "repository_v2",
+            "status": analysis_run.status,
+            "progress_percent": 0,
+            "total_executions": 0,
+            "terminal_executions": 0,
+            "total_chunks": 0,
+            "terminal_chunks": 0,
+            "executions": [],
+            "chunks": [],
+            "languages": [],
+        }
+    artifact = execution.artifacts.filter(is_canonical=True).order_by("-id").first()
+    terminal = execution.status in {"completed", "failed", "cancelled"}
+    compatibility_status = (
+        "running"
+        if execution.status in {"normalization_pending", "normalizing"}
+        else execution.status
+    )
+    execution_payload = {
+        "sequence": 1,
+        "scope_kind": "repository",
+        "scope_root": ".",
+        "languages": languages,
+        "status": execution.status,
+        "artifact_status": getattr(artifact, "state", ""),
+        "capabilities": execution.capabilities,
+        "coverage": execution.coverage,
+        "coverage_complete": execution.coverage_complete,
+        "result_count": execution.result_count,
+        "raw_occurrence_count": execution.raw_occurrence_count,
+    }
+    return {
+        "analysis_run_id": analysis_run.id,
+        "pipeline_version": "repository_v2",
+        "status": analysis_run.status,
+        "progress_percent": REPOSITORY_PROGRESS_MILESTONES.get(execution.status, 0),
+        "total_executions": 1,
+        "terminal_executions": int(terminal),
+        "active_executions": int(not terminal),
+        "executions": [execution_payload],
+        "total_chunks": 1,
+        "terminal_chunks": int(terminal),
+        "active_chunks": int(not terminal),
+        "chunks": [{
+            "sequence": 1,
+            "language": "mixed",
+            "languages": languages,
+            "status": compatibility_status,
+            "result_count": execution.result_count,
+        }],
+        "result_count": execution.result_count,
+        "raw_occurrence_count": execution.raw_occurrence_count,
+        "languages": [
+            {"language": language, "file_count": 0, "coverage": {}}
+            for language in languages
+        ],
+    }
+
+
 KNOWN_CHUNK_STATUSES = (
     "pending",
     "queued",
@@ -424,6 +505,12 @@ def _build_language_progress(
 def build_analysis_progress(
     analysis_run,
 ):
+
+    if (
+        getattr(analysis_run, "pipeline_version", "chunk_v1")
+        == "repository_v2"
+    ):
+        return _build_repository_progress(analysis_run)
 
     # ------------------------------------
     # View에서 prefetch_related를 사용하면

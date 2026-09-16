@@ -200,6 +200,13 @@ MEDIA_URL = "/media/"
 
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Read only while creating AnalysisRun. Workers route exclusively from the
+# immutable value stored on the run.
+REPOSITORY_SAST_V2_ENABLED = os.environ.get(
+    "REPOSITORY_SAST_V2_ENABLED",
+    "False",
+).lower() == "true"
+
 
 # ========================================
 # Default primary key field type

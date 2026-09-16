@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.conf import settings
 from django.db import transaction
 from django.db.models import (
     Count,
@@ -452,6 +453,12 @@ class ProjectAnalysisRunListCreateView(
 
                     engine=
                         "Semgrep",
+
+                    pipeline_version=(
+                        AnalysisRun.PipelineVersion.REPOSITORY_V2
+                        if settings.REPOSITORY_SAST_V2_ENABLED
+                        else AnalysisRun.PipelineVersion.CHUNK_V1
+                    ),
 
                     # 분석 언어는 관리자가 입력하지 않는다.
                     #

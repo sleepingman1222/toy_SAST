@@ -174,6 +174,10 @@ class KisaSecurityWeakness(models.Model):
 
 class AnalysisRun(models.Model):
 
+    class PipelineVersion(models.TextChoices):
+        CHUNK_V1 = "chunk_v1", "Chunk v1"
+        REPOSITORY_V2 = "repository_v2", "Repository v2"
+
     # ====================================
     # Status
     # ====================================
@@ -267,6 +271,24 @@ class AnalysisRun(models.Model):
         max_length=100,
 
         default="Semgrep"
+    )
+
+    pipeline_version = models.CharField(
+        max_length=20,
+        choices=PipelineVersion.choices,
+        default=PipelineVersion.CHUNK_V1,
+        db_index=True,
+    )
+
+    snapshot_digest = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+    )
+
+    finding_fingerprint_version = models.CharField(
+        max_length=10,
+        default="v2",
     )
 
 
@@ -419,6 +441,19 @@ class AnalysisRun(models.Model):
             f"{self.project.name} "
             f"Analysis #{self.sequence}"
         )
+
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            persisted = (
+                type(self).objects
+                .filter(pk=self.pk)
+                .values_list("pipeline_version", flat=True)
+                .first()
+            )
+            if persisted and persisted != self.pipeline_version:
+                raise ValueError("pipeline_version is immutable after creation")
+        return super().save(*args, **kwargs)
 
 
 # ========================================
@@ -1485,6 +1520,228 @@ class AnalysisDispatchOutbox(models.Model):
             f"Dispatch #{self.dispatch_no} "
             f"({self.status})"
         )
+
+
+# ========================================
+# Repository-v2 scan domain
+# ========================================
+
+class ScanExecution(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        QUEUED = "queued", "Queued"
+        RUNNING = "running", "Running"
+        RETRY_PENDING = "retry_pending", "Retry pending"
+        NORMALIZATION_PENDING = "normalization_pending", "Normalization pending"
+        NORMALIZING = "normalizing", "Normalizing"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    analysis_run = models.OneToOneField(
+        AnalysisRun, on_delete=models.CASCADE, related_name="scan_execution"
+    )
+    sequence = models.PositiveSmallIntegerField(default=1)
+    scope_kind = models.CharField(max_length=20, default="repository")
+    scope_root = models.CharField(max_length=255, default=".")
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.PENDING)
+    retry_count = models.PositiveSmallIntegerField(default=0)
+    max_retries = models.PositiveSmallIntegerField(default=3)
+    normalization_retry_count = models.PositiveSmallIntegerField(default=0)
+    max_normalization_retries = models.PositiveSmallIntegerField(default=3)
+    result_count = models.PositiveIntegerField(default=0)
+    raw_occurrence_count = models.PositiveIntegerField(default=0)
+    discovered_supported = models.PositiveIntegerField(default=0)
+    coverage = models.JSONField(default=dict, blank=True)
+    coverage_complete = models.BooleanField(default=False)
+    status_reason = models.CharField(max_length=80, blank=True, default="")
+    engine = models.CharField(max_length=30, default="semgrep")
+    engine_version = models.CharField(max_length=40, blank=True, default="")
+    capabilities = models.JSONField(default=dict, blank=True)
+    snapshot_digest = models.CharField(max_length=64, blank=True, default="")
+    ruleset_digest = models.CharField(max_length=64, blank=True, default="")
+    options_digest = models.CharField(max_length=64, blank=True, default="")
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(sequence=1), name="scan_execution_sequence_one"),
+            models.CheckConstraint(condition=models.Q(scope_kind="repository"), name="scan_execution_repository_scope"),
+            models.CheckConstraint(condition=models.Q(scope_root="."), name="scan_execution_root_dot"),
+            models.CheckConstraint(condition=models.Q(retry_count__lte=models.F("max_retries")), name="scan_execution_retry_bounds"),
+            models.CheckConstraint(condition=models.Q(normalization_retry_count__lte=models.F("max_normalization_retries")), name="scan_normalization_retry_bounds"),
+        ]
+
+
+class ScanAttempt(models.Model):
+    class Status(models.TextChoices):
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+        WORKER_LOST = "worker_lost", "Worker lost"
+        TIMED_OUT = "timed_out", "Timed out"
+        CANCELLED = "cancelled", "Cancelled"
+        SUPERSEDED = "superseded", "Superseded"
+
+    execution = models.ForeignKey(ScanExecution, on_delete=models.CASCADE, related_name="attempts")
+    attempt_no = models.PositiveIntegerField()
+    execution_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    celery_task_id = models.CharField(max_length=255, blank=True, default="", db_index=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.RUNNING)
+    started_at = models.DateTimeField(default=timezone.now)
+    heartbeat_at = models.DateTimeField(default=timezone.now)
+    lease_expires_at = models.DateTimeField(db_index=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    failure_reason = models.TextField(blank=True)
+    logs = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["execution", "attempt_no"], name="unique_scan_attempt_number"),
+            models.UniqueConstraint(fields=["execution"], condition=models.Q(status="running"), name="unique_running_scan_attempt"),
+            models.UniqueConstraint(fields=["execution"], condition=models.Q(status="completed"), name="unique_completed_scan_attempt"),
+        ]
+
+
+class ScanArtifact(models.Model):
+    class State(models.TextChoices):
+        WRITING = "writing", "Writing"
+        READY = "ready", "Ready"
+        INVALID = "invalid", "Invalid"
+        DELETED = "deleted", "Deleted"
+
+    class Kind(models.TextChoices):
+        SEMGREP_JSON = "semgrep_json", "Semgrep JSON"
+        DIAGNOSTIC = "diagnostic", "Diagnostic"
+
+    execution = models.ForeignKey(ScanExecution, on_delete=models.CASCADE, related_name="artifacts")
+    attempt = models.ForeignKey(ScanAttempt, on_delete=models.PROTECT, related_name="artifacts")
+    kind = models.CharField(max_length=30, choices=Kind.choices, default=Kind.SEMGREP_JSON)
+    state = models.CharField(max_length=20, choices=State.choices, default=State.WRITING)
+    is_canonical = models.BooleanField(default=False)
+    relative_path = models.CharField(max_length=500, blank=True, default="")
+    sha256 = models.CharField(max_length=64, blank=True, default="")
+    size_bytes = models.PositiveBigIntegerField(default=0)
+    schema_version = models.PositiveSmallIntegerField(default=1)
+    content_type = models.CharField(max_length=100, default="application/json")
+    published_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["execution"], condition=models.Q(kind="semgrep_json", is_canonical=True), name="unique_canonical_scan_artifact"),
+        ]
+
+
+class ScanDispatchOutbox(models.Model):
+    class Kind(models.TextChoices):
+        ENGINE = "engine", "Engine"
+        NORMALIZATION = "normalization", "Normalization"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PUBLISHED = "published", "Published"
+        CANCELLED = "cancelled", "Cancelled"
+
+    execution = models.ForeignKey(ScanExecution, on_delete=models.CASCADE, related_name="dispatch_outboxes")
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    dispatch_no = models.PositiveIntegerField()
+    event_key = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    payload = models.JSONField(default=dict)
+    task_name = models.CharField(max_length=120)
+    deterministic_task_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    publish_attempts = models.PositiveSmallIntegerField(default=0)
+    max_publish_attempts = models.PositiveSmallIntegerField(default=5)
+    available_at = models.DateTimeField(default=timezone.now)
+    published_at = models.DateTimeField(null=True, blank=True)
+    claim_deadline_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    claimed_attempt = models.ForeignKey(ScanAttempt, on_delete=models.SET_NULL, null=True, blank=True, related_name="claimed_outboxes")
+    last_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["execution", "kind", "dispatch_no"], name="unique_scan_dispatch_number"),
+            models.UniqueConstraint(fields=["execution", "kind"], condition=models.Q(status="pending"), name="unique_pending_scan_dispatch"),
+            models.CheckConstraint(condition=models.Q(publish_attempts__lte=models.F("max_publish_attempts")), name="scan_dispatch_publish_bounds"),
+        ]
+
+
+class ScanNormalizationAttempt(models.Model):
+    class Status(models.TextChoices):
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+        WORKER_LOST = "worker_lost", "Worker lost"
+        TIMED_OUT = "timed_out", "Timed out"
+        CANCELLED = "cancelled", "Cancelled"
+
+    execution = models.ForeignKey(ScanExecution, on_delete=models.CASCADE, related_name="normalization_attempts")
+    attempt_no = models.PositiveIntegerField()
+    execution_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.RUNNING)
+    started_at = models.DateTimeField(default=timezone.now)
+    heartbeat_at = models.DateTimeField(default=timezone.now)
+    lease_expires_at = models.DateTimeField(db_index=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    failure_reason = models.TextField(blank=True)
+    logs = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["execution", "attempt_no"], name="unique_normalization_attempt_number"),
+            models.UniqueConstraint(fields=["execution"], condition=models.Q(status="running"), name="unique_running_normalization_attempt"),
+            models.UniqueConstraint(fields=["execution"], condition=models.Q(status="completed"), name="unique_completed_normalization_attempt"),
+        ]
+
+
+class ScanFinding(models.Model):
+    analysis_run = models.ForeignKey(AnalysisRun, on_delete=models.CASCADE, related_name="scan_findings")
+    fingerprint_version = models.CharField(max_length=10, default="v2")
+    aggregate_fingerprint = models.CharField(max_length=64)
+    lineage_signature = models.CharField(max_length=64, db_index=True)
+    rule_id = models.CharField(max_length=255)
+    language = models.CharField(max_length=50, blank=True, default="")
+    file_path = models.CharField(max_length=1000)
+    start_line = models.PositiveIntegerField(default=1)
+    start_column = models.PositiveIntegerField(default=1)
+    end_line = models.PositiveIntegerField(default=1)
+    end_column = models.PositiveIntegerField(default=1)
+    severity = models.CharField(max_length=30, blank=True, default="")
+    message = models.TextField(blank=True)
+    canonical_payload = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["analysis_run", "fingerprint_version", "aggregate_fingerprint"], name="unique_scan_aggregate_fingerprint"),
+        ]
+
+
+class ScanOccurrence(models.Model):
+    artifact = models.ForeignKey(ScanArtifact, on_delete=models.CASCADE, related_name="occurrences")
+    finding = models.ForeignKey(ScanFinding, on_delete=models.CASCADE, related_name="occurrences")
+    occurrence_key = models.CharField(max_length=64)
+    raw_result_index = models.PositiveIntegerField()
+    raw_payload = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["artifact", "occurrence_key"], name="unique_scan_occurrence_key"),
+            models.UniqueConstraint(fields=["artifact", "raw_result_index"], name="unique_scan_raw_result_index"),
+        ]
 
 
 # ========================================
