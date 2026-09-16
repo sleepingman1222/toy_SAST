@@ -220,6 +220,8 @@ function UserProjectList({
         true;
     };
 
+    // Project IDs are the stable reload trigger for this request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     projectIdsKey,
     projectsLoading,

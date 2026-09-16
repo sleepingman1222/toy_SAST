@@ -10,12 +10,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "unsafe-development-secret"
-)
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get(
     "DJANGO_DEBUG",
@@ -23,11 +17,22 @@ DEBUG = os.environ.get(
 ).lower() == "true"
 
 
+# Do not silently start with a key committed to source control.
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY"
+)
+
+if not SECRET_KEY:
+    raise RuntimeError(
+        "DJANGO_SECRET_KEY environment variable is required."
+    )
+
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.environ.get(
         "DJANGO_ALLOWED_HOSTS",
-        "*",
+        "localhost,127.0.0.1,backend",
     ).split(",")
     if host.strip()
 ]
@@ -311,7 +316,12 @@ SIMPLE_JWT = {
 # ========================================
 
 CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
+    origin.strip()
+    for origin in os.environ.get(
+        "DJANGO_CSRF_TRUSTED_ORIGINS",
+        "http://localhost:5173",
+    ).split(",")
+    if origin.strip()
 ]
 
 
@@ -322,6 +332,9 @@ CSRF_COOKIE_HTTPONLY = False
 # Refresh Cookie
 # ========================================
 
-REFRESH_COOKIE_SECURE = False
+REFRESH_COOKIE_SECURE = os.environ.get(
+    "DJANGO_SECURE_COOKIES",
+    "False",
+).lower() == "true"
 
 REFRESH_COOKIE_SAMESITE = "Lax"

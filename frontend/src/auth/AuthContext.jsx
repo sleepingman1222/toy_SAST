@@ -1,5 +1,4 @@
 import {
-  createContext,
   useEffect,
   useState,
 } from "react";
@@ -13,9 +12,9 @@ import {
   logoutRequest,
 } from "../api/authApi";
 
-
-export const AuthContext =
-  createContext(null);
+import {
+  AuthContext,
+} from "./authContext";
 
 
 export function AuthProvider({ children }) {
@@ -38,7 +37,7 @@ export function AuthProvider({ children }) {
         // 2. 로그인 상태 복구
         const response = await authFetch(
           "/api/me/",
-          accessToken,
+          null,
           setAccessToken
         );
 

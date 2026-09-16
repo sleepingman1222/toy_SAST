@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -85,24 +86,27 @@ function MyPage() {
   ======================================== */
 
   const resetPasswordForm =
-    () => {
+    useCallback(
+      () => {
 
-      setCurrentPassword(
-        ""
-      );
+        setCurrentPassword(
+          ""
+        );
 
-      setNewPassword(
-        ""
-      );
+        setNewPassword(
+          ""
+        );
 
-      setNewPasswordConfirm(
-        ""
-      );
+        setNewPasswordConfirm(
+          ""
+        );
 
-      setPasswordError(
-        ""
-      );
-    };
+        setPasswordError(
+          ""
+        );
+      },
+      []
+    );
 
 
   /* ========================================
@@ -121,21 +125,27 @@ function MyPage() {
 
 
   const handleClosePasswordModal =
-    () => {
+    useCallback(
+      () => {
 
-      if (
-        changingPassword
-      ) {
-        return;
-      }
+        if (
+          changingPassword
+        ) {
+          return;
+        }
 
 
-      setShowPasswordModal(
-        false
-      );
+        setShowPasswordModal(
+          false
+        );
 
-      resetPasswordForm();
-    };
+        resetPasswordForm();
+      },
+      [
+        changingPassword,
+        resetPasswordForm,
+      ]
+    );
 
 
   /* ========================================
@@ -181,7 +191,7 @@ function MyPage() {
     },
     [
       showPasswordModal,
-      changingPassword,
+      handleClosePasswordModal,
     ]
   );
 

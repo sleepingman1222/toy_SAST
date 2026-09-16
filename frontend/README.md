@@ -1,16 +1,25 @@
-# React + Vite
+# Toy SAST Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Toy SAST의 로그인, 프로젝트 관리, 분석 진행률, 취약점 결과 화면을 제공하는 React 애플리케이션입니다. 전체 프로젝트 실행 방법과 아키텍처는 루트의 [`README.md`](../README.md)를 참고하세요.
 
-Currently, two official plugins are available:
+## 구성
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```text
+src/
+├── api/          # HTTP client, 도메인별 API, 응답 정규화
+├── auth/         # 인증 context와 access token 갱신
+├── components/   # sidebar와 취약점 결과 UI
+├── pages/        # 로그인 및 역할별 dashboard
+└── utils/        # KISA 카탈로그 표시 유틸리티
+```
 
-## React Compiler
+개발 서버는 `/api` 요청을 Docker Compose의 `backend:8000`으로 전달합니다.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 명령
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install
+npm run dev
+npm run lint
+npm run build
+```
