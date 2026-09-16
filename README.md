@@ -11,6 +11,7 @@ KISA 구현단계 보안약점 기준으로 소스 코드를 분석하는 포트
 - 업로드 아카이브의 경로 순회, 심볼릭 링크, 압축 폭탄 등 사전 검증
 - 소스 파일 기반 Java, JavaScript, Python 자동 감지
 - 대용량 프로젝트를 파일 단위 chunk로 분할하는 비동기 분석
+- repository 전체 snapshot을 한 번에 검사하는 `repository_v2` 파이프라인과 기존 `chunk_v1` 호환 경로
 - Celery, Redis, PostgreSQL을 이용한 작업 실행과 상태 관리
 - lease, retry, outbox 기반의 중복 실행 방지 및 작업 복구
 - KISA 보안약점 카탈로그와 Semgrep 결과 정규화
@@ -31,6 +32,8 @@ flowchart LR
 ```
 
 분석 요청은 DB에 실행 계획과 outbox를 먼저 기록합니다. Worker는 chunk를 claim한 뒤 lease가 유효한 동안 Semgrep을 실행하며, Beat 작업은 유실된 worker와 미발행 outbox를 주기적으로 복구합니다.
+
+`repository_v2`는 분석 생성 시 선택한 pipeline version을 고정하고, 불변 snapshot root 하나를 대상으로 실행한 raw 결과를 artifact로 게시한 뒤 별도 normalization 단계에서 finding을 생성합니다. release-1 범위, capability 제한, 활성화/롤백 및 검증 절차는 [Repository-scope SAST 운영 가이드](docs/repository-scope-sast.md)를 참고하세요.
 
 ## 기술 스택
 
@@ -115,4 +118,3 @@ python3 scripts/project_cleanup_audit.py
 - `backend/semgrep_rules/tests/`와 `backend/internal_sources/`에는 탐지 검증을 위한 의도적으로 취약한 코드가 포함됩니다.
 - 업로드 아카이브는 분석 전에 파일 수, 크기, 압축률, 경로, 링크 유형을 검사합니다.
 - 이 프로젝트는 포트폴리오 및 로컬 시연 용도이며 TLS, 운영 secret 관리, 외부 저장소 인증 같은 배포 구성은 범위에 포함하지 않습니다.
-
