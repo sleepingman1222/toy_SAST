@@ -16,10 +16,7 @@ from ..models import (
     Vulnerability,
 )
 from .repository_manifest import load_repository_manifest
-from .source_snapshot import (
-    get_analysis_workspace_run_root,
-    get_analysis_workspace_source_root,
-)
+from .source_snapshot import get_analysis_workspace_run_root
 
 
 class RepositoryNormalizationError(RuntimeError):
@@ -31,20 +28,10 @@ def _digest(*parts):
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def _relative_engine_path(raw_path, source_root=None):
+def _relative_engine_path(raw_path):
     value = str(raw_path or "").replace("\\", "/")
     path = PurePosixPath(value)
-    if path.is_absolute():
-        if source_root is None:
-            raise RepositoryNormalizationError("engine result path is not repository-relative")
-        try:
-            value = Path(value).resolve().relative_to(Path(source_root).resolve(strict=True)).as_posix()
-            path = PurePosixPath(value)
-        except (OSError, ValueError) as error:
-            raise RepositoryNormalizationError(
-                "engine result path escapes repository snapshot"
-            ) from error
-    if ".." in path.parts:
+    if path.is_absolute() or ".." in path.parts:
         raise RepositoryNormalizationError("engine result path is not repository-relative")
     parts = list(path.parts)
     if parts and parts[0] in (".", "source"):
@@ -76,16 +63,16 @@ def _artifact_payload(artifact):
     return payload
 
 
-def _extract_paths(items, source_root=None):
+def _extract_paths(items):
     result = set()
     for item in items or []:
         raw_path = item.get("path") if isinstance(item, dict) else item
         if raw_path:
-            result.add(_relative_engine_path(raw_path, source_root=source_root))
+            result.add(_relative_engine_path(raw_path))
     return result
 
 
-def reconcile_coverage(manifest, payload, source_root=None):
+def reconcile_coverage(manifest, payload):
     supported = {
         item["path"]: item
         for item in manifest.get("inventory", [])
@@ -94,9 +81,9 @@ def reconcile_coverage(manifest, payload, source_root=None):
     paths = payload.get("paths") or {}
     if not isinstance(paths, dict):
         raise RepositoryNormalizationError("engine paths coverage is malformed")
-    scanned = _extract_paths(paths.get("scanned", []), source_root=source_root)
-    skipped = _extract_paths(paths.get("skipped", []), source_root=source_root)
-    engine_errors = _extract_paths(payload.get("errors", []), source_root=source_root)
+    scanned = _extract_paths(paths.get("scanned", []))
+    skipped = _extract_paths(paths.get("skipped", []))
+    engine_errors = _extract_paths(payload.get("errors", []))
     unknown = (scanned | skipped | engine_errors) - set(supported)
     if unknown:
         raise RepositoryNormalizationError("engine reported paths outside manifest")
@@ -135,8 +122,8 @@ def reconcile_coverage(manifest, payload, source_root=None):
     }
 
 
-def _finding_payload(result, source_root=None):
-    path = _relative_engine_path(result.get("path"), source_root=source_root)
+def _finding_payload(result):
+    path = _relative_engine_path(result.get("path"))
     start = result.get("start") or {}
     end = result.get("end") or {}
     extra = result.get("extra") or {}
@@ -177,8 +164,7 @@ def normalize_repository_artifact(normalization_attempt):
     )
     payload = _artifact_payload(artifact)
     manifest = load_repository_manifest(artifact.execution.analysis_run_id)
-    source_root = get_analysis_workspace_source_root(artifact.execution.analysis_run_id)
-    coverage = reconcile_coverage(manifest, payload, source_root=source_root)
+    coverage = reconcile_coverage(manifest, payload)
     results = payload.get("results", [])
     now = timezone.now()
 
@@ -194,7 +180,7 @@ def normalize_repository_artifact(normalization_attempt):
         for index, result in enumerate(results):
             if not isinstance(result, dict):
                 raise RepositoryNormalizationError("Semgrep result is malformed")
-            values = _finding_payload(result, source_root=source_root)
+            values = _finding_payload(result)
             canonical_payload = {key: values[key] for key in (
                 "rule_id", "language", "file_path", "start_line", "start_column",
                 "end_line", "end_column", "severity", "message",

@@ -1,6 +1,5 @@
 import hashlib
 import shutil
-import time
 from pathlib import Path
 
 from django.conf import settings
@@ -15,7 +14,6 @@ from ..models import (
     ScanExecution,
     ScanNormalizationAttempt,
 )
-from ..constants import REPOSITORY_ATTEMPT_LEASE_SECONDS
 from .repository_state import dispatch_repository_outboxes, _new_outbox
 from .source_snapshot import get_analysis_workspace_run_root
 
@@ -86,7 +84,6 @@ def reconcile_scan_artifacts():
 
     workspace_base = Path(settings.MEDIA_ROOT) / "analysis_workspaces"
     orphaned = 0
-    stale_files = 0
     if workspace_base.is_dir():
         for directory in workspace_base.glob("run_*"):
             try:
@@ -96,35 +93,7 @@ def reconcile_scan_artifacts():
             if not AnalysisRun.objects.filter(pk=run_id).exists():
                 shutil.rmtree(directory, ignore_errors=True)
                 orphaned += 1
-                continue
-            artifact_root = directory / "artifacts"
-            if not artifact_root.is_dir():
-                continue
-            cutoff = time.time() - (REPOSITORY_ATTEMPT_LEASE_SECONDS * 2)
-            temporary_files = sorted(
-                artifact_root.glob(".semgrep-*"),
-                key=lambda path: path.stat().st_mtime,
-                reverse=True,
-            )
-            for index, path in enumerate(temporary_files):
-                if index >= 2 or path.stat().st_mtime < cutoff:
-                    path.unlink(missing_ok=True)
-                    stale_files += 1
-            referenced = set(
-                ScanArtifact.objects.filter(execution__analysis_run_id=run_id)
-                .exclude(relative_path="")
-                .values_list("relative_path", flat=True)
-            )
-            for path in artifact_root.glob("semgrep-attempt-*.json"):
-                relative = path.relative_to(directory).as_posix()
-                if relative not in referenced and path.stat().st_mtime < cutoff:
-                    path.unlink(missing_ok=True)
-                    stale_files += 1
-    return {
-        "invalidated_artifacts": invalidated,
-        "removed_orphans": orphaned,
-        "removed_stale_files": stale_files,
-    }
+    return {"invalidated_artifacts": invalidated, "removed_orphans": orphaned}
 
 
 def run_repository_recovery_cycle():
