@@ -21,7 +21,6 @@ from ..models import (
     ScanExecution,
     ScanNormalizationAttempt,
 )
-from .repository_runtime import terminate_process_group
 
 
 CE_CAPABILITIES = {
@@ -99,33 +98,8 @@ def plan_repository_execution(analysis_run_id, manifest, languages):
 
 def dispatch_repository_outboxes(batch_size=50):
     now = timezone.now()
-    exhausted = ScanDispatchOutbox.objects.filter(
-        status=ScanDispatchOutbox.Status.PUBLISHED,
-        claimed_at__isnull=True,
-        claim_deadline_at__lte=now,
-        publish_attempts__gte=models_f("max_publish_attempts"),
-    ).select_related("execution", "execution__analysis_run")
-    for outbox in exhausted:
-        with transaction.atomic():
-            execution = ScanExecution.objects.select_for_update().get(pk=outbox.execution_id)
-            if execution.status in (ScanExecution.Status.COMPLETED, ScanExecution.Status.FAILED, ScanExecution.Status.CANCELLED):
-                continue
-            execution.status = ScanExecution.Status.FAILED
-            execution.status_reason = "DISPATCH_UNCLAIMED"
-            execution.completed_at = now
-            execution.save(update_fields=["status", "status_reason", "completed_at", "updated_at"])
-            run = AnalysisRun.objects.select_for_update().get(pk=execution.analysis_run_id)
-            run.status = AnalysisRun.Status.FAILED
-            run.completed_at = now
-            run.failure_reason = "DISPATCH_UNCLAIMED"
-            run.save(update_fields=["status", "completed_at", "failure_reason", "updated_at"])
     candidates = ScanDispatchOutbox.objects.filter(
         publish_attempts__lt=models_f("max_publish_attempts"),
-        execution__status__in=[
-            ScanExecution.Status.QUEUED,
-            ScanExecution.Status.RETRY_PENDING,
-            ScanExecution.Status.NORMALIZATION_PENDING,
-        ],
     ).filter(
         models_q(status=ScanDispatchOutbox.Status.PENDING, available_at__lte=now)
         | models_q(
@@ -136,50 +110,32 @@ def dispatch_repository_outboxes(batch_size=50):
     ).order_by("created_at")[:batch_size]
     published = 0
     for candidate in candidates:
-        try:
-            with transaction.atomic():
-                outbox = ScanDispatchOutbox.objects.select_for_update().get(pk=candidate.pk)
-                active = (
-                    outbox.execution.attempts.filter(status=ScanAttempt.Status.RUNNING).exists()
-                    if outbox.kind == ScanDispatchOutbox.Kind.ENGINE
-                    else outbox.execution.normalization_attempts.filter(
-                        status=ScanNormalizationAttempt.Status.RUNNING
-                    ).exists()
-                )
-                if active or outbox.claimed_at is not None:
-                    continue
-                current_app.send_task(
-                    outbox.task_name,
-                    kwargs=outbox.payload,
-                    task_id=str(outbox.deterministic_task_id),
-                )
-                outbox.status = ScanDispatchOutbox.Status.PUBLISHED
-                outbox.publish_attempts += 1
-                outbox.published_at = now
-                outbox.claim_deadline_at = now + timedelta(seconds=REPOSITORY_OUTBOX_CLAIM_SECONDS)
-                outbox.last_error = ""
-                outbox.save(update_fields=[
-                    "status", "publish_attempts", "published_at",
-                    "claim_deadline_at", "last_error", "updated_at",
-                ])
-                published += 1
-        except Exception as error:
-            with transaction.atomic():
-                outbox = ScanDispatchOutbox.objects.select_for_update().get(pk=candidate.pk)
-                outbox.publish_attempts = min(
-                    outbox.publish_attempts + 1,
-                    outbox.max_publish_attempts,
-                )
-                outbox.last_error = str(error)[:2000]
-                delay = min(2 ** outbox.publish_attempts, REPOSITORY_OUTBOX_CLAIM_SECONDS)
-                if outbox.status == ScanDispatchOutbox.Status.PUBLISHED:
-                    outbox.claim_deadline_at = now + timedelta(seconds=delay)
-                else:
-                    outbox.available_at = now + timedelta(seconds=delay)
-                outbox.save(update_fields=[
-                    "publish_attempts", "last_error", "available_at",
-                    "claim_deadline_at", "updated_at",
-                ])
+        with transaction.atomic():
+            outbox = ScanDispatchOutbox.objects.select_for_update().get(pk=candidate.pk)
+            active = (
+                outbox.execution.attempts.filter(status=ScanAttempt.Status.RUNNING).exists()
+                if outbox.kind == ScanDispatchOutbox.Kind.ENGINE
+                else outbox.execution.normalization_attempts.filter(
+                    status=ScanNormalizationAttempt.Status.RUNNING
+                ).exists()
+            )
+            if active or outbox.claimed_at is not None:
+                continue
+            current_app.send_task(
+                outbox.task_name,
+                kwargs=outbox.payload,
+                task_id=str(outbox.deterministic_task_id),
+            )
+            outbox.status = ScanDispatchOutbox.Status.PUBLISHED
+            outbox.publish_attempts += 1
+            outbox.published_at = now
+            outbox.claim_deadline_at = now + timedelta(seconds=REPOSITORY_OUTBOX_CLAIM_SECONDS)
+            outbox.last_error = ""
+            outbox.save(update_fields=[
+                "status", "publish_attempts", "published_at",
+                "claim_deadline_at", "last_error", "updated_at",
+            ])
+            published += 1
     return {"published_count": published}
 
 
@@ -256,14 +212,6 @@ def claim_repository_normalization(execution_id):
         )
         execution.status = ScanExecution.Status.NORMALIZING
         execution.save(update_fields=["status", "updated_at"])
-        outbox = execution.dispatch_outboxes.filter(
-            kind=ScanDispatchOutbox.Kind.NORMALIZATION,
-            status=ScanDispatchOutbox.Status.PUBLISHED,
-            claimed_at__isnull=True,
-        ).order_by("dispatch_no").first()
-        if outbox:
-            outbox.claimed_at = now
-            outbox.save(update_fields=["claimed_at", "updated_at"])
         return attempt
 
 
@@ -278,7 +226,7 @@ def enqueue_normalization(execution, attempt):
         attempt.completed_at = now
         attempt.save(update_fields=["status", "completed_at", "updated_at"])
         execution.status = ScanExecution.Status.NORMALIZATION_PENDING
-        execution.engine_version = "1.175.0"
+        execution.engine_version = "1.136.0"
         execution.save(update_fields=["status", "engine_version", "updated_at"])
         dispatch_no = execution.dispatch_outboxes.filter(
             kind=ScanDispatchOutbox.Kind.NORMALIZATION
@@ -311,64 +259,3 @@ def fail_repository_engine(execution_id, attempt_id, reason, retryable=True):
             execution.analysis_run.save(update_fields=["status", "completed_at", "failure_reason", "updated_at"])
         execution.status_reason = str(reason)[:80]
         execution.save(update_fields=["status", "retry_count", "status_reason", "completed_at", "updated_at"])
-
-
-def fail_repository_normalization(execution_id, attempt_id, reason, retryable=True):
-    now = timezone.now()
-    with transaction.atomic():
-        execution = ScanExecution.objects.select_for_update().get(pk=execution_id)
-        attempt = ScanNormalizationAttempt.objects.select_for_update().get(pk=attempt_id)
-        if attempt.status != ScanNormalizationAttempt.Status.RUNNING:
-            return
-        attempt.status = ScanNormalizationAttempt.Status.FAILED
-        attempt.completed_at = now
-        attempt.failure_reason = str(reason)[:2000]
-        attempt.save(update_fields=["status", "completed_at", "failure_reason", "updated_at"])
-        if retryable and execution.normalization_retry_count < execution.max_normalization_retries:
-            execution.normalization_retry_count += 1
-            execution.status = ScanExecution.Status.NORMALIZATION_PENDING
-            dispatch_no = execution.dispatch_outboxes.filter(kind="normalization").count() + 1
-            _new_outbox(execution, ScanDispatchOutbox.Kind.NORMALIZATION, dispatch_no)
-        else:
-            execution.status = ScanExecution.Status.FAILED
-            execution.completed_at = now
-            execution.analysis_run.status = AnalysisRun.Status.FAILED
-            execution.analysis_run.completed_at = now
-            execution.analysis_run.failure_reason = str(reason)[:2000]
-            execution.analysis_run.save(update_fields=["status", "completed_at", "failure_reason", "updated_at"])
-        execution.status_reason = str(reason)[:80]
-        execution.save(update_fields=[
-            "status", "normalization_retry_count", "status_reason", "completed_at", "updated_at",
-        ])
-
-
-def cancel_repository_execution(execution_id):
-    now = timezone.now()
-    process_groups = []
-    with transaction.atomic():
-        execution = ScanExecution.objects.select_for_update().select_related("analysis_run").get(pk=execution_id)
-        if execution.status in (ScanExecution.Status.COMPLETED, ScanExecution.Status.FAILED, ScanExecution.Status.CANCELLED):
-            return False
-        attempts = list(execution.attempts.select_for_update().filter(status="running"))
-        for attempt in attempts:
-            if attempt.process_group_id:
-                process_groups.append(attempt.process_group_id)
-            attempt.status = ScanAttempt.Status.CANCELLED
-            attempt.completed_at = now
-            attempt.save(update_fields=["status", "completed_at", "updated_at"])
-        for attempt in execution.normalization_attempts.select_for_update().filter(status="running"):
-            attempt.status = ScanNormalizationAttempt.Status.CANCELLED
-            attempt.completed_at = now
-            attempt.save(update_fields=["status", "completed_at", "updated_at"])
-        execution.dispatch_outboxes.exclude(status="cancelled").update(status="cancelled")
-        execution.status = ScanExecution.Status.CANCELLED
-        execution.completed_at = now
-        execution.status_reason = "CANCELLED"
-        execution.save(update_fields=["status", "completed_at", "status_reason", "updated_at"])
-        run = execution.analysis_run
-        run.status = AnalysisRun.Status.CANCELLED
-        run.completed_at = now
-        run.save(update_fields=["status", "completed_at", "updated_at"])
-    for group_id in process_groups:
-        terminate_process_group(group_id)
-    return True

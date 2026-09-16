@@ -93,15 +93,6 @@ def _build_repository_progress(analysis_run):
         "total_chunks": 1,
         "terminal_chunks": int(terminal),
         "active_chunks": int(not terminal),
-        "unknown_chunks": 0,
-        "pending_chunks": int(execution.status == "pending"),
-        "queued_chunks": int(execution.status == "queued"),
-        "running_chunks": int(execution.status in {"running", "normalization_pending", "normalizing"}),
-        "retry_pending_chunks": int(execution.status == "retry_pending"),
-        "completed_chunks": int(execution.status == "completed"),
-        "failed_chunks": int(execution.status == "failed"),
-        "skipped_chunks": 0,
-        "cancelled_chunks": int(execution.status == "cancelled"),
         "chunks": [{
             "sequence": 1,
             "language": "mixed",
@@ -111,7 +102,6 @@ def _build_repository_progress(analysis_run):
         }],
         "result_count": execution.result_count,
         "raw_occurrence_count": execution.raw_occurrence_count,
-        "coverage_complete": execution.coverage_complete,
         "languages": [
             {"language": language, "file_count": 0, "coverage": {}}
             for language in languages
