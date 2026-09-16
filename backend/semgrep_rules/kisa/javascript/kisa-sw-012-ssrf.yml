@@ -8,7 +8,7 @@ rules:
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-12"
+      kisa_identifier: "KISA-INP-12"
       kisa_name: "서버사이드 요청 위조"
       confidence: HIGH
       recommendation: >-

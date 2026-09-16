@@ -8,7 +8,7 @@ rules:
     severity: WARNING
 
     metadata:
-      kisa_identifier: "KISA-SW-22"
+      kisa_identifier: "KISA-SEC-05"
       kisa_name: "암호화되지 않은 중요정보"
       confidence: MEDIUM
       recommendation: >-

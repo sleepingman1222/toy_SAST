@@ -4,6 +4,14 @@ from django.contrib.auth import (
     get_user_model,
 )
 
+from django.contrib.auth.password_validation import (
+    validate_password,
+)
+
+from django.core.exceptions import (
+    ValidationError as DjangoValidationError,
+)
+
 from django.db import (
     IntegrityError,
     transaction,
@@ -35,6 +43,7 @@ from rest_framework import (
 )
 
 from rest_framework.decorators import (
+    action,
     api_view,
     permission_classes,
 )
@@ -545,6 +554,301 @@ class UserViewSet(
                 updated_user
             ).data
         )
+
+
+
+    # ====================================
+    # 내 비밀번호 변경
+    #
+    # POST
+    # /api/users/change-password/
+    #
+    # 관리자 / 일반 사용자 공통
+    #
+    # 정책
+    #
+    # 1. 로그인한 사용자만 허용
+    # 2. 현재 비밀번호 재확인
+    # 3. 현재 비밀번호와 동일한 새 비밀번호 금지
+    # 4. 새 비밀번호 확인값 일치
+    # 5. Django AUTH_PASSWORD_VALIDATORS 적용
+    # 6. 성공 후 현재 Refresh Token blacklist
+    # 7. Refresh Cookie 제거
+    # 8. Frontend는 Access Token도 제거하고 재로그인
+    # ====================================
+
+    @action(
+        detail=False,
+        methods=[
+            "post",
+        ],
+        url_path=
+            "change-password",
+        permission_classes=[
+            IsAuthenticated,
+        ],
+    )
+    def change_password(
+        self,
+        request,
+    ):
+
+        current_password = str(
+            request.data.get(
+                "current_password",
+                "",
+            )
+            or ""
+        )
+
+        new_password = str(
+            request.data.get(
+                "new_password",
+                "",
+            )
+            or ""
+        )
+
+        new_password_confirm = str(
+            request.data.get(
+                "new_password_confirm",
+                "",
+            )
+            or ""
+        )
+
+
+        # --------------------------------
+        # 필수값 검증
+        # --------------------------------
+
+        field_errors = {}
+
+        if not current_password:
+
+            field_errors[
+                "current_password"
+            ] = [
+                "현재 비밀번호를 입력해주세요."
+            ]
+
+
+        if not new_password:
+
+            field_errors[
+                "new_password"
+            ] = [
+                "새 비밀번호를 입력해주세요."
+            ]
+
+
+        if not new_password_confirm:
+
+            field_errors[
+                "new_password_confirm"
+            ] = [
+                "새 비밀번호 확인을 입력해주세요."
+            ]
+
+
+        if field_errors:
+
+            return Response(
+                field_errors,
+                status=(
+                    status
+                    .HTTP_400_BAD_REQUEST
+                ),
+            )
+
+
+        # --------------------------------
+        # 확인 비밀번호 일치
+        # --------------------------------
+
+        if (
+            new_password
+            !=
+            new_password_confirm
+        ):
+
+            return Response(
+                {
+                    "new_password_confirm": [
+                        "새 비밀번호와 확인 비밀번호가 일치하지 않습니다."
+                    ]
+                },
+                status=(
+                    status
+                    .HTTP_400_BAD_REQUEST
+                ),
+            )
+
+
+        # --------------------------------
+        # 비밀번호 변경
+        #
+        # select_for_update로 같은 계정에 대한
+        # 동시 변경 요청을 직렬화한다.
+        # --------------------------------
+
+        with transaction.atomic():
+
+            target_user = (
+                User.objects
+                .select_for_update()
+                .get(
+                    pk=request.user.pk
+                )
+            )
+
+
+            # ----------------------------
+            # 현재 비밀번호 확인
+            # ----------------------------
+
+            if not (
+                target_user
+                .check_password(
+                    current_password
+                )
+            ):
+
+                return Response(
+                    {
+                        "current_password": [
+                            "현재 비밀번호가 올바르지 않습니다."
+                        ]
+                    },
+                    status=(
+                        status
+                        .HTTP_400_BAD_REQUEST
+                    ),
+                )
+
+
+            # ----------------------------
+            # 동일 비밀번호 재사용 방지
+            #
+            # 별도 Password History 테이블은
+            # MVP 범위에 없으므로 최소한
+            # 현재 비밀번호와 동일한 값은 금지한다.
+            # ----------------------------
+
+            if (
+                target_user
+                .check_password(
+                    new_password
+                )
+            ):
+
+                return Response(
+                    {
+                        "new_password": [
+                            "현재 비밀번호와 다른 새 비밀번호를 입력해주세요."
+                        ]
+                    },
+                    status=(
+                        status
+                        .HTTP_400_BAD_REQUEST
+                    ),
+                )
+
+
+            # ----------------------------
+            # Django Password Validators
+            # ----------------------------
+
+            try:
+
+                validate_password(
+                    new_password,
+                    user=target_user,
+                )
+
+            except DjangoValidationError as exc:
+
+                return Response(
+                    {
+                        "new_password":
+                            list(
+                                exc.messages
+                            )
+                    },
+                    status=(
+                        status
+                        .HTTP_400_BAD_REQUEST
+                    ),
+                )
+
+
+            # ----------------------------
+            # Django set_password()
+            #
+            # 원문 비밀번호를 저장하지 않고
+            # PASSWORD_HASHERS 정책으로 해시 저장
+            # ----------------------------
+
+            target_user.set_password(
+                new_password
+            )
+
+            target_user.save(
+                update_fields=[
+                    "password",
+                ]
+            )
+
+
+        # --------------------------------
+        # 현재 Refresh Token 폐기
+        #
+        # Access Token은 Stateless JWT이므로
+        # 서버에서 즉시 직접 삭제할 수 없다.
+        # Frontend에서 성공 즉시 메모리의
+        # Access Token을 제거하고 로그아웃한다.
+        # --------------------------------
+
+        refresh_token = (
+            request.COOKIES.get(
+                "refresh_token"
+            )
+        )
+
+        if refresh_token:
+
+            try:
+
+                token = RefreshToken(
+                    refresh_token
+                )
+
+                token.blacklist()
+
+            except Exception:
+
+                # 이미 만료 / 폐기된 Refresh Token이어도
+                # 비밀번호 변경 자체는 성공으로 유지
+                pass
+
+
+        response = Response(
+            {
+                "message":
+                    "비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요."
+            },
+            status=(
+                status.HTTP_200_OK
+            ),
+        )
+
+
+        response.delete_cookie(
+            "refresh_token"
+        )
+
+
+        return response
 
 
     # ====================================

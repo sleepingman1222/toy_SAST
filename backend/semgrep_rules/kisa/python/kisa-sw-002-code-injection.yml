@@ -7,7 +7,7 @@ rules:
     severity: ERROR
     mode: taint
     metadata:
-      kisa_identifier: KISA-SW-02
+      kisa_identifier: KISA-INP-02
       kisa_name: 코드 삽입
       confidence: HIGH
       recommendation: >-

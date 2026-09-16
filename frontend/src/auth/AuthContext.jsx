@@ -6,9 +6,12 @@ import {
 
 import {
   authFetch,
+} from "../api/client";
+
+import {
   initializeCsrf,
   logoutRequest,
-} from "../api/api";
+} from "../api/authApi";
 
 
 export const AuthContext =

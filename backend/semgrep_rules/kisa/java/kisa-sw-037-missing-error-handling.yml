@@ -8,7 +8,7 @@ rules:
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-37"
+      kisa_identifier: "KISA-ERR-02"
       kisa_name: "오류상황 대응 부재"
       confidence: HIGH
       recommendation: >-

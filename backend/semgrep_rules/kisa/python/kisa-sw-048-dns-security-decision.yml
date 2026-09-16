@@ -8,7 +8,7 @@ rules:
     severity: WARNING
 
     metadata:
-      kisa_identifier: "KISA-SW-48"
+      kisa_identifier: "KISA-API-01"
       kisa_name: "DNS lookup에 의존한 보안결정"
       confidence: MEDIUM
       recommendation: >-

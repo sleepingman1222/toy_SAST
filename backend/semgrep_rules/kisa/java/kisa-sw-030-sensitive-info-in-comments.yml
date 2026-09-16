@@ -8,7 +8,7 @@ rules:
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-30"
+      kisa_identifier: "KISA-SEC-13"
       kisa_name: "주석문 안에 포함된 시스템 주요정보"
       confidence: HIGH
       recommendation: >-

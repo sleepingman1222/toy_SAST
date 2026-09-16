@@ -1,42 +1,65 @@
-# Environment
+# Local environment and secrets
 .env
 .env.*
 !.env.example
 
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
+# Python environments, bytecode, and packaging
+.python-version
 .venv/
 venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+wheels/
 
-# Django
-*.sqlite3
-staticfiles/
-
-# Testing
-.pytest_cache/
+# Python test and analysis caches
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
+.hypothesis/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+.nox/
 
-# Node / Vite
+# Django runtime data
+*.sqlite3
+*.sqlite3-*
+/backend/media/
+/backend/staticfiles/
+
+# Node and Vite output
 node_modules/
 dist/
+dist-ssr/
+.vite/
+coverage/
+*.tsbuildinfo
 
-# Logs
+# Logs and process state
 *.log
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-
-# Celery
+logs/
 celerybeat-schedule
 celerybeat.pid
 
-# SAST temporary files
+# Local tooling and editors
+.omx/
+.idea/
+.vscode/
+*.suo
+*.sw?
+*~
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+
+# SAST runtime output
 storage/*
 !storage/.gitkeep

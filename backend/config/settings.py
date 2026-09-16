@@ -24,9 +24,12 @@ DEBUG = os.environ.get(
 
 
 ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "backend",
+    host.strip()
+    for host in os.environ.get(
+        "DJANGO_ALLOWED_HOSTS",
+        "*",
+    ).split(",")
+    if host.strip()
 ]
 
 

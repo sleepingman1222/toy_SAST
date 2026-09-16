@@ -9,8 +9,11 @@ import {
 
 import {
   getProjects,
+} from "../../api/projectApi";
+
+import {
   getUsers,
-} from "../../api/api";
+} from "../../api/userApi";
 
 import SideBar from "../../components/SideBar/SideBar";
 

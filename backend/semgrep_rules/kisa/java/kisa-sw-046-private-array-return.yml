@@ -8,7 +8,7 @@ rules:
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-46"
+      kisa_identifier: "KISA-ENC-03"
       kisa_name: "Public 메서드로부터 반환된 Private 배열"
       confidence: HIGH
       recommendation: >-

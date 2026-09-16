@@ -1,50 +1,69 @@
 rules:
   - id: kisa.sw04.javascript.external-input-to-html-response
     message: >-
-      크로스사이트 스크립트 관련 보안 패턴이 탐지되었습니다.
-      외부 입력을 HTML 응답에 직접 전달하지 말고 템플릿 엔진의 escaping 또는 신뢰할 수 있는 HTML encoder를 사용하세요.
+      외부 입력이 HTML 응답 또는 DOM HTML 해석 sink로 전달되는 흐름이 탐지되었습니다.
+      HTML 문자열로 직접 삽입하지 말고 텍스트 출력 또는 신뢰할 수 있는 HTML sanitizer를 사용하세요.
     languages:
       - javascript
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-04"
+      kisa_identifier: "KISA-INP-04"
       kisa_name: "크로스사이트 스크립트"
-      confidence: HIGH
+      confidence: MEDIUM
       recommendation: >-
-        외부 입력을 HTML 응답에 직접 전달하지 말고 템플릿 엔진의 escaping 또는 신뢰할 수 있는 HTML encoder를 사용하세요.
-      rule_version: "1.0.0"
+        Express 응답이나 innerHTML/document.write 등에 외부 입력을 직접 전달하지 마세요.
+        텍스트 출력에는 textContent를 사용하고, 반드시 HTML을 허용해야 하는 경우
+        DOMPurify 등 검증된 sanitizer를 적용하세요. URL 인코딩은 HTML escaping을 대체하지 않습니다.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
       automation_level: implemented
       cwe:
         - CWE-79
       technology:
         - "javascript"
+        - "nodejs"
         - "express"
+        - "dom"
         - "web"
 
     mode: taint
+
     pattern-sources:
       - pattern-either:
-              - pattern: >-
-                  $REQ.query.$KEY
-              - pattern: >-
-                  $REQ.body.$KEY
-              - pattern: >-
-                  $REQ.params.$KEY
-              - pattern: >-
-                  $REQ.headers[$KEY]
+          - pattern: $REQ.query.$KEY
+          - pattern: $REQ.query[$KEY]
+          - pattern: $REQ.body.$KEY
+          - pattern: $REQ.body[$KEY]
+          - pattern: $REQ.params.$KEY
+          - pattern: $REQ.params[$KEY]
+          - pattern: $REQ.headers[$KEY]
+          - pattern: $REQ.get(...)
+          - pattern: $REQ.header(...)
+
+          - pattern: location.hash
+          - pattern: location.search
+          - pattern: window.location.hash
+          - pattern: window.location.search
+          - pattern: document.URL
+          - pattern: document.documentURI
+
     pattern-sanitizers:
-      - pattern-either:
-              - pattern: >-
-                  escapeHtml(...)
-              - pattern: >-
-                  encodeURIComponent(...)
+      - pattern: DOMPurify.sanitize(...)
+
     pattern-sinks:
-      - pattern-either:
-              - pattern: >-
-                  $RES.send($X)
-              - pattern: >-
-                  $RES.write($X)
-              - pattern: >-
-                  $RES.end($X)
+      - patterns:
+          - pattern-either:
+              - pattern: $RES.send($HTML)
+              - pattern: $RES.write($HTML)
+              - pattern: $RES.end($HTML)
+          - focus-metavariable: $HTML
+
+      - patterns:
+          - pattern-either:
+              - pattern: $EL.innerHTML = $HTML
+              - pattern: $EL.outerHTML = $HTML
+              - pattern: document.write($HTML)
+              - pattern: document.writeln($HTML)
+              - pattern: $EL.insertAdjacentHTML($POS, $HTML)
+          - focus-metavariable: $HTML

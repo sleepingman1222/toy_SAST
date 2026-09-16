@@ -10,7 +10,7 @@ import {
   createUser,
   deleteUser,
   updateUserStatus,
-} from "../../../api/api";
+} from "../../../api/userApi";
 
 import UserCreate from "./UserCreate";
 import UserDetail from "./UserDetail";

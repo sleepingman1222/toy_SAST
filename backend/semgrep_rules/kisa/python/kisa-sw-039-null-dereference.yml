@@ -8,7 +8,7 @@ rules:
     severity: WARNING
 
     metadata:
-      kisa_identifier: "KISA-SW-39"
+      kisa_identifier: "KISA-COD-01"
       kisa_name: "Null Pointer 역참조"
       confidence: MEDIUM
       recommendation: >-

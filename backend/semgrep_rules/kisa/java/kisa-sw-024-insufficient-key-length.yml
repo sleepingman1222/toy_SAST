@@ -8,7 +8,7 @@ rules:
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-24"
+      kisa_identifier: "KISA-SEC-07"
       kisa_name: "충분하지 않은 키 길이 사용"
       confidence: HIGH
       recommendation: >-

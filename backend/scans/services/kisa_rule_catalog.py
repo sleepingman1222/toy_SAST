@@ -11,6 +11,9 @@ from django.conf import settings
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from scans.kisa_catalog_codes import (
+    KISA_CATALOG_IDENTIFIER_PATTERN,
+)
 from scans.models import (
     KisaSecurityWeakness,
 )
@@ -54,8 +57,8 @@ ALLOWED_CONFIDENCES = {
 }
 
 
-KISA_IDENTIFIER_PATTERN = re.compile(
-    r"^KISA-SW-(\d{2})$"
+KISA_IDENTIFIER_PATTERN = (
+    KISA_CATALOG_IDENTIFIER_PATTERN
 )
 
 
@@ -743,67 +746,14 @@ def _validate_rule_metadata(
             "KISA_IDENTIFIER_INVALID",
             (
                 "kisa_identifier 형식은 "
-                "KISA-SW-01 ~ KISA-SW-49여야 합니다."
+                "KISA-INP-01 / KISA-SEC-01 / "
+                "KISA-TIM-01 / KISA-ERR-01 / "
+                "KISA-COD-01 / KISA-ENC-01 / "
+                "KISA-API-01 형식이어야 합니다."
             ),
             file_path=file_path,
             rule_id=rule_id,
         )
-
-    else:
-
-        item_number = int(
-            identifier_match.group(
-                1
-            )
-        )
-
-        if (
-            item_number < 1
-            or
-            item_number > 49
-        ):
-
-            _add_error(
-                result,
-                "KISA_IDENTIFIER_OUT_OF_RANGE",
-                (
-                    "KISA item number는 "
-                    "1~49 범위여야 합니다."
-                ),
-                file_path=file_path,
-                rule_id=rule_id,
-            )
-
-        rule_id_match = (
-            RULE_ID_PATTERN.match(
-                rule_id
-            )
-        )
-
-        if rule_id_match is not None:
-
-            rule_item_number = int(
-                rule_id_match.group(
-                    "number"
-                )
-            )
-
-            if (
-                rule_item_number
-                !=
-                item_number
-            ):
-
-                _add_error(
-                    result,
-                    "RULE_ID_KISA_MISMATCH",
-                    (
-                        "Rule ID의 KISA 번호와 "
-                        "metadata.kisa_identifier가 다릅니다."
-                    ),
-                    file_path=file_path,
-                    rule_id=rule_id,
-                )
 
     master = (
         master_map.get(
@@ -826,6 +776,40 @@ def _validate_rule_metadata(
         )
 
     else:
+
+        rule_id_match = (
+            RULE_ID_PATTERN.match(
+                rule_id
+            )
+        )
+
+        if rule_id_match is not None:
+
+            rule_item_number = int(
+                rule_id_match.group(
+                    "number"
+                )
+            )
+
+            if (
+                rule_item_number
+                !=
+                master.item_number
+            ):
+
+                _add_error(
+                    result,
+                    "RULE_ID_KISA_MISMATCH",
+                    (
+                        "Rule ID의 KISA 원본 번호와 "
+                        "DB Master.item_number가 다릅니다. "
+                        f"rule_item_number={rule_item_number}, "
+                        f"master_item_number={master.item_number}, "
+                        f"identifier={kisa_identifier}"
+                    ),
+                    file_path=file_path,
+                    rule_id=rule_id,
+                )
 
         if (
             kisa_name

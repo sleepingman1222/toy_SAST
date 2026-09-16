@@ -8,7 +8,7 @@ rules:
     severity: WARNING
 
     metadata:
-      kisa_identifier: "KISA-SW-29"
+      kisa_identifier: "KISA-SEC-12"
       kisa_name: "사용자 하드디스크에 저장되는 쿠키를 통한 정보노출"
       confidence: MEDIUM
       recommendation: >-

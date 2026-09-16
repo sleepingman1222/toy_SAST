@@ -8,16 +8,19 @@ import {
 } from "../../../auth/useAuth";
 
 import {
-  createAnalysisRun,
   createProject,
   createSourceVersion,
   deleteProject,
-  getProjectAnalysisRuns,
   grantProjectAccess,
   revokeProjectAccess,
   updateProject,
   updateSourceVersion,
-} from "../../../api/api";
+} from "../../../api/projectApi";
+
+import {
+  createAnalysisRun,
+  getProjectAnalysisRuns,
+} from "../../../api/analysisApi";
 
 import ProjectCreate from "./ProjectCreate";
 import ProjectEdit from "./ProjectEdit";

@@ -4,6 +4,10 @@ from django.core.management.base import (
 )
 from django.db import transaction
 
+from scans.kisa_catalog_codes import (
+    KISA_CATEGORY_BY_ITEM_NUMBER,
+    KISA_IDENTIFIER_BY_ITEM_NUMBER,
+)
 from scans.kisa_master_data import (
     KISA_SECURITY_WEAKNESSES,
 )
@@ -57,15 +61,57 @@ class Command(BaseCommand):
             for item in KISA_SECURITY_WEAKNESSES
         }
 
-        expected_identifiers = {
-            f"KISA-SW-{number:02d}"
-            for number in range(1, 50)
-        }
+        expected_identifiers = set(
+            KISA_IDENTIFIER_BY_ITEM_NUMBER.values()
+        )
 
         if identifiers != expected_identifiers:
             raise CommandError(
-                "identifier는 KISA-SW-01 ~ KISA-SW-49여야 합니다."
+                "identifier가 카테고리 기반 KISA 카탈로그 코드와 "
+                "일치하지 않습니다."
             )
+
+        for item in KISA_SECURITY_WEAKNESSES:
+
+            item_number = item["item_number"]
+
+            expected_identifier = (
+                KISA_IDENTIFIER_BY_ITEM_NUMBER[
+                    item_number
+                ]
+            )
+
+            expected_category = (
+                KISA_CATEGORY_BY_ITEM_NUMBER[
+                    item_number
+                ]
+            )
+
+            if (
+                item["identifier"]
+                !=
+                expected_identifier
+            ):
+
+                raise CommandError(
+                    "KISA identifier 매핑 오류: "
+                    f"item_number={item_number}, "
+                    f"expected={expected_identifier}, "
+                    f"actual={item['identifier']}"
+                )
+
+            if (
+                item["category"]
+                !=
+                expected_category
+            ):
+
+                raise CommandError(
+                    "KISA category 매핑 오류: "
+                    f"item_number={item_number}, "
+                    f"expected={expected_category}, "
+                    f"actual={item['category']}"
+                )
 
         created_count = 0
         updated_count = 0
@@ -85,16 +131,19 @@ class Command(BaseCommand):
                 )
 
                 if weakness is None:
-                    legacy_identifier = (
-                        f"KISA-SW-{item_number:03d}"
-                    )
+
+                    legacy_identifiers = [
+                        f"KISA-SW-{item_number:02d}",
+                        f"KISA-SW-{item_number:03d}",
+                        f"SW-{item_number:02d}",
+                    ]
 
                     weakness = (
                         KisaSecurityWeakness.objects
                         .filter(
                             identifier__in=[
                                 identifier,
-                                legacy_identifier,
+                                *legacy_identifiers,
                             ]
                         )
                         .first()

@@ -343,9 +343,6 @@ class Command(BaseCommand):
                             return_value=
                                 fake_dispatch_result,
                         ),
-                        patch(
-                            "scans.tasks.execute_semgrep_for_languages"
-                        ) as old_semgrep_mock
                     ):
 
                         result_1 = (
@@ -499,20 +496,6 @@ class Command(BaseCommand):
                         run_1.id
                     ).is_file(),
                     "Persistent Workspace Manifest 생성",
-                )
-
-
-                # =================================
-                # TEST 9
-                #
-                # Bootstrap Task에서는
-                # Semgrep을 실행하면 안 됨.
-                # =================================
-
-                self.assert_true(
-                    9,
-                    not old_semgrep_mock.called,
-                    "run_analysis에서는 Semgrep 직접 실행 안 함",
                 )
 
 

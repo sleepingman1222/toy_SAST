@@ -1,30 +1,71 @@
 rules:
   - id: kisa.sw01.java.jdbc-string-built-query
     message: >-
-      문자열 결합으로 생성한 SQL을 JDBC Statement 실행 함수에 전달하고
-      있습니다. PreparedStatement와 바인딩 변수를 사용하세요.
+      외부 입력이 SQL 질의문 문자열로 전달되는 흐름이 탐지되었습니다.
+      Statement 문자열 조합 대신 PreparedStatement의 placeholder와 parameter binding을 사용하세요.
     languages:
       - java
     severity: ERROR
 
     metadata:
-      kisa_identifier: KISA-SW-01
-      kisa_name: SQL 삽입
-      confidence: MEDIUM
+      kisa_identifier: "KISA-INP-01"
+      kisa_name: "SQL 삽입"
+      confidence: HIGH
       recommendation: >-
-        사용자 입력값을 SQL 문자열에 직접 결합하지 말고 PreparedStatement를
-        사용하여 ? placeholder와 setString/setInt 등의 바인딩 API로 값을
-        전달하세요.
-      rule_version: "1.0.0"
+        외부 입력을 SQL 문자열에 직접 연결하지 마세요.
+        JDBC에서는 PreparedStatement의 ? placeholder와 setString/setInt 등 바인딩 API를 사용하고,
+        Spring JdbcTemplate/JPA에서도 SQL 구조와 사용자 값을 분리하세요.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
+      automation_level: implemented
       cwe:
         - CWE-89
       technology:
-        - java
-        - jdbc
+        - "java"
+        - "jdbc"
+        - "spring-jdbc"
+        - "jpa"
 
-    pattern-either:
-      - pattern: $STMT.executeQuery($SQL + $INPUT)
-      - pattern: $STMT.executeUpdate($SQL + $INPUT)
-      - pattern: $STMT.execute($SQL + $INPUT)
-      - pattern: $STMT.addBatch($SQL + $INPUT)
+    mode: taint
+
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQ.getParameter(...)
+          - pattern: $REQ.getParameterValues(...)
+          - pattern: $REQ.getHeader(...)
+          - pattern: $REQ.getQueryString()
+          - pattern: $REQ.getPathInfo()
+          - pattern: $REQ.getRequestURI()
+
+    pattern-sinks:
+      # JDBC Statement 계열: SQL 문자열 인자만 sink.
+      - patterns:
+          - pattern-either:
+              - pattern: $STMT.executeQuery($SQL)
+              - pattern: $STMT.executeUpdate($SQL, ...)
+              - pattern: $STMT.execute($SQL, ...)
+              - pattern: $STMT.addBatch($SQL)
+          - focus-metavariable: $SQL
+
+      # PreparedStatement를 사용하더라도 SQL 구조 자체를 외부 입력으로 만들면 취약하다.
+      - patterns:
+          - pattern-either:
+              - pattern: $CONN.prepareStatement($SQL, ...)
+              - pattern: $CONN.prepareCall($SQL, ...)
+          - focus-metavariable: $SQL
+
+      # Spring JdbcTemplate / 유사 SQL template API.
+      - patterns:
+          - pattern-either:
+              - pattern: $JDBC.query($SQL, ...)
+              - pattern: $JDBC.queryForObject($SQL, ...)
+              - pattern: $JDBC.queryForList($SQL, ...)
+              - pattern: $JDBC.update($SQL, ...)
+              - pattern: $JDBC.execute($SQL, ...)
+              - pattern: $JDBC.batchUpdate($SQL, ...)
+          - focus-metavariable: $SQL
+
+      # JPA native SQL.
+      - patterns:
+          - pattern: $EM.createNativeQuery($SQL, ...)
+          - focus-metavariable: $SQL

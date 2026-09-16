@@ -8,7 +8,7 @@ rules:
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-47"
+      kisa_identifier: "KISA-ENC-04"
       kisa_name: "Private 배열에 Public 데이터 할당"
       confidence: HIGH
       recommendation: >-

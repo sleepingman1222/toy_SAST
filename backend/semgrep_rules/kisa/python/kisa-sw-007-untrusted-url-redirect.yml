@@ -8,7 +8,7 @@ rules:
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-07"
+      kisa_identifier: "KISA-INP-07"
       kisa_name: "신뢰되지 않는 URL 주소로 자동접속 연결"
       confidence: HIGH
       recommendation: >-

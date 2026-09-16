@@ -10,7 +10,7 @@ import {
 
 import {
   getProjectAnalysisRuns,
-} from "../../../api/api";
+} from "../../../api/analysisApi";
 
 import "./UserSummary.css";
 

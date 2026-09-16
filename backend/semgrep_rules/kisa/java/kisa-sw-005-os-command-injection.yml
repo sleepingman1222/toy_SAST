@@ -2,18 +2,22 @@ rules:
   - id: kisa.sw05.java.external-input-to-command
     message: >-
       운영체제 명령어 삽입 관련 보안 패턴이 탐지되었습니다.
-      외부 입력으로 명령 전체를 구성하지 말고 실행 가능한 명령을 허용목록으로 제한하고 인자를 분리하세요.
+      외부 입력으로 실행 명령 자체를 구성하거나 shell interpreter의 명령 문자열에 전달하지 말고,
+      실행 파일은 허용목록으로 제한하고 인자는 ProcessBuilder의 분리된 인자로 전달하세요.
     languages:
       - java
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-05"
+      kisa_identifier: "KISA-INP-05"
       kisa_name: "운영체제 명령어 삽입"
       confidence: HIGH
       recommendation: >-
-        외부 입력으로 명령 전체를 구성하지 말고 실행 가능한 명령을 허용목록으로 제한하고 인자를 분리하세요.
-      rule_version: "1.0.0"
+        Runtime.exec(String)처럼 외부 입력이 포함된 단일 명령 문자열을 실행하지 마세요.
+        실행 파일은 서버가 결정한 허용목록 값으로 제한하고 사용자 입력은 ProcessBuilder의
+        분리된 인자로 전달하세요. sh/bash -c, cmd /c 등 shell interpreter에 외부 입력을
+        명령 문자열로 넘기지 마세요.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
       automation_level: implemented
       cwe:
@@ -21,21 +25,56 @@ rules:
       technology:
         - "java"
         - "process"
+        - "servlet"
 
     mode: taint
+
     pattern-sources:
       - pattern-either:
-              - pattern: >-
-                  $REQ.getParameter(...)
-              - pattern: >-
-                  $REQ.getHeader(...)
-              - pattern: >-
-                  $REQ.getQueryString()
+          - pattern: $REQ.getParameter(...)
+          - pattern: $REQ.getParameterValues(...)
+          - pattern: $REQ.getHeader(...)
+          - pattern: $REQ.getQueryString()
+          - pattern: $REQ.getPathInfo()
+          - pattern: $REQ.getRequestURI()
+
     pattern-sinks:
-      - pattern-either:
-              - pattern: >-
-                  Runtime.getRuntime().exec($CMD)
-              - pattern: >-
-                  new ProcessBuilder($CMD)
-              - pattern: >-
-                  new ProcessBuilder($CMD, ...)
+      - patterns:
+          - pattern: Runtime.getRuntime().exec($CMD)
+          - focus-metavariable: $CMD
+
+      - patterns:
+          - pattern: Runtime.getRuntime().exec($CMD, ...)
+          - focus-metavariable: $CMD
+
+      - patterns:
+          - pattern: new ProcessBuilder($CMD, ...)
+          - focus-metavariable: $CMD
+
+      - patterns:
+          - pattern: $PB.command($CMD, ...)
+          - focus-metavariable: $CMD
+
+      - patterns:
+          - pattern-either:
+              - pattern: new ProcessBuilder("sh", "-c", $CMD, ...)
+              - pattern: new ProcessBuilder("bash", "-c", $CMD, ...)
+              - pattern: new ProcessBuilder("/bin/sh", "-c", $CMD, ...)
+              - pattern: new ProcessBuilder("/bin/bash", "-c", $CMD, ...)
+              - pattern: new ProcessBuilder("cmd", "/c", $CMD, ...)
+              - pattern: new ProcessBuilder("cmd.exe", "/c", $CMD, ...)
+              - pattern: new ProcessBuilder("powershell", "-Command", $CMD, ...)
+              - pattern: new ProcessBuilder("powershell.exe", "-Command", $CMD, ...)
+          - focus-metavariable: $CMD
+
+      - patterns:
+          - pattern-either:
+              - pattern: $PB.command("sh", "-c", $CMD, ...)
+              - pattern: $PB.command("bash", "-c", $CMD, ...)
+              - pattern: $PB.command("/bin/sh", "-c", $CMD, ...)
+              - pattern: $PB.command("/bin/bash", "-c", $CMD, ...)
+              - pattern: $PB.command("cmd", "/c", $CMD, ...)
+              - pattern: $PB.command("cmd.exe", "/c", $CMD, ...)
+              - pattern: $PB.command("powershell", "-Command", $CMD, ...)
+              - pattern: $PB.command("powershell.exe", "-Command", $CMD, ...)
+          - focus-metavariable: $CMD

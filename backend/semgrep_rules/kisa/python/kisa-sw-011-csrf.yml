@@ -8,7 +8,7 @@ rules:
     severity: WARNING
 
     metadata:
-      kisa_identifier: "KISA-SW-11"
+      kisa_identifier: "KISA-INP-11"
       kisa_name: "크로스사이트 요청 위조"
       confidence: MEDIUM
       recommendation: >-

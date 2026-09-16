@@ -8,7 +8,7 @@ rules:
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-25"
+      kisa_identifier: "KISA-SEC-08"
       kisa_name: "적절하지 않은 난수 값 사용"
       confidence: HIGH
       recommendation: >-

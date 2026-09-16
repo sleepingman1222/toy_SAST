@@ -8,7 +8,7 @@ rules:
     severity: WARNING
 
     metadata:
-      kisa_identifier: "KISA-SW-06"
+      kisa_identifier: "KISA-INP-06"
       kisa_name: "위험한 형식 파일 업로드"
       confidence: MEDIUM
       recommendation: >-

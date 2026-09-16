@@ -8,7 +8,7 @@ rules:
     severity: WARNING
 
     metadata:
-      kisa_identifier: "KISA-SW-32"
+      kisa_identifier: "KISA-SEC-15"
       kisa_name: "무결성 검사 없는 코드 다운로드"
       confidence: MEDIUM
       recommendation: >-

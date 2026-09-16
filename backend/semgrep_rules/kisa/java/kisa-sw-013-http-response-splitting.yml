@@ -8,7 +8,7 @@ rules:
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-13"
+      kisa_identifier: "KISA-INP-13"
       kisa_name: "HTTP 응답분할"
       confidence: HIGH
       recommendation: >-

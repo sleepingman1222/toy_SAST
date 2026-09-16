@@ -8,7 +8,7 @@ rules:
     severity: WARNING
 
     metadata:
-      kisa_identifier: "KISA-SW-44"
+      kisa_identifier: "KISA-ENC-01"
       kisa_name: "잘못된 세션에 의한 데이터 정보노출"
       confidence: MEDIUM
       recommendation: >-

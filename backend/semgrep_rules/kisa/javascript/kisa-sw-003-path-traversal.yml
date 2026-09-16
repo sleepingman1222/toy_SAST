@@ -1,19 +1,23 @@
 rules:
   - id: kisa.sw03.javascript.external-input-to-file-path
     message: >-
-      경로 조작 및 자원 삽입 관련 보안 패턴이 탐지되었습니다.
-      요청값을 파일 경로로 직접 사용하지 말고 path.basename/resolve와 허용 루트 검증을 적용하세요.
+      외부 입력이 Node.js 파일시스템 접근 경로로 전달되는 흐름이 탐지되었습니다.
+      path.join/resolve/normalize만으로 안전하다고 판단하지 말고
+      파일명 제한 또는 허용 루트 containment 검증을 적용하세요.
     languages:
       - javascript
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-03"
+      kisa_identifier: "KISA-INP-03"
       kisa_name: "경로 조작 및 자원 삽입"
       confidence: HIGH
       recommendation: >-
-        요청값을 파일 경로로 직접 사용하지 말고 path.basename/resolve와 허용 루트 검증을 적용하세요.
-      rule_version: "1.0.0"
+        요청값을 파일 경로로 직접 사용하지 마세요.
+        파일명만 필요한 경우 path.basename을 사용하고,
+        하위 경로를 허용하는 경우 path.resolve 후 결과가 허용 루트 내부인지 별도로 검증하세요.
+        path.resolve/path.normalize 호출 자체는 sanitizer가 아닙니다.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
       automation_level: implemented
       cwe:
@@ -22,29 +26,75 @@ rules:
         - "javascript"
         - "nodejs"
         - "filesystem"
+        - "express"
 
     mode: taint
+
     pattern-sources:
       - pattern-either:
-              - pattern: >-
-                  $REQ.query.$KEY
-              - pattern: >-
-                  $REQ.body.$KEY
-              - pattern: >-
-                  $REQ.params.$KEY
-              - pattern: >-
-                  $REQ.headers[$KEY]
+          - pattern: $REQ.query.$KEY
+          - pattern: $REQ.query[$KEY]
+          - pattern: $REQ.body.$KEY
+          - pattern: $REQ.body[$KEY]
+          - pattern: $REQ.params.$KEY
+          - pattern: $REQ.params[$KEY]
+          - pattern: $REQ.headers[$KEY]
+          - pattern: $REQ.get(...)
+          - pattern: $REQ.header(...)
+
     pattern-sanitizers:
-      - pattern-either:
-              - pattern: >-
-                  path.basename(...)
+      # 실제 Node path module의 basename만 sanitizer로 인정한다.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  const $PATHMOD = require("path");
+                  ...
+              - pattern-inside: |
+                  const $PATHMOD = require("node:path");
+                  ...
+              - pattern-inside: |
+                  import * as $PATHMOD from "path";
+                  ...
+              - pattern-inside: |
+                  import * as $PATHMOD from "node:path";
+                  ...
+          - pattern: $PATHMOD.basename(...)
+
+      - pattern: require("path").basename(...)
+      - pattern: require("node:path").basename(...)
+
     pattern-sinks:
-      - pattern-either:
-              - pattern: >-
-                  fs.readFileSync($PATH, ...)
-              - pattern: >-
-                  fs.readFile($PATH, ...)
-              - pattern: >-
-                  fs.writeFileSync($PATH, ...)
-              - pattern: >-
-                  fs.unlinkSync($PATH)
+      # 실제 fs module object 문맥에서만 sink로 본다.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  const $FS = require("fs");
+                  ...
+              - pattern-inside: |
+                  const $FS = require("node:fs");
+                  ...
+              - pattern-inside: |
+                  import * as $FS from "fs";
+                  ...
+              - pattern-inside: |
+                  import * as $FS from "node:fs";
+                  ...
+          - pattern-either:
+              - pattern: $FS.readFileSync($FILEPATH, ...)
+              - pattern: $FS.readFile($FILEPATH, ...)
+              - pattern: $FS.writeFileSync($FILEPATH, ...)
+              - pattern: $FS.writeFile($FILEPATH, ...)
+              - pattern: $FS.unlinkSync($FILEPATH)
+              - pattern: $FS.unlink($FILEPATH, ...)
+              - pattern: $FS.rmSync($FILEPATH, ...)
+              - pattern: $FS.rm($FILEPATH, ...)
+              - pattern: $FS.createReadStream($FILEPATH, ...)
+              - pattern: $FS.createWriteStream($FILEPATH, ...)
+              - pattern: $FS.openSync($FILEPATH, ...)
+              - pattern: $FS.open($FILEPATH, ...)
+              - pattern: $FS.promises.readFile($FILEPATH, ...)
+              - pattern: $FS.promises.writeFile($FILEPATH, ...)
+              - pattern: $FS.promises.unlink($FILEPATH)
+              - pattern: $FS.promises.rm($FILEPATH, ...)
+              - pattern: $FS.promises.open($FILEPATH, ...)
+          - focus-metavariable: $FILEPATH

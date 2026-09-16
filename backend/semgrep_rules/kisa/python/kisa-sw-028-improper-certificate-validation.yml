@@ -8,7 +8,7 @@ rules:
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-28"
+      kisa_identifier: "KISA-SEC-11"
       kisa_name: "부적절한 인증서 유효성 검증"
       confidence: HIGH
       recommendation: >-

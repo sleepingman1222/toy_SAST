@@ -1,19 +1,21 @@
 rules:
   - id: kisa.sw04.java.external-input-to-html-response
     message: >-
-      크로스사이트 스크립트 관련 보안 패턴이 탐지되었습니다.
-      외부 입력을 HTML 출력에 직접 쓰지 말고 OWASP Encoder 등 컨텍스트에 맞는 출력 인코딩을 사용하세요.
+      외부 입력이 HTML 응답 출력으로 전달되는 흐름이 탐지되었습니다.
+      응답에 직접 쓰지 말고 출력 컨텍스트에 맞는 HTML 인코딩을 적용하세요.
     languages:
       - java
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-04"
+      kisa_identifier: "KISA-INP-04"
       kisa_name: "크로스사이트 스크립트"
       confidence: HIGH
       recommendation: >-
-        외부 입력을 HTML 출력에 직접 쓰지 말고 OWASP Encoder 등 컨텍스트에 맞는 출력 인코딩을 사용하세요.
-      rule_version: "1.0.0"
+        HttpServletResponse의 HTML 응답에 외부 입력을 직접 출력하지 마세요.
+        OWASP Java Encoder의 Encode.forHtml 등 출력 컨텍스트에 적합한 인코더를 사용하고,
+        일반 Writer 출력과 HTTP 응답 출력을 구분하세요.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
       automation_level: implemented
       cwe:
@@ -24,21 +26,39 @@ rules:
         - "web"
 
     mode: taint
+
     pattern-sources:
       - pattern-either:
-              - pattern: >-
-                  $REQ.getParameter(...)
-              - pattern: >-
-                  $REQ.getHeader(...)
-              - pattern: >-
-                  $REQ.getQueryString()
-    pattern-sinks:
+          - pattern: $REQ.getParameter(...)
+          - pattern: $REQ.getParameterValues(...)
+          - pattern: $REQ.getHeader(...)
+          - pattern: $REQ.getQueryString()
+          - pattern: $REQ.getPathInfo()
+          - pattern: $REQ.getRequestURI()
+
+    pattern-sanitizers:
       - pattern-either:
-              - pattern: >-
-                  $RESP.getWriter().print($X)
-              - pattern: >-
-                  $RESP.getWriter().write($X)
-              - pattern: >-
-                  $WRITER.print($X)
-              - pattern: >-
-                  $WRITER.write($X)
+          - pattern: Encode.forHtml(...)
+          - pattern: org.owasp.encoder.Encode.forHtml(...)
+          - pattern: StringEscapeUtils.escapeHtml4(...)
+          - pattern: org.apache.commons.text.StringEscapeUtils.escapeHtml4(...)
+
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $RESP.getWriter().print($HTML)
+              - pattern: $RESP.getWriter().println($HTML)
+              - pattern: $RESP.getWriter().write($HTML)
+              - pattern: $RESP.getWriter().append($HTML)
+          - focus-metavariable: $HTML
+
+      - patterns:
+          - pattern-inside: |
+              $TYPE $WRITER = $RESP.getWriter();
+              ...
+          - pattern-either:
+              - pattern: $WRITER.print($HTML)
+              - pattern: $WRITER.println($HTML)
+              - pattern: $WRITER.write($HTML)
+              - pattern: $WRITER.append($HTML)
+          - focus-metavariable: $HTML

@@ -21,14 +21,17 @@ from projects.models import (
 
 from .models import (
     AnalysisRun,
-    Vulnerability,
 )
 
 from .serializers import (
     AnalysisRunCreateSerializer,
-    AnalysisRunSerializer,
 )
 
+from .services.analysis_response import (
+    prepare_analysis_response_queryset,
+    serialize_admin_analysis_with_kisa,
+    serialize_user_completed_analysis,
+)
 from .tasks import run_analysis
 
 
@@ -54,321 +57,6 @@ def can_view_project(
         project=project,
         user=user
     ).exists()
-
-
-# ========================================
-# 일반 사용자용 완료 분석 결과 응답
-#
-# 일반 사용자에게는 내부 분석 운영정보를
-# 노출하지 않고 화면에 필요한 최소 연결정보와
-# 취약점 상세 결과만 반환한다.
-#
-# 제외 정보 예시
-# - project_id
-# - engine
-# - 기존 단일 analysis_language
-# - executed_by / executed_by_id
-# - started_at
-# - failure_reason
-# - logs
-# - raw_result
-# - created_at / updated_at
-#
-# Vulnerability에서도 화면에서 사용하지 않는
-# 기술 Rule ID, 생성 시각 등은 제외한다.
-# ========================================
-
-def serialize_user_completed_analysis(
-    analysis_run
-):
-
-    serialized = (
-        AnalysisRunSerializer(
-            analysis_run
-        ).data
-    )
-
-
-    vulnerability_objects = (
-        Vulnerability.objects
-        .filter(
-            analysis_run=analysis_run
-        )
-        .select_related(
-            "security_weakness"
-        )
-    )
-
-
-    vulnerability_object_by_id = {
-        vulnerability.id:
-            vulnerability
-        for vulnerability
-        in vulnerability_objects
-    }
-
-
-    vulnerability_fields = [
-        "id",
-        "analysis_language",
-        "name",
-        "severity",
-        "confidence",
-        "file_path",
-        "line",
-        "start_line",
-        "start_column",
-        "end_line",
-        "end_column",
-        "message",
-        "evidence",
-        "recommendation",
-    ]
-
-
-    vulnerabilities = []
-
-
-    for vulnerability in (
-        serialized.get(
-            "vulnerabilities",
-            []
-        )
-    ):
-
-        vulnerability_id = (
-            vulnerability.get(
-                "id"
-            )
-        )
-
-
-        vulnerability_object = (
-            vulnerability_object_by_id.get(
-                vulnerability_id
-            )
-        )
-
-
-        security_weakness = (
-            vulnerability_object.security_weakness
-            if vulnerability_object is not None
-            else None
-        )
-
-
-        vulnerability_payload = {
-            field:
-                vulnerability.get(
-                    field
-                )
-            for field
-            in vulnerability_fields
-        }
-
-
-        vulnerability_payload[
-            "security_weakness_identifier"
-        ] = (
-            vulnerability.get(
-                "security_weakness_identifier"
-            )
-            or
-            (
-                security_weakness.identifier
-                if security_weakness
-                else None
-            )
-        )
-
-
-        vulnerability_payload[
-            "security_weakness_item_number"
-        ] = (
-            vulnerability.get(
-                "security_weakness_item_number"
-            )
-            or
-            (
-                security_weakness.item_number
-                if security_weakness
-                else None
-            )
-        )
-
-
-        vulnerabilities.append(
-            vulnerability_payload
-        )
-
-
-    return {
-        "id":
-            serialized.get(
-                "id"
-            ),
-
-        "source_version_id":
-            serialized.get(
-                "source_version_id"
-            ),
-
-        "sequence":
-            serialized.get(
-                "sequence"
-            ),
-
-        "status":
-            AnalysisRun.Status.COMPLETED,
-
-        "analysis_languages":
-            serialized.get(
-                "analysis_languages"
-            )
-            or [],
-
-        "completed_at":
-            serialized.get(
-                "completed_at"
-            ),
-
-        "vulnerabilities":
-            vulnerabilities,
-    }
-
-
-# ========================================
-# 관리자용 AnalysisRun 응답
-#
-# AnalysisRunSerializer가 반환하는 기존 관리자 정보는
-# 그대로 유지하면서 Vulnerability의 KISA Catalog
-# identifier / item_number를 실제 DB FK에서 보강한다.
-# ========================================
-
-def serialize_admin_analysis_with_kisa(
-    analysis_run
-):
-
-    serialized = dict(
-        AnalysisRunSerializer(
-            analysis_run
-        ).data
-    )
-
-
-    vulnerabilities = list(
-        serialized.get(
-            "vulnerabilities",
-            []
-        )
-        or []
-    )
-
-
-    if not vulnerabilities:
-
-        serialized[
-            "vulnerabilities"
-        ] = []
-
-        return serialized
-
-
-    vulnerability_objects = (
-        Vulnerability.objects
-        .filter(
-            analysis_run=analysis_run
-        )
-        .select_related(
-            "security_weakness"
-        )
-    )
-
-
-    vulnerability_object_by_id = {
-        vulnerability.id:
-            vulnerability
-        for vulnerability
-        in vulnerability_objects
-    }
-
-
-    normalized_vulnerabilities = []
-
-
-    for vulnerability in vulnerabilities:
-
-        vulnerability_payload = dict(
-            vulnerability
-        )
-
-
-        vulnerability_id = (
-            vulnerability_payload.get(
-                "id"
-            )
-        )
-
-
-        vulnerability_object = (
-            vulnerability_object_by_id.get(
-                vulnerability_id
-            )
-        )
-
-
-        security_weakness = (
-            vulnerability_object
-            .security_weakness
-            if (
-                vulnerability_object
-                is not None
-            )
-            else None
-        )
-
-
-        vulnerability_payload[
-            "security_weakness_identifier"
-        ] = (
-            vulnerability_payload.get(
-                "security_weakness_identifier"
-            )
-            or
-            (
-                security_weakness.identifier
-                if security_weakness
-                else None
-            )
-        )
-
-
-        vulnerability_payload[
-            "security_weakness_item_number"
-        ] = (
-            vulnerability_payload.get(
-                "security_weakness_item_number"
-            )
-            or
-            (
-                security_weakness.item_number
-                if security_weakness
-                else None
-            )
-        )
-
-
-        normalized_vulnerabilities.append(
-            vulnerability_payload
-        )
-
-
-    serialized[
-        "vulnerabilities"
-    ] = normalized_vulnerabilities
-
-
-    return serialized
 
 
 # ========================================
@@ -429,17 +117,11 @@ class ProjectAnalysisRunListCreateView(
         # --------------------------------
 
         analysis_runs = (
-            AnalysisRun.objects
-            .filter(
-                project=project
-            )
-            .select_related(
-                "project",
-                "source_version",
-                "executed_by"
-            )
-            .prefetch_related(
-                "vulnerabilities"
+            prepare_analysis_response_queryset(
+                AnalysisRun.objects
+                .filter(
+                    project=project
+                )
             )
             .order_by(
                 "sequence"
@@ -819,18 +501,13 @@ class ProjectAnalysisRunListCreateView(
         # --------------------------------
 
         analysis_run = (
-            AnalysisRun.objects
-            .select_related(
-                "project",
-                "source_version",
-                "executed_by"
+            prepare_analysis_response_queryset(
+                AnalysisRun.objects
+                .filter(
+                    pk=analysis_run.pk
+                )
             )
-            .prefetch_related(
-                "vulnerabilities"
-            )
-            .get(
-                pk=analysis_run.pk
-            )
+            .get()
         )
 
 
@@ -900,14 +577,8 @@ class ProjectAnalysisRunDetailView(
         # --------------------------------
 
         analysis_run = get_object_or_404(
-            AnalysisRun.objects
-            .select_related(
-                "project",
-                "source_version",
-                "executed_by"
-            )
-            .prefetch_related(
-                "vulnerabilities"
+            prepare_analysis_response_queryset(
+                AnalysisRun.objects.all()
             ),
 
             pk=analysis_id,

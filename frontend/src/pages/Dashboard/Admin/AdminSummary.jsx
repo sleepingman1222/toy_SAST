@@ -9,7 +9,7 @@ import {
 
 import {
   getAdminSummary,
-} from "../../../api/api";
+} from "../../../api/adminApi";
 
 import "./AdminSummary.css";
 

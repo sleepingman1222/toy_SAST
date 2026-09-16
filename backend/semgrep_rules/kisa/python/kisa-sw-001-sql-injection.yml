@@ -1,29 +1,71 @@
 rules:
   - id: kisa.sw01.python.dbapi-string-built-query
     message: >-
-      외부 값이 포함될 수 있는 문자열 조합 SQL을 execute 계열 함수에
-      직접 전달하고 있습니다. Parameterized Query를 사용하세요.
+      외부 입력이 DB-API/ORM의 SQL 질의문 문자열 인자로 전달되는 흐름이 탐지되었습니다.
+      SQL 문자열 조합 대신 parameterized query 또는 안전한 ORM 바인딩을 사용하세요.
     languages:
       - python
     severity: ERROR
 
     metadata:
-      kisa_identifier: KISA-SW-01
-      kisa_name: SQL 삽입
-      confidence: MEDIUM
+      kisa_identifier: "KISA-INP-01"
+      kisa_name: "SQL 삽입"
+      confidence: HIGH
       recommendation: >-
-        SQL 문자열에 외부 입력값을 직접 결합하지 말고 DB 드라이버가 제공하는
-        Parameterized Query 또는 안전한 ORM 바인딩 기능을 사용하세요.
-      rule_version: "1.0.0"
+        f-string, %, .format(), + 연산으로 사용자 입력을 SQL 구조에 삽입하지 마세요.
+        cursor.execute(sql, params)와 같은 parameterized query를 사용하고,
+        Django ORM 등에서는 filter/get 등의 구조화된 query API로 값을 전달하세요.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
+      automation_level: implemented
       cwe:
         - CWE-89
       technology:
-        - python
-        - db-api
+        - "python"
+        - "db-api"
+        - "django"
+        - "sqlalchemy"
 
-    pattern-either:
-      - pattern: $CURSOR.execute($SQL + $INPUT, ...)
-      - pattern: $CURSOR.execute($SQL % $INPUT, ...)
-      - pattern: $CURSOR.execute($SQL.format(...), ...)
-      - pattern: $CURSOR.executemany($SQL + $INPUT, ...)
+    mode: taint
+
+    pattern-sources:
+      - pattern-either:
+          - pattern: input(...)
+          - pattern: sys.argv[$INDEX]
+
+          # Django
+          - pattern: $REQ.GET.get(...)
+          - pattern: $REQ.GET[$KEY]
+          - pattern: $REQ.POST.get(...)
+          - pattern: $REQ.POST[$KEY]
+          - pattern: $REQ.headers.get(...)
+          - pattern: $REQ.headers[$KEY]
+
+          # Flask / Werkzeug
+          - pattern: $REQ.args.get(...)
+          - pattern: $REQ.args[$KEY]
+          - pattern: $REQ.form.get(...)
+          - pattern: $REQ.form[$KEY]
+          - pattern: $REQ.values.get(...)
+          - pattern: $REQ.values[$KEY]
+          - pattern: $REQ.json.get(...)
+          - pattern: $REQ.json[$KEY]
+          - pattern: $REQ.get_json().get(...)
+
+    pattern-sinks:
+      # Python DB-API. SQL 인자만 sink이며 params 인자는 제외한다.
+      - patterns:
+          - pattern-either:
+              - pattern: $CURSOR.execute($SQL, ...)
+              - pattern: $CURSOR.executemany($SQL, ...)
+          - focus-metavariable: $SQL
+
+      # Django raw SQL.
+      - patterns:
+          - pattern: $MANAGER.raw($SQL, ...)
+          - focus-metavariable: $SQL
+
+      # SQLAlchemy / connection-style execute.
+      - patterns:
+          - pattern: $CONN.exec_driver_sql($SQL, ...)
+          - focus-metavariable: $SQL

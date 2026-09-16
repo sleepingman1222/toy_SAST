@@ -1,19 +1,21 @@
 rules:
   - id: kisa.sw04.python.external-input-to-html-response
     message: >-
-      크로스사이트 스크립트 관련 보안 패턴이 탐지되었습니다.
-      외부 입력을 HTML 응답에 직접 삽입하지 말고 템플릿 자동 이스케이프 또는 명시적 HTML escaping을 사용하세요.
+      외부 입력이 HTML 응답 또는 escaping 우회 API로 전달되는 흐름이 탐지되었습니다.
+      템플릿 자동 이스케이프 또는 신뢰할 수 있는 HTML escaping을 사용하세요.
     languages:
       - python
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-04"
+      kisa_identifier: "KISA-INP-04"
       kisa_name: "크로스사이트 스크립트"
       confidence: HIGH
       recommendation: >-
-        외부 입력을 HTML 응답에 직접 삽입하지 말고 템플릿 자동 이스케이프 또는 명시적 HTML escaping을 사용하세요.
-      rule_version: "1.0.0"
+        Django/Flask 응답에 외부 입력을 HTML로 직접 반환하거나 mark_safe/Markup으로
+        신뢰 처리하지 마세요. Django escape/conditional_escape, Python html.escape,
+        MarkupSafe escape 등 검증된 escaping을 사용하고 템플릿 자동 이스케이프를 유지하세요.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
       automation_level: implemented
       cwe:
@@ -21,34 +23,135 @@ rules:
       technology:
         - "python"
         - "django"
+        - "flask"
+        - "jinja"
         - "web"
 
     mode: taint
+
     pattern-sources:
       - pattern-either:
-              - pattern: >-
-                  input(...)
-              - pattern: >-
-                  $REQ.GET.get(...)
-              - pattern: >-
-                  $REQ.POST.get(...)
-              - pattern: >-
-                  $REQ.args.get(...)
-              - pattern: >-
-                  $REQ.form.get(...)
-              - pattern: >-
-                  $REQ.json.get(...)
+          - pattern: input(...)
+
+          - pattern: $REQ.GET.get(...)
+          - pattern: $REQ.GET[$KEY]
+          - pattern: $REQ.POST.get(...)
+          - pattern: $REQ.POST[$KEY]
+          - pattern: $REQ.headers.get(...)
+          - pattern: $REQ.headers[$KEY]
+
+          - pattern: $REQ.args.get(...)
+          - pattern: $REQ.args[$KEY]
+          - pattern: $REQ.form.get(...)
+          - pattern: $REQ.form[$KEY]
+          - pattern: $REQ.values.get(...)
+          - pattern: $REQ.values[$KEY]
+          - pattern: $REQ.json.get(...)
+          - pattern: $REQ.json[$KEY]
+          - pattern: $REQ.get_json().get(...)
+
     pattern-sanitizers:
       - pattern-either:
-              - pattern: >-
-                  escape(...)
-              - pattern: >-
-                  html.escape(...)
+          - pattern: html.escape(...)
+          - pattern: django.utils.html.escape(...)
+          - pattern: django.utils.html.conditional_escape(...)
+          - pattern: markupsafe.escape(...)
+
+      - patterns:
+          - pattern-inside: |
+              from django.utils.html import escape
+              ...
+          - pattern: escape(...)
+
+      - patterns:
+          - pattern-inside: |
+              from django.utils.html import conditional_escape
+              ...
+          - pattern: conditional_escape(...)
+
+      - patterns:
+          - pattern-inside: |
+              from markupsafe import escape
+              ...
+          - pattern: escape(...)
+
     pattern-sinks:
-      - pattern-either:
-              - pattern: >-
-                  mark_safe($X)
-              - pattern: >-
-                  Markup($X)
-              - pattern: >-
-                  HttpResponse($X)
+      # Django HttpResponse
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  from django.http import HttpResponse
+                  ...
+              - pattern-inside: |
+                  from django.http import HttpResponse, ...
+                  ...
+          - pattern: HttpResponse($HTML, ...)
+          - focus-metavariable: $HTML
+
+      - patterns:
+          - pattern: django.http.HttpResponse($HTML, ...)
+          - focus-metavariable: $HTML
+
+      # Django mark_safe
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  from django.utils.safestring import mark_safe
+                  ...
+              - pattern-inside: |
+                  from django.utils.safestring import mark_safe, ...
+                  ...
+          - pattern: mark_safe($HTML)
+          - focus-metavariable: $HTML
+
+      - patterns:
+          - pattern: django.utils.safestring.mark_safe($HTML)
+          - focus-metavariable: $HTML
+
+      # MarkupSafe Markup
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  from markupsafe import Markup
+                  ...
+              - pattern-inside: |
+                  from markupsafe import Markup, ...
+                  ...
+          - pattern: Markup($HTML)
+          - focus-metavariable: $HTML
+
+      - patterns:
+          - pattern: markupsafe.Markup($HTML)
+          - focus-metavariable: $HTML
+
+      # Flask Response
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  from flask import Response
+                  ...
+              - pattern-inside: |
+                  from flask import Response, ...
+                  ...
+          - pattern: Response($HTML, ...)
+          - focus-metavariable: $HTML
+
+      - patterns:
+          - pattern: flask.Response($HTML, ...)
+          - focus-metavariable: $HTML
+
+      # Flask make_response
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  from flask import make_response
+                  ...
+              - pattern-inside: |
+                  from flask import make_response, ...
+                  ...
+          - pattern: make_response($HTML, ...)
+          - focus-metavariable: $HTML
+
+      - patterns:
+          - pattern: flask.make_response($HTML, ...)
+          - focus-metavariable: $HTML

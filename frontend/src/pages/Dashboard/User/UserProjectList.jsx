@@ -9,7 +9,7 @@ import {
 
 import {
   getProjectAnalysisRuns,
-} from "../../../api/api";
+} from "../../../api/analysisApi";
 
 import UserProjectDetail from "./UserProjectDetail";
 

@@ -1,19 +1,23 @@
 rules:
   - id: kisa.sw03.python.external-input-to-file-path
     message: >-
-      경로 조작 및 자원 삽입 관련 보안 패턴이 탐지되었습니다.
-      외부 입력을 파일 경로로 직접 사용하지 말고 기준 디렉터리와 결합한 뒤 resolve/realpath 결과가 허용된 루트 내부인지 확인하세요.
+      외부 입력이 실제 파일시스템 접근 경로로 전달되는 흐름이 탐지되었습니다.
+      Path/resolve/realpath 객체 생성만으로 안전하다고 판단하지 말고
+      파일명 제한 또는 허용 루트 containment 검증을 적용하세요.
     languages:
       - python
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-03"
+      kisa_identifier: "KISA-INP-03"
       kisa_name: "경로 조작 및 자원 삽입"
       confidence: HIGH
       recommendation: >-
-        외부 입력을 파일 경로로 직접 사용하지 말고 기준 디렉터리와 결합한 뒤 resolve/realpath 결과가 허용된 루트 내부인지 확인하세요.
-      rule_version: "1.0.0"
+        외부 입력 전체를 open/os/pathlib 파일 경로로 직접 사용하지 마세요.
+        파일명만 필요한 경우 os.path.basename 또는 Path(...).name을 사용하고,
+        하위 경로를 허용해야 한다면 resolve/realpath 후 허용 루트 내부인지 별도로 검증하세요.
+        resolve/realpath 호출 자체는 sanitizer가 아닙니다.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
       automation_level: implemented
       cwe:
@@ -21,35 +25,118 @@ rules:
       technology:
         - "python"
         - "filesystem"
+        - "django"
+        - "flask"
 
     mode: taint
+
     pattern-sources:
       - pattern-either:
-              - pattern: >-
-                  input(...)
-              - pattern: >-
-                  $REQ.GET.get(...)
-              - pattern: >-
-                  $REQ.POST.get(...)
-              - pattern: >-
-                  $REQ.args.get(...)
-              - pattern: >-
-                  $REQ.form.get(...)
-              - pattern: >-
-                  $REQ.json.get(...)
+          - pattern: input(...)
+          - pattern: sys.argv[$INDEX]
+
+          # Django
+          - pattern: $REQ.GET.get(...)
+          - pattern: $REQ.GET[$KEY]
+          - pattern: $REQ.POST.get(...)
+          - pattern: $REQ.POST[$KEY]
+          - pattern: $REQ.headers.get(...)
+          - pattern: $REQ.headers[$KEY]
+
+          # Flask / Werkzeug
+          - pattern: $REQ.args.get(...)
+          - pattern: $REQ.args[$KEY]
+          - pattern: $REQ.form.get(...)
+          - pattern: $REQ.form[$KEY]
+          - pattern: $REQ.values.get(...)
+          - pattern: $REQ.values[$KEY]
+          - pattern: $REQ.json.get(...)
+          - pattern: $REQ.json[$KEY]
+          - pattern: $REQ.get_json().get(...)
+
     pattern-sanitizers:
       - pattern-either:
-              - pattern: >-
-                  os.path.basename(...)
-              - pattern: >-
-                  Path(...).name
+          - pattern: os.path.basename(...)
+          - pattern: Path(...).name
+          - pattern: pathlib.Path(...).name
+
+      # Werkzeug secure_filename은 디렉터리 구성요소를 제거한 파일명 용도.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  from werkzeug.utils import secure_filename
+                  ...
+              - pattern-inside: |
+                  from werkzeug.utils import secure_filename, ...
+                  ...
+          - pattern: secure_filename(...)
+
     pattern-sinks:
-      - pattern-either:
-              - pattern: >-
-                  open($PATH, ...)
-              - pattern: >-
-                  Path($PATH)
-              - pattern: >-
-                  os.remove($PATH)
-              - pattern: >-
-                  os.unlink($PATH)
+      # built-in / os 실제 파일 접근.
+      - patterns:
+          - pattern-either:
+              - pattern: open($FILEPATH, ...)
+              - pattern: os.open($FILEPATH, ...)
+              - pattern: os.remove($FILEPATH)
+              - pattern: os.unlink($FILEPATH)
+              - pattern: os.rmdir($FILEPATH)
+          - focus-metavariable: $FILEPATH
+
+      # rename/replace의 source와 destination.
+      - patterns:
+          - pattern-either:
+              - pattern: os.rename($SRC, $DST, ...)
+              - pattern: os.replace($SRC, $DST, ...)
+          - focus-metavariable: $SRC
+
+      - patterns:
+          - pattern-either:
+              - pattern: os.rename($SRC, $DST, ...)
+              - pattern: os.replace($SRC, $DST, ...)
+          - focus-metavariable: $DST
+
+      # pathlib: Path 생성 자체가 아니라 실제 I/O 메서드를 sink로 본다.
+      - patterns:
+          - pattern-either:
+              - pattern: Path($FILEPATH).open(...)
+              - pattern: Path($FILEPATH).read_text(...)
+              - pattern: Path($FILEPATH).read_bytes()
+              - pattern: Path($FILEPATH).write_text(...)
+              - pattern: Path($FILEPATH).write_bytes(...)
+              - pattern: Path($FILEPATH).unlink(...)
+              - pattern: pathlib.Path($FILEPATH).open(...)
+              - pattern: pathlib.Path($FILEPATH).read_text(...)
+              - pattern: pathlib.Path($FILEPATH).read_bytes()
+              - pattern: pathlib.Path($FILEPATH).write_text(...)
+              - pattern: pathlib.Path($FILEPATH).write_bytes(...)
+              - pattern: pathlib.Path($FILEPATH).unlink(...)
+          - focus-metavariable: $FILEPATH
+
+      # shutil copy/move의 source/destination.
+      - patterns:
+          - pattern-either:
+              - pattern: shutil.copy($SRC, $DST, ...)
+              - pattern: shutil.copy2($SRC, $DST, ...)
+              - pattern: shutil.copyfile($SRC, $DST, ...)
+              - pattern: shutil.move($SRC, $DST, ...)
+          - focus-metavariable: $SRC
+
+      - patterns:
+          - pattern-either:
+              - pattern: shutil.copy($SRC, $DST, ...)
+              - pattern: shutil.copy2($SRC, $DST, ...)
+              - pattern: shutil.copyfile($SRC, $DST, ...)
+              - pattern: shutil.move($SRC, $DST, ...)
+          - focus-metavariable: $DST
+
+      # Flask send_file은 임의 경로를 직접 열 수 있다.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  from flask import send_file
+                  ...
+              - pattern-inside: |
+                  from flask import send_file, ...
+                  ...
+          - pattern: send_file($FILEPATH, ...)
+          - focus-metavariable: $FILEPATH

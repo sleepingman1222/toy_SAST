@@ -1,19 +1,23 @@
 rules:
   - id: kisa.sw03.java.external-input-to-file-path
     message: >-
-      경로 조작 및 자원 삽입 관련 보안 패턴이 탐지되었습니다.
-      외부 입력 경로를 직접 사용하지 말고 기준 디렉터리 기준으로 normalize한 후 허용 루트 내부인지 검증하세요.
+      외부 입력이 실제 파일시스템 접근 경로로 전달되는 흐름이 탐지되었습니다.
+      경로 객체를 단순 생성하는 것만으로 안전하다고 판단하지 말고,
+      허용된 기준 디렉터리 내부의 파일명만 사용하도록 경로를 제한하세요.
     languages:
       - java
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-03"
+      kisa_identifier: "KISA-INP-03"
       kisa_name: "경로 조작 및 자원 삽입"
       confidence: HIGH
       recommendation: >-
-        외부 입력 경로를 직접 사용하지 말고 기준 디렉터리 기준으로 normalize한 후 허용 루트 내부인지 검증하세요.
-      rule_version: "1.0.0"
+        외부 입력 전체를 파일 경로로 사용하지 마세요.
+        파일명만 필요한 경우 getName/getFileName 또는 검증된 basename 처리를 사용하고,
+        하위 경로를 허용해야 한다면 resolve/normalize 후 허용 루트 내부인지 별도로 검증하세요.
+        normalize/getCanonicalFile 호출만으로는 허용 루트 이탈을 방지하지 못합니다.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
       automation_level: implemented
       cwe:
@@ -21,23 +25,73 @@ rules:
       technology:
         - "java"
         - "filesystem"
+        - "servlet"
 
     mode: taint
+
     pattern-sources:
       - pattern-either:
-              - pattern: >-
-                  $REQ.getParameter(...)
-              - pattern: >-
-                  $REQ.getHeader(...)
-              - pattern: >-
-                  $REQ.getQueryString()
-    pattern-sinks:
+          - pattern: $REQ.getParameter(...)
+          - pattern: $REQ.getParameterValues(...)
+          - pattern: $REQ.getHeader(...)
+          - pattern: $REQ.getQueryString()
+          - pattern: $REQ.getPathInfo()
+          - pattern: $REQ.getRequestURI()
+
+    pattern-sanitizers:
+      # 파일명만 허용하는 명시적 basename 계열.
       - pattern-either:
-              - pattern: >-
-                  new File($PATH)
-              - pattern: >-
-                  Paths.get($PATH, ...)
-              - pattern: >-
-                  Files.readAllBytes($PATH)
-              - pattern: >-
-                  Files.delete($PATH)
+          - pattern: new File(...).getName()
+          - pattern: Paths.get(...).getFileName().toString()
+          - pattern: Path.of(...).getFileName().toString()
+          - pattern: FilenameUtils.getName(...)
+          - pattern: org.apache.commons.io.FilenameUtils.getName(...)
+
+    pattern-sinks:
+      # java.io stream/reader/writer: 실제 파일 접근이 발생하는 생성자만 sink.
+      - patterns:
+          - pattern-either:
+              - pattern: new FileInputStream($PATH)
+              - pattern: new FileOutputStream($PATH, ...)
+              - pattern: new FileReader($PATH)
+              - pattern: new FileWriter($PATH, ...)
+              - pattern: new RandomAccessFile($PATH, ...)
+          - focus-metavariable: $PATH
+
+      # java.nio.file.Files read/open.
+      - patterns:
+          - pattern-either:
+              - pattern: Files.readAllBytes($PATH)
+              - pattern: Files.readString($PATH, ...)
+              - pattern: Files.newInputStream($PATH, ...)
+              - pattern: Files.newBufferedReader($PATH, ...)
+          - focus-metavariable: $PATH
+
+      # java.nio.file.Files write/open.
+      - patterns:
+          - pattern-either:
+              - pattern: Files.write($PATH, ...)
+              - pattern: Files.writeString($PATH, ...)
+              - pattern: Files.newOutputStream($PATH, ...)
+              - pattern: Files.newBufferedWriter($PATH, ...)
+          - focus-metavariable: $PATH
+
+      # 삭제.
+      - patterns:
+          - pattern-either:
+              - pattern: Files.delete($PATH)
+              - pattern: Files.deleteIfExists($PATH)
+          - focus-metavariable: $PATH
+
+      # copy/move는 source와 destination을 각각 검사한다.
+      - patterns:
+          - pattern-either:
+              - pattern: Files.copy($SRC, $DST, ...)
+              - pattern: Files.move($SRC, $DST, ...)
+          - focus-metavariable: $SRC
+
+      - patterns:
+          - pattern-either:
+              - pattern: Files.copy($SRC, $DST, ...)
+              - pattern: Files.move($SRC, $DST, ...)
+          - focus-metavariable: $DST

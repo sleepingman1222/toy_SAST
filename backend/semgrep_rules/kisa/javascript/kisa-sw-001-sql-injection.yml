@@ -1,27 +1,50 @@
 rules:
   - id: kisa.sw01.javascript.sql-client-string-built-query
     message: >-
-      문자열 결합으로 생성한 SQL을 query/execute 계열 함수에 전달하고
-      있습니다. SQL Parameter Binding을 사용하세요.
+      외부 입력이 SQL client의 질의문 문자열 인자로 전달되는 흐름이 탐지되었습니다.
+      SQL 문자열 보간/연결 대신 사용하는 DB client의 placeholder와 parameter binding을 사용하세요.
     languages:
       - javascript
     severity: ERROR
 
     metadata:
-      kisa_identifier: KISA-SW-01
-      kisa_name: SQL 삽입
+      kisa_identifier: "KISA-INP-01"
+      kisa_name: "SQL 삽입"
       confidence: MEDIUM
       recommendation: >-
-        요청값이나 외부 입력을 SQL 문자열에 직접 결합하지 말고 사용 중인
-        SQL Client의 placeholder와 parameter binding 기능을 사용하세요.
-      rule_version: "1.0.0"
+        Express 등 외부 입력을 SQL 문자열에 직접 연결하거나 template literal로 삽입하지 마세요.
+        mysql/mysql2는 ? placeholder, pg는 $1/$2 placeholder, Sequelize/Knex 등은
+        replacements/bindings 기능을 사용하여 SQL 구조와 값을 분리하세요.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
+      automation_level: implemented
       cwe:
         - CWE-89
       technology:
-        - javascript
-        - sql-client
+        - "javascript"
+        - "nodejs"
+        - "sql-client"
 
-    pattern-either:
-      - pattern: $DB.query($SQL + $INPUT, ...)
-      - pattern: $DB.execute($SQL + $INPUT, ...)
+    mode: taint
+
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQ.query.$KEY
+          - pattern: $REQ.query[$KEY]
+          - pattern: $REQ.body.$KEY
+          - pattern: $REQ.body[$KEY]
+          - pattern: $REQ.params.$KEY
+          - pattern: $REQ.params[$KEY]
+          - pattern: $REQ.headers[$KEY]
+          - pattern: $REQ.get(...)
+          - pattern: $REQ.header(...)
+
+    pattern-sinks:
+      # mysql/mysql2/pg/Sequelize 등에서 공통적으로 사용하는 SQL text 인자.
+      # 두 번째 이후 parameter 배열/객체는 focus 대상이 아니므로 parameter binding은 안전하다.
+      - patterns:
+          - pattern-either:
+              - pattern: $DB.query($SQL, ...)
+              - pattern: $DB.execute($SQL, ...)
+              - pattern: $DB.raw($SQL, ...)
+          - focus-metavariable: $SQL

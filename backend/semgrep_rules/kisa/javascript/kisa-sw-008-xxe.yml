@@ -8,7 +8,7 @@ rules:
     severity: ERROR
 
     metadata:
-      kisa_identifier: "KISA-SW-08"
+      kisa_identifier: "KISA-INP-08"
       kisa_name: "부적절한 XML 외부 개체 참조"
       confidence: HIGH
       recommendation: >-
