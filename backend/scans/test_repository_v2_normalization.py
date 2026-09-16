@@ -306,6 +306,26 @@ class RepositoryStateTests(TestCase):
         )
 
     @patch("scans.services.repository_state.current_app.send_task")
+    def test_normalization_published_unclaimed_replays_same_event(self, send_task):
+        execution, outbox = self.create_engine_outbox(
+            kind=ScanDispatchOutbox.Kind.NORMALIZATION,
+            task_name="scans.tasks.normalize_repository_scan",
+            status=ScanDispatchOutbox.Status.PUBLISHED,
+            publish_attempts=1,
+            published_at=timezone.now() - timedelta(minutes=2),
+            claim_deadline_at=timezone.now() - timedelta(seconds=1),
+        )
+        event_key = outbox.event_key
+        task_id = outbox.deterministic_task_id
+        self.assertEqual(dispatch_repository_outboxes()["published_count"], 1)
+        outbox.refresh_from_db()
+        self.assertEqual(outbox.event_key, event_key)
+        self.assertEqual(outbox.deterministic_task_id, task_id)
+        send_task.assert_called_once_with(
+            outbox.task_name, kwargs=outbox.payload, task_id=str(task_id)
+        )
+
+    @patch("scans.services.repository_state.current_app.send_task")
     def test_published_event_before_deadline_is_not_replayed(self, send_task):
         self.create_engine_outbox(
             status=ScanDispatchOutbox.Status.PUBLISHED,
@@ -381,6 +401,7 @@ class RepositoryStateTests(TestCase):
         self.assertEqual(progress["chunks"][0]["language"], "mixed")
         self.assertEqual(progress["chunks"][0]["status"], "running")
         self.assertEqual(progress["running_chunks"], 1)
+        self.assertFalse(progress["coverage_complete"])
 
     def test_run_cleanup_waits_for_commit_and_orphans_are_bounded(self):
         with TemporaryDirectory() as directory, self.settings(MEDIA_ROOT=directory):
@@ -414,6 +435,11 @@ class RepositoryStateTests(TestCase):
             result = reconcile_scan_artifacts()
             self.assertEqual(result["removed_orphans"], 1)
             self.assertFalse(orphan.exists())
+
+            with self.captureOnCommitCallbacks(execute=True):
+                AnalysisRun.objects.get(pk=self.run.pk).delete()
+                self.assertTrue(marker.exists())
+            self.assertFalse(run_path.exists())
 
 
 class ProcessGroupTerminationTests(SimpleTestCase):

@@ -487,6 +487,11 @@ export function normalizeAnalysisProgress(
       progress.analysisRunId ??
       null,
 
+    pipelineVersion:
+      progress.pipeline_version ??
+      progress.pipelineVersion ??
+      "chunk_v1",
+
     status:
       progress.status ||
       "",
@@ -570,6 +575,19 @@ export function normalizeAnalysisProgress(
       progress.result_count ??
       progress.resultCount ??
       0,
+
+    rawOccurrenceCount:
+      progress.raw_occurrence_count ??
+      progress.rawOccurrenceCount ??
+      0,
+
+    coverageComplete:
+      progress.coverage_complete ??
+      progress.coverageComplete ??
+      null,
+
+    executions:
+      progress.executions || [],
 
     retryCount:
       progress.retry_count ??

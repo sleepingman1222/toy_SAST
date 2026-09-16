@@ -111,6 +111,7 @@ def _build_repository_progress(analysis_run):
         }],
         "result_count": execution.result_count,
         "raw_occurrence_count": execution.raw_occurrence_count,
+        "coverage_complete": execution.coverage_complete,
         "languages": [
             {"language": language, "file_count": 0, "coverage": {}}
             for language in languages

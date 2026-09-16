@@ -244,20 +244,20 @@ class RepositoryRoutingRaceTests(TransactionTestCase):
             close_old_connections()
             try:
                 barrier.wait(timeout=5)
-                with self.settings(REPOSITORY_SAST_V2_ENABLED=False):
-                    execution_ids.append(
-                        plan_repository_execution(run.id, manifest, ["python"]).id
-                    )
+                execution_ids.append(
+                    plan_repository_execution(run.id, manifest, ["python"]).id
+                )
             except Exception as error:  # collected for assertion in the test thread
                 failures.append(error)
             finally:
                 close_old_connections()
 
         threads = [threading.Thread(target=plan) for _ in range(2)]
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join(timeout=10)
+        with self.settings(REPOSITORY_SAST_V2_ENABLED=False):
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=10)
 
         self.assertEqual(failures, [])
         self.assertEqual(len(set(execution_ids)), 1)
