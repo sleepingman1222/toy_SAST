@@ -8,8 +8,21 @@ from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from projects.models import Project, SourceVersion
-from .models import AnalysisRun, ScanDispatchOutbox, ScanExecution, ScanNormalizationAttempt
-from .services.repository_state import fail_repository_normalization
+from .models import (
+    AnalysisRun,
+    ScanAttempt,
+    ScanDispatchOutbox,
+    ScanExecution,
+    ScanNormalizationAttempt,
+)
+from .services.repository_recovery import (
+    _recover_engine_attempt,
+    _recover_normalization_attempt,
+)
+from .services.repository_state import (
+    cancel_repository_execution,
+    fail_repository_normalization,
+)
 
 from .constants import REPOSITORY_MAX_TARGET_BYTES
 from .services.repository_normalization import (
@@ -143,3 +156,109 @@ class RepositoryStateTests(TestCase):
             list(execution.dispatch_outboxes.values_list("kind", flat=True)),
             [ScanDispatchOutbox.Kind.NORMALIZATION],
         )
+
+    def test_expired_engine_and_normalization_leases_retry_their_own_stage(self):
+        now = timezone.now()
+        engine_execution = ScanExecution.objects.create(
+            analysis_run=self.run,
+            status=ScanExecution.Status.RUNNING,
+            capabilities={},
+        )
+        engine_attempt = ScanAttempt.objects.create(
+            execution=engine_execution,
+            attempt_no=1,
+            lease_expires_at=now - timedelta(seconds=1),
+        )
+
+        self.assertTrue(_recover_engine_attempt(engine_attempt.id, now))
+        engine_attempt.refresh_from_db()
+        engine_execution.refresh_from_db()
+        self.assertEqual(engine_attempt.status, ScanAttempt.Status.WORKER_LOST)
+        self.assertEqual(engine_execution.status, ScanExecution.Status.RETRY_PENDING)
+        self.assertEqual(
+            list(engine_execution.dispatch_outboxes.values_list("kind", flat=True)),
+            [ScanDispatchOutbox.Kind.ENGINE],
+        )
+
+        second_run = AnalysisRun.objects.create(
+            project=self.run.project,
+            source_version=self.run.source_version,
+            sequence=2,
+            executed_by=self.run.executed_by,
+            pipeline_version=AnalysisRun.PipelineVersion.REPOSITORY_V2,
+        )
+        normalization_execution = ScanExecution.objects.create(
+            analysis_run=second_run,
+            status=ScanExecution.Status.NORMALIZING,
+            capabilities={},
+        )
+        normalization_attempt = ScanNormalizationAttempt.objects.create(
+            execution=normalization_execution,
+            attempt_no=1,
+            lease_expires_at=now - timedelta(seconds=1),
+        )
+
+        self.assertTrue(_recover_normalization_attempt(normalization_attempt.id, now))
+        normalization_attempt.refresh_from_db()
+        normalization_execution.refresh_from_db()
+        self.assertEqual(
+            normalization_attempt.status,
+            ScanNormalizationAttempt.Status.WORKER_LOST,
+        )
+        self.assertEqual(
+            normalization_execution.status,
+            ScanExecution.Status.NORMALIZATION_PENDING,
+        )
+        self.assertEqual(
+            list(normalization_execution.dispatch_outboxes.values_list("kind", flat=True)),
+            [ScanDispatchOutbox.Kind.NORMALIZATION],
+        )
+
+    @patch("scans.services.repository_state.os.killpg")
+    def test_cancellation_invalidates_attempts_outboxes_and_process_group(self, killpg):
+        execution = ScanExecution.objects.create(
+            analysis_run=self.run,
+            status=ScanExecution.Status.RUNNING,
+            capabilities={},
+        )
+        engine_attempt = ScanAttempt.objects.create(
+            execution=execution,
+            attempt_no=1,
+            process_group_id=4321,
+            lease_expires_at=timezone.now() + timedelta(minutes=5),
+        )
+        normalization_attempt = ScanNormalizationAttempt.objects.create(
+            execution=execution,
+            attempt_no=1,
+            lease_expires_at=timezone.now() + timedelta(minutes=5),
+        )
+        for dispatch_no, kind in enumerate(
+            (ScanDispatchOutbox.Kind.ENGINE, ScanDispatchOutbox.Kind.NORMALIZATION),
+            start=1,
+        ):
+            ScanDispatchOutbox.objects.create(
+                execution=execution,
+                kind=kind,
+                dispatch_no=dispatch_no,
+                task_name=f"test.{kind}",
+            )
+
+        self.assertTrue(cancel_repository_execution(execution.id))
+
+        execution.refresh_from_db()
+        engine_attempt.refresh_from_db()
+        normalization_attempt.refresh_from_db()
+        self.run.refresh_from_db()
+        self.assertEqual(execution.status, ScanExecution.Status.CANCELLED)
+        self.assertEqual(engine_attempt.status, ScanAttempt.Status.CANCELLED)
+        self.assertEqual(
+            normalization_attempt.status,
+            ScanNormalizationAttempt.Status.CANCELLED,
+        )
+        self.assertEqual(self.run.status, AnalysisRun.Status.CANCELLED)
+        self.assertFalse(
+            execution.dispatch_outboxes.exclude(
+                status=ScanDispatchOutbox.Status.CANCELLED
+            ).exists()
+        )
+        killpg.assert_called_once_with(4321, 15)
