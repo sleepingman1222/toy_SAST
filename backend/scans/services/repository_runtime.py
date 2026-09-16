@@ -64,18 +64,49 @@ def _verify_semgrep_pin():
         )
 
 
-def _terminate_process_group(process):
-    if process.poll() is not None:
-        return
+def _process_group_exists(process_group_id):
     try:
-        os.killpg(process.pid, signal.SIGTERM)
-        process.wait(timeout=5)
-    except (ProcessLookupError, subprocess.TimeoutExpired):
+        os.killpg(process_group_id, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def terminate_process_group(process_group_id, parent_process=None, grace_seconds=5):
+    """Terminate the complete session even when its original parent exited.
+
+    `Popen.poll()` only describes the direct child. Grandchildren can keep the
+    process group alive after that child exits, so group existence is probed
+    independently and TERM always escalates to KILL when necessary.
+    """
+    process_group_id = int(process_group_id)
+    if _process_group_exists(process_group_id):
         try:
-            os.killpg(process.pid, signal.SIGKILL)
+            os.killpg(process_group_id, signal.SIGTERM)
         except ProcessLookupError:
             pass
-        process.wait(timeout=5)
+        deadline = time.monotonic() + grace_seconds
+        while time.monotonic() < deadline and _process_group_exists(process_group_id):
+            time.sleep(0.05)
+        if _process_group_exists(process_group_id):
+            try:
+                os.killpg(process_group_id, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            deadline = time.monotonic() + grace_seconds
+            while time.monotonic() < deadline and _process_group_exists(process_group_id):
+                time.sleep(0.05)
+    if parent_process is not None:
+        try:
+            parent_process.wait(timeout=grace_seconds)
+        except subprocess.TimeoutExpired:
+            try:
+                parent_process.kill()
+            except ProcessLookupError:
+                pass
+            parent_process.wait(timeout=grace_seconds)
 
 
 def _artifact_root(run_id):
@@ -167,16 +198,16 @@ def execute_repository_scan(attempt):
             execution_token=attempt.execution_token,
         ).update(process_group_id=process.pid)
         if updated != 1:
-            _terminate_process_group(process)
+            terminate_process_group(process.pid, process)
             raise RepositoryRuntimeError("engine ownership was lost before launch")
         deadline = time.monotonic() + REPOSITORY_SCAN_TIMEOUT_SECONDS
         while process.poll() is None:
             output_handle.flush()
             if temporary_path.stat().st_size > REPOSITORY_MAX_ARTIFACT_BYTES:
-                _terminate_process_group(process)
+                terminate_process_group(process.pid, process)
                 raise RepositoryRuntimeError("Semgrep raw output exceeded artifact limit")
             if time.monotonic() >= deadline:
-                _terminate_process_group(process)
+                terminate_process_group(process.pid, process)
                 raise RepositoryRuntimeError("Semgrep repository scan timed out")
             locked = ScanAttempt.objects.filter(
                 pk=attempt.pk,
@@ -184,7 +215,7 @@ def execute_repository_scan(attempt):
                 execution_token=attempt.execution_token,
             ).exists()
             if not locked:
-                _terminate_process_group(process)
+                terminate_process_group(process.pid, process)
                 raise RepositoryRuntimeError("engine ownership was lost")
             time.sleep(0.25)
         output_handle.flush()
@@ -200,7 +231,7 @@ def execute_repository_scan(attempt):
         return _publish_artifact(attempt, temporary_path)
     finally:
         if process is not None:
-            _terminate_process_group(process)
+            terminate_process_group(process.pid, process)
         output_handle.close()
         error_handle.close()
         temporary_path.unlink(missing_ok=True)

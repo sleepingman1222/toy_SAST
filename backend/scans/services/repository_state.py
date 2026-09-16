@@ -1,6 +1,4 @@
 import uuid
-import os
-import signal
 from datetime import timedelta
 
 from celery import current_app
@@ -23,6 +21,7 @@ from ..models import (
     ScanExecution,
     ScanNormalizationAttempt,
 )
+from .repository_runtime import terminate_process_group
 
 
 CE_CAPABILITIES = {
@@ -122,6 +121,11 @@ def dispatch_repository_outboxes(batch_size=50):
             run.save(update_fields=["status", "completed_at", "failure_reason", "updated_at"])
     candidates = ScanDispatchOutbox.objects.filter(
         publish_attempts__lt=models_f("max_publish_attempts"),
+        execution__status__in=[
+            ScanExecution.Status.QUEUED,
+            ScanExecution.Status.RETRY_PENDING,
+            ScanExecution.Status.NORMALIZATION_PENDING,
+        ],
     ).filter(
         models_q(status=ScanDispatchOutbox.Status.PENDING, available_at__lte=now)
         | models_q(
@@ -132,32 +136,50 @@ def dispatch_repository_outboxes(batch_size=50):
     ).order_by("created_at")[:batch_size]
     published = 0
     for candidate in candidates:
-        with transaction.atomic():
-            outbox = ScanDispatchOutbox.objects.select_for_update().get(pk=candidate.pk)
-            active = (
-                outbox.execution.attempts.filter(status=ScanAttempt.Status.RUNNING).exists()
-                if outbox.kind == ScanDispatchOutbox.Kind.ENGINE
-                else outbox.execution.normalization_attempts.filter(
-                    status=ScanNormalizationAttempt.Status.RUNNING
-                ).exists()
-            )
-            if active or outbox.claimed_at is not None:
-                continue
-            current_app.send_task(
-                outbox.task_name,
-                kwargs=outbox.payload,
-                task_id=str(outbox.deterministic_task_id),
-            )
-            outbox.status = ScanDispatchOutbox.Status.PUBLISHED
-            outbox.publish_attempts += 1
-            outbox.published_at = now
-            outbox.claim_deadline_at = now + timedelta(seconds=REPOSITORY_OUTBOX_CLAIM_SECONDS)
-            outbox.last_error = ""
-            outbox.save(update_fields=[
-                "status", "publish_attempts", "published_at",
-                "claim_deadline_at", "last_error", "updated_at",
-            ])
-            published += 1
+        try:
+            with transaction.atomic():
+                outbox = ScanDispatchOutbox.objects.select_for_update().get(pk=candidate.pk)
+                active = (
+                    outbox.execution.attempts.filter(status=ScanAttempt.Status.RUNNING).exists()
+                    if outbox.kind == ScanDispatchOutbox.Kind.ENGINE
+                    else outbox.execution.normalization_attempts.filter(
+                        status=ScanNormalizationAttempt.Status.RUNNING
+                    ).exists()
+                )
+                if active or outbox.claimed_at is not None:
+                    continue
+                current_app.send_task(
+                    outbox.task_name,
+                    kwargs=outbox.payload,
+                    task_id=str(outbox.deterministic_task_id),
+                )
+                outbox.status = ScanDispatchOutbox.Status.PUBLISHED
+                outbox.publish_attempts += 1
+                outbox.published_at = now
+                outbox.claim_deadline_at = now + timedelta(seconds=REPOSITORY_OUTBOX_CLAIM_SECONDS)
+                outbox.last_error = ""
+                outbox.save(update_fields=[
+                    "status", "publish_attempts", "published_at",
+                    "claim_deadline_at", "last_error", "updated_at",
+                ])
+                published += 1
+        except Exception as error:
+            with transaction.atomic():
+                outbox = ScanDispatchOutbox.objects.select_for_update().get(pk=candidate.pk)
+                outbox.publish_attempts = min(
+                    outbox.publish_attempts + 1,
+                    outbox.max_publish_attempts,
+                )
+                outbox.last_error = str(error)[:2000]
+                delay = min(2 ** outbox.publish_attempts, REPOSITORY_OUTBOX_CLAIM_SECONDS)
+                if outbox.status == ScanDispatchOutbox.Status.PUBLISHED:
+                    outbox.claim_deadline_at = now + timedelta(seconds=delay)
+                else:
+                    outbox.available_at = now + timedelta(seconds=delay)
+                outbox.save(update_fields=[
+                    "publish_attempts", "last_error", "available_at",
+                    "claim_deadline_at", "updated_at",
+                ])
     return {"published_count": published}
 
 
@@ -348,8 +370,5 @@ def cancel_repository_execution(execution_id):
         run.completed_at = now
         run.save(update_fields=["status", "completed_at", "updated_at"])
     for group_id in process_groups:
-        try:
-            os.killpg(group_id, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+        terminate_process_group(group_id)
     return True
