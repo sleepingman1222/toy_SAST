@@ -72,6 +72,54 @@ from .services.source_acquisition import (
 from .services.source_snapshot import (
     materialize_analysis_workspace,
 )
+from .services.repository_manifest import build_repository_manifest
+from .services.repository_runtime import execute_repository_scan
+from .services.repository_state import (
+    claim_repository_engine,
+    dispatch_repository_outboxes,
+    enqueue_normalization,
+    fail_repository_engine,
+    plan_repository_execution,
+)
+
+
+@shared_task(
+    bind=True,
+    name="scans.tasks.run_repository_scan",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def run_repository_scan(self, execution_id):
+    task_id = str(getattr(self.request, "id", "") or "")
+    attempt = claim_repository_engine(execution_id, celery_task_id=task_id)
+    if attempt is None:
+        return {"success": False, "claimed": False, "execution_id": execution_id}
+    attempt = (
+        type(attempt).objects
+        .select_related("execution", "execution__analysis_run")
+        .get(pk=attempt.pk)
+    )
+    try:
+        artifact = execute_repository_scan(attempt)
+        enqueue_normalization(attempt.execution, attempt)
+        dispatch_repository_outboxes()
+        return {
+            "success": True,
+            "claimed": True,
+            "execution_id": execution_id,
+            "attempt_id": attempt.id,
+            "artifact_id": artifact.id,
+        }
+    except Exception as error:
+        fail_repository_engine(execution_id, attempt.id, error, retryable=True)
+        dispatch_repository_outboxes()
+        return {
+            "success": False,
+            "claimed": True,
+            "execution_id": execution_id,
+            "attempt_id": attempt.id,
+            "reason": truncate_log(str(error)),
+        }
 
 
 @shared_task(
@@ -854,6 +902,8 @@ def run_analysis(
         # 허용된 Internal Root
         # =================================
 
+        repository_manifest = None
+
         with prepare_analysis_target(
             source_version
         ) as target_path:
@@ -871,6 +921,16 @@ def run_analysis(
                     target_path,
                 )
             )
+
+            if (
+                analysis_run.pipeline_version
+                == AnalysisRun.PipelineVersion.REPOSITORY_V2
+            ):
+                repository_manifest = build_repository_manifest(
+                    analysis_run_id,
+                    target_path,
+                    snapshot_files,
+                )
 
 
         # =================================
@@ -927,6 +987,25 @@ def run_analysis(
         #
         # 생성.
         # =================================
+
+        if (
+            analysis_run.pipeline_version
+            == AnalysisRun.PipelineVersion.REPOSITORY_V2
+        ):
+            execution = plan_repository_execution(
+                analysis_run_id,
+                repository_manifest,
+                detected_languages,
+            )
+            dispatch_result = dispatch_repository_outboxes()
+            return {
+                "success": True,
+                "claimed": True,
+                "analysis_run_id": analysis_run_id,
+                "execution_id": execution.id,
+                "pipeline_version": AnalysisRun.PipelineVersion.REPOSITORY_V2,
+                "published_count": dispatch_result["published_count"],
+            }
 
         planning_result = (
             plan_analysis_chunks(

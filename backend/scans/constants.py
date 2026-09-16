@@ -165,6 +165,19 @@ MAX_ANALYZABLE_FILE_BYTES = (
     * 1024
 )
 
+# Repository-v2 runtime contract. The target limit must stay aligned with
+# MAX_ANALYZABLE_FILE_BYTES; repository planning fails closed otherwise.
+REPOSITORY_MAX_TARGET_BYTES = 10 * 1024 * 1024
+REPOSITORY_MAX_ARTIFACT_BYTES = 64 * 1024 * 1024
+REPOSITORY_ARTIFACT_SAFETY_MARGIN_BYTES = 16 * 1024 * 1024
+REPOSITORY_SCAN_JOBS = 2
+REPOSITORY_SCAN_TIMEOUT_SECONDS = 300
+REPOSITORY_SCAN_MAX_MEMORY_MIB = 1024
+REPOSITORY_ATTEMPT_LEASE_SECONDS = 330
+REPOSITORY_OUTBOX_CLAIM_SECONDS = 60
+REPOSITORY_ENGINE_TASK_NAME = "scans.tasks.run_repository_scan"
+REPOSITORY_NORMALIZATION_TASK_NAME = "scans.tasks.normalize_repository_scan"
+
 
 # ----------------------------------------
 # 하나의 AnalysisRun에서 처리할
