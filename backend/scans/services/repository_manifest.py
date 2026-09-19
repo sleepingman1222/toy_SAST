@@ -2,7 +2,6 @@ import fnmatch
 import hashlib
 import json
 import os
-import shutil
 from pathlib import Path, PurePosixPath
 
 from django.utils import timezone
@@ -11,6 +10,8 @@ from ..constants import (
     IGNORED_LANGUAGE_DIRECTORIES,
     LANGUAGE_EXTENSIONS,
     MAX_ANALYZABLE_FILE_BYTES,
+    MAX_PLANNABLE_ANALYZABLE_BYTES,
+    MAX_PLANNABLE_SOURCE_FILES,
 )
 from .source_snapshot import (
     ANALYSIS_WORKSPACE_MANIFEST_NAME,
@@ -41,6 +42,32 @@ def _sha256_file(path):
     return digest.hexdigest()
 
 
+def _stable_sha256_file(path, *, expected_size, max_bytes):
+    path = Path(path)
+    before = path.stat()
+    digest = hashlib.sha256()
+    bytes_read = 0
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            bytes_read += len(chunk)
+            if bytes_read > max_bytes:
+                raise RepositoryManifestError(
+                    "manifest source exceeds planning byte budget while hashing"
+                )
+            digest.update(chunk)
+    after = path.stat()
+    if (
+        bytes_read != expected_size
+        or before.st_size != expected_size
+        or before.st_size != after.st_size
+        or before.st_mtime_ns != after.st_mtime_ns
+    ):
+        raise RepositoryManifestError(
+            "manifest source changed while its identity was captured"
+        )
+    return digest.hexdigest()
+
+
 def _is_marker(name):
     return any(fnmatch.fnmatch(name, pattern) for pattern in PROJECT_MARKER_PATTERNS)
 
@@ -62,14 +89,38 @@ def _contained_relative_path(root, path):
         raise RepositoryManifestError("manifest path escapes repository root") from error
 
 
-def _copy_evidence_file(source_root, workspace_root, relative_path):
+def _copy_evidence_file(
+    source_root,
+    workspace_root,
+    relative_path,
+    *,
+    max_bytes,
+):
     source = Path(source_root) / PurePosixPath(relative_path)
     destination = Path(workspace_root) / PurePosixPath(relative_path)
     if destination.exists():
-        return
+        size = destination.stat().st_size
+        if size > max_bytes:
+            raise RepositoryManifestError("manifest evidence exceeds workspace byte budget")
+        return size, _sha256_file(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source, destination)
-    destination.chmod(0o600)
+    copied = 0
+    digest = hashlib.sha256()
+    try:
+        with source.open("rb") as source_stream, destination.open("xb") as destination_stream:
+            for chunk in iter(lambda: source_stream.read(1024 * 1024), b""):
+                copied += len(chunk)
+                if copied > max_bytes:
+                    raise RepositoryManifestError(
+                        "manifest evidence exceeds workspace byte budget"
+                    )
+                destination_stream.write(chunk)
+                digest.update(chunk)
+        destination.chmod(0o600)
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+    return copied, digest.hexdigest()
 
 
 def build_repository_manifest(analysis_run_id, original_root, snapshot_files):
@@ -78,8 +129,61 @@ def build_repository_manifest(analysis_run_id, original_root, snapshot_files):
     if not workspace_root.is_dir():
         raise RepositoryManifestError("immutable workspace source root is missing")
 
+    snapshot_files = list(snapshot_files)
     snapshot_by_path = {item.relative_path: item for item in snapshot_files}
+    if len(snapshot_by_path) != len(snapshot_files):
+        raise RepositoryManifestError("snapshot contains duplicate source paths")
+    eligible_snapshot_by_path = {
+        relative_path: item
+        for relative_path, item in snapshot_by_path.items()
+        if item.file_class != "oversized"
+    }
     inventory = []
+    workspace_bytes = 0
+
+    def ensure_inventory_capacity():
+        if len(inventory) >= MAX_PLANNABLE_SOURCE_FILES:
+            raise RepositoryManifestError(
+                "repository manifest inventory exceeds source file limit"
+            )
+
+    def append_inventory(item):
+        ensure_inventory_capacity()
+        inventory.append(item)
+
+    # Eligible source identity comes only from the already materialized
+    # workspace. The original repository can change after snapshotting and is
+    # therefore not authoritative for bytes, size, or continued existence.
+    for relative_path, snapshot in eligible_snapshot_by_path.items():
+        workspace_source = workspace_root / PurePosixPath(relative_path)
+        if (
+            not workspace_source.is_file()
+            or workspace_source.is_symlink()
+        ):
+            raise RepositoryManifestError(
+                "eligible source is missing from immutable workspace"
+            )
+        if _contained_relative_path(workspace_root, workspace_source) != relative_path:
+            raise RepositoryManifestError("snapshot source path is not normalized")
+        size = workspace_source.stat().st_size
+        workspace_bytes += size
+        if workspace_bytes > MAX_PLANNABLE_ANALYZABLE_BYTES:
+            raise RepositoryManifestError(
+                "repository manifest exceeds workspace byte budget"
+            )
+        append_inventory({
+            "path": relative_path,
+            "kind": "supported_source",
+            "size": size,
+            "content_sha256": _stable_sha256_file(
+                workspace_source,
+                expected_size=size,
+                max_bytes=size,
+            ),
+            "language": snapshot.language,
+            "eligibility": True,
+            "exclusion_reason": "",
+        })
 
     for current_root, directory_names, file_names in os.walk(original_root, followlinks=False):
         current_path = Path(current_root)
@@ -100,6 +204,8 @@ def build_repository_manifest(analysis_run_id, original_root, snapshot_files):
             relative_path = _contained_relative_path(original_root, source)
             suffix = source.suffix.lower()
             language = LANGUAGE_EXTENSIONS.get(suffix, "")
+            if language and relative_path in eligible_snapshot_by_path:
+                continue
             kind = None
             extra = {}
             if language:
@@ -112,8 +218,8 @@ def build_repository_manifest(analysis_run_id, original_root, snapshot_files):
                     eligible = False
                     exclusion_reason = "oversized"
                 else:
-                    eligible = relative_path in snapshot_by_path
-                    exclusion_reason = "" if eligible else "ignored_by_policy"
+                    eligible = False
+                    exclusion_reason = "ignored_by_policy"
                 extra = {
                     "language": language,
                     "eligibility": eligible,
@@ -121,22 +227,57 @@ def build_repository_manifest(analysis_run_id, original_root, snapshot_files):
                 }
             elif file_name == ".semgrepignore":
                 kind = "semgrep_ignore"
-                extra = {"normalized_lines": _normalized_ignore_lines(source)}
             elif _is_marker(file_name):
                 kind = "project_marker"
 
             if kind is None:
                 continue
 
-            inventory.append({
+            ensure_inventory_capacity()
+            size = source.stat().st_size
+            content_sha256 = ""
+            if kind == "supported_source":
+                if workspace_bytes + size > MAX_PLANNABLE_ANALYZABLE_BYTES:
+                    raise RepositoryManifestError(
+                        "repository manifest exceeds workspace byte budget"
+                    )
+                content_sha256 = _stable_sha256_file(
+                    source,
+                    expected_size=size,
+                    max_bytes=(MAX_PLANNABLE_ANALYZABLE_BYTES - workspace_bytes),
+                )
+                workspace_bytes += size
+            else:
+                if size > MAX_ANALYZABLE_FILE_BYTES:
+                    raise RepositoryManifestError(
+                        "manifest evidence exceeds per-file byte limit"
+                    )
+                if workspace_bytes + size > MAX_PLANNABLE_ANALYZABLE_BYTES:
+                    raise RepositoryManifestError(
+                        "manifest evidence exceeds workspace byte budget"
+                    )
+                remaining_bytes = MAX_PLANNABLE_ANALYZABLE_BYTES - workspace_bytes
+                size, content_sha256 = _copy_evidence_file(
+                    original_root,
+                    workspace_root,
+                    relative_path,
+                    max_bytes=min(MAX_ANALYZABLE_FILE_BYTES, remaining_bytes),
+                )
+                workspace_bytes += size
+                if kind == "semgrep_ignore":
+                    extra = {
+                        "normalized_lines": _normalized_ignore_lines(
+                            workspace_root / PurePosixPath(relative_path)
+                        )
+                    }
+
+            append_inventory({
                 "path": relative_path,
                 "kind": kind,
-                "size": source.stat().st_size,
-                "content_sha256": _sha256_file(source),
+                "size": size,
+                "content_sha256": content_sha256,
                 **extra,
             })
-            if kind != "supported_source":
-                _copy_evidence_file(original_root, workspace_root, relative_path)
 
     inventory.sort(key=lambda item: (item["path"], item["kind"]))
     canonical = {"schema_version": MANIFEST_SCHEMA_VERSION, "inventory": inventory}
@@ -178,7 +319,10 @@ def load_repository_manifest(analysis_run_id):
     data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("schema_version") != MANIFEST_SCHEMA_VERSION:
         raise RepositoryManifestError("unsupported repository manifest schema")
-    canonical = {"schema_version": MANIFEST_SCHEMA_VERSION, "inventory": data.get("inventory", [])}
+    inventory = data.get("inventory")
+    if not isinstance(inventory, list):
+        raise RepositoryManifestError("repository manifest inventory is malformed")
+    canonical = {"schema_version": MANIFEST_SCHEMA_VERSION, "inventory": inventory}
     digest = hashlib.sha256(
         json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()

@@ -1,5 +1,6 @@
 import hashlib
 import shutil
+from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -8,10 +9,19 @@ from unittest.mock import patch
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 
 from projects.models import Project, SourceVersion
 
-from .models import AnalysisRun, ScanArtifact, ScanAttempt, ScanExecution
+from .kisa_master_data import KISA_SECURITY_WEAKNESSES
+from .models import (
+    AnalysisRun,
+    KisaSecurityWeakness,
+    ScanArtifact,
+    ScanAttempt,
+    ScanDispatchOutbox,
+    ScanExecution,
+)
 from .services.repository_manifest import build_repository_manifest
 from .services.repository_normalization import normalize_repository_artifact
 from .services.repository_recovery import reconcile_scan_artifacts
@@ -19,7 +29,6 @@ from .services.repository_runtime import RepositoryRuntimeError, execute_reposit
 from .services.repository_state import (
     claim_repository_engine,
     claim_repository_normalization,
-    enqueue_normalization,
     plan_repository_execution,
 )
 from .services.source_snapshot import (
@@ -30,6 +39,15 @@ from .services.source_snapshot import (
 
 class RepositoryV2RealEngineTests(TestCase):
     def setUp(self):
+        KisaSecurityWeakness.objects.bulk_create(
+            KisaSecurityWeakness(
+                **item,
+                implementation_status=(
+                    KisaSecurityWeakness.ImplementationStatus.IMPLEMENTED
+                ),
+            )
+            for item in KISA_SECURITY_WEAKNESSES
+        )
         user = get_user_model().objects.create_user(username="repository-e2e")
         project = Project.objects.create(name="repository-e2e", created_by=user)
         source_version = SourceVersion.objects.create(
@@ -47,6 +65,22 @@ class RepositoryV2RealEngineTests(TestCase):
             pipeline_version=AnalysisRun.PipelineVersion.REPOSITORY_V2,
             status=AnalysisRun.Status.PLANNING,
         )
+
+    def _publish_outbox(self, execution, kind):
+        outbox = execution.dispatch_outboxes.get(kind=kind)
+        now = timezone.now()
+        outbox.status = ScanDispatchOutbox.Status.PUBLISHED
+        outbox.publish_attempts = 1
+        outbox.published_at = now
+        outbox.claim_deadline_at = now + timedelta(minutes=1)
+        outbox.save(update_fields=[
+            "status",
+            "publish_attempts",
+            "published_at",
+            "claim_deadline_at",
+            "updated_at",
+        ])
+        return outbox
 
     def _make_mixed_repository(self, root):
         fixtures = Path(settings.BASE_DIR) / "semgrep_rules" / "tests"
@@ -85,7 +119,17 @@ class RepositoryV2RealEngineTests(TestCase):
             execution = plan_repository_execution(
                 self.run.id, manifest, ["java", "javascript", "python"]
             )
-            attempt = claim_repository_engine(execution.id, celery_task_id="real-e2e")
+            engine_outbox = self._publish_outbox(
+                execution, ScanDispatchOutbox.Kind.ENGINE
+            )
+            attempt = claim_repository_engine(
+                execution.id,
+                str(engine_outbox.event_key),
+                celery_task_id="real-e2e",
+            )
+            engine_outbox.refresh_from_db()
+            self.assertEqual(engine_outbox.claimed_attempt_id, attempt.id)
+            self.assertIsNone(engine_outbox.claimed_normalization_attempt_id)
             attempt = ScanAttempt.objects.select_related(
                 "execution", "execution__analysis_run"
             ).get(pk=attempt.pk)
@@ -100,9 +144,29 @@ class RepositoryV2RealEngineTests(TestCase):
                 artifact = execute_repository_scan(attempt)
             self.assertEqual(popen.call_count, 1)
             self.assertEqual(artifact.state, ScanArtifact.State.READY)
+            attempt.refresh_from_db()
+            execution.refresh_from_db()
+            self.assertEqual(attempt.status, ScanAttempt.Status.COMPLETED)
+            self.assertEqual(execution.status, ScanExecution.Status.NORMALIZATION_PENDING)
+            self.assertTrue(
+                execution.dispatch_outboxes.filter(
+                    kind=ScanDispatchOutbox.Kind.NORMALIZATION,
+                    status=ScanDispatchOutbox.Status.PENDING,
+                ).exists()
+            )
 
-            enqueue_normalization(execution, attempt)
-            normalization_attempt = claim_repository_normalization(execution.id)
+            normalization_outbox = self._publish_outbox(
+                execution, ScanDispatchOutbox.Kind.NORMALIZATION
+            )
+            normalization_attempt = claim_repository_normalization(
+                execution.id, str(normalization_outbox.event_key)
+            )
+            normalization_outbox.refresh_from_db()
+            self.assertEqual(
+                normalization_outbox.claimed_normalization_attempt_id,
+                normalization_attempt.id,
+            )
+            self.assertIsNone(normalization_outbox.claimed_attempt_id)
             result = normalize_repository_artifact(normalization_attempt)
             execution.refresh_from_db()
             self.run.refresh_from_db()
@@ -122,7 +186,12 @@ class RepositoryV2RealEngineTests(TestCase):
             snapshot = materialize_analysis_workspace(self.run.id, original)
             manifest = build_repository_manifest(self.run.id, original, snapshot)
             execution = plan_repository_execution(self.run.id, manifest, ["python"])
-            attempt = claim_repository_engine(execution.id)
+            engine_outbox = self._publish_outbox(
+                execution, ScanDispatchOutbox.Kind.ENGINE
+            )
+            attempt = claim_repository_engine(
+                execution.id, str(engine_outbox.event_key)
+            )
             attempt = ScanAttempt.objects.select_related(
                 "execution", "execution__analysis_run"
             ).get(pk=attempt.pk)

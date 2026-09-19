@@ -3,6 +3,7 @@
 from celery import (
     shared_task,
 )
+from celery.signals import task_revoked, worker_shutdown
 
 from django.db import (
     transaction,
@@ -21,6 +22,8 @@ from .constants import (
 from .models import (
     AnalysisChunk,
     AnalysisRun,
+    ScanAttempt,
+    ScanExecution,
 )
 
 from .services.chunk_executor import (
@@ -73,18 +76,59 @@ from .services.source_snapshot import (
     materialize_analysis_workspace,
 )
 from .services.repository_manifest import build_repository_manifest
-from .services.repository_runtime import execute_repository_scan
+from .services.repository_runtime import (
+    ProcessOwnership,
+    execute_repository_scan,
+    repository_attempt_process_ownership,
+    terminate_process_group,
+)
 from .services.repository_normalization import normalize_repository_artifact
 from .services.repository_recovery import run_repository_recovery_cycle
 from .services.repository_state import (
     claim_repository_engine,
     claim_repository_normalization,
     dispatch_repository_outboxes,
-    enqueue_normalization,
     fail_repository_engine,
     fail_repository_normalization,
     plan_repository_execution,
 )
+
+
+_local_repository_attempt_ids = set()
+
+
+def _contain_repository_attempt(attempt_id):
+    try:
+        attempt = ScanAttempt.objects.select_related("execution").get(
+            pk=attempt_id,
+            status=ScanAttempt.Status.RUNNING,
+        )
+    except ScanAttempt.DoesNotExist:
+        return False
+    if (
+        repository_attempt_process_ownership(attempt, attempt.execution)
+        != ProcessOwnership.OWNED
+    ):
+        return False
+    return terminate_process_group(attempt.process_group_id)
+
+
+@task_revoked.connect
+def contain_revoked_repository_task(request=None, **kwargs):
+    task_id = str(getattr(request, "id", "") or "")
+    if not task_id:
+        return
+    for attempt_id in ScanAttempt.objects.filter(
+        celery_task_id=task_id,
+        status=ScanAttempt.Status.RUNNING,
+    ).values_list("pk", flat=True):
+        _contain_repository_attempt(attempt_id)
+
+
+@worker_shutdown.connect
+def contain_local_repository_tasks(**kwargs):
+    for attempt_id in tuple(_local_repository_attempt_ids):
+        _contain_repository_attempt(attempt_id)
 
 
 @shared_task(
@@ -93,9 +137,13 @@ from .services.repository_state import (
     acks_late=True,
     reject_on_worker_lost=True,
 )
-def run_repository_scan(self, execution_id):
+def run_repository_scan(self, execution_id, event_key):
     task_id = str(getattr(self.request, "id", "") or "")
-    attempt = claim_repository_engine(execution_id, celery_task_id=task_id)
+    attempt = claim_repository_engine(
+        execution_id,
+        celery_task_id=task_id,
+        event_key=event_key,
+    )
     if attempt is None:
         return {"success": False, "claimed": False, "execution_id": execution_id}
     attempt = (
@@ -103,9 +151,9 @@ def run_repository_scan(self, execution_id):
         .select_related("execution", "execution__analysis_run")
         .get(pk=attempt.pk)
     )
+    _local_repository_attempt_ids.add(attempt.id)
     try:
         artifact = execute_repository_scan(attempt)
-        enqueue_normalization(attempt.execution, attempt)
         dispatch_repository_outboxes()
         return {
             "success": True,
@@ -124,6 +172,9 @@ def run_repository_scan(self, execution_id):
             "attempt_id": attempt.id,
             "reason": truncate_log(str(error)),
         }
+    finally:
+        _contain_repository_attempt(attempt.id)
+        _local_repository_attempt_ids.discard(attempt.id)
 
 
 @shared_task(
@@ -132,8 +183,8 @@ def run_repository_scan(self, execution_id):
     acks_late=True,
     reject_on_worker_lost=True,
 )
-def normalize_repository_scan(self, execution_id):
-    attempt = claim_repository_normalization(execution_id)
+def normalize_repository_scan(self, execution_id, event_key):
+    attempt = claim_repository_normalization(execution_id, event_key=event_key)
     if attempt is None:
         return {"success": False, "claimed": False, "execution_id": execution_id}
     attempt = type(attempt).objects.select_related("execution").get(pk=attempt.pk)
@@ -729,6 +780,9 @@ def record_analysis_start_failure(
                 .analysis_chunks
                 .exists()
             )
+            has_repository_execution = ScanExecution.objects.filter(
+                analysis_run=analysis_run
+            ).exists()
 
 
             # --------------------------------
@@ -742,7 +796,7 @@ def record_analysis_start_failure(
                     AnalysisRun.Status.PLANNING,
                 )
                 or
-                not has_chunks
+                not (has_chunks or has_repository_execution)
             ):
 
                 analysis_run.status = (

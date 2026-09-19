@@ -1612,6 +1612,8 @@ class ScanAttempt(models.Model):
     execution_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     celery_task_id = models.CharField(max_length=255, blank=True, default="", db_index=True)
     process_group_id = models.PositiveIntegerField(null=True, blank=True)
+    process_session_id = models.PositiveIntegerField(null=True, blank=True)
+    process_start_ticks = models.PositiveBigIntegerField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.RUNNING)
     started_at = models.DateTimeField(default=timezone.now)
     heartbeat_at = models.DateTimeField(default=timezone.now)
@@ -1649,7 +1651,11 @@ class ScanArtifact(models.Model):
         DIAGNOSTIC = "diagnostic", "Diagnostic"
 
     execution = models.ForeignKey(ScanExecution, on_delete=models.CASCADE, related_name="artifacts")
-    attempt = models.ForeignKey(ScanAttempt, on_delete=models.PROTECT, related_name="artifacts")
+    attempt = models.ForeignKey(
+        ScanAttempt,
+        on_delete=models.RESTRICT,
+        related_name="artifacts",
+    )
     kind = models.CharField(max_length=30, choices=Kind.choices, default=Kind.SEMGREP_JSON)
     state = models.CharField(max_length=20, choices=State.choices, default=State.WRITING)
     is_canonical = models.BooleanField(default=False)
@@ -1703,7 +1709,20 @@ class ScanDispatchOutbox(models.Model):
     published_at = models.DateTimeField(null=True, blank=True)
     claim_deadline_at = models.DateTimeField(null=True, blank=True, db_index=True)
     claimed_at = models.DateTimeField(null=True, blank=True)
-    claimed_attempt = models.ForeignKey(ScanAttempt, on_delete=models.SET_NULL, null=True, blank=True, related_name="claimed_outboxes")
+    claimed_attempt = models.ForeignKey(
+        ScanAttempt,
+        on_delete=models.RESTRICT,
+        null=True,
+        blank=True,
+        related_name="claimed_outboxes",
+    )
+    claimed_normalization_attempt = models.ForeignKey(
+        "ScanNormalizationAttempt",
+        on_delete=models.RESTRICT,
+        null=True,
+        blank=True,
+        related_name="claimed_outboxes",
+    )
     last_error = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1713,6 +1732,51 @@ class ScanDispatchOutbox(models.Model):
             models.UniqueConstraint(fields=["execution", "kind", "dispatch_no"], name="unique_scan_dispatch_number"),
             models.UniqueConstraint(fields=["execution", "kind"], condition=models.Q(status="pending"), name="unique_pending_scan_dispatch"),
             models.CheckConstraint(condition=models.Q(publish_attempts__lte=models.F("max_publish_attempts")), name="scan_dispatch_publish_bounds"),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(status="pending")
+                    | models.Q(
+                        published_at__isnull=True,
+                        claim_deadline_at__isnull=True,
+                        claimed_at__isnull=True,
+                        claimed_attempt__isnull=True,
+                        claimed_normalization_attempt__isnull=True,
+                    )
+                ),
+                name="scan_dispatch_pending_metadata",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(status="published")
+                    | models.Q(
+                        published_at__isnull=False,
+                        claim_deadline_at__isnull=False,
+                    )
+                ),
+                name="scan_dispatch_published_time",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        claimed_at__isnull=True,
+                        claimed_attempt__isnull=True,
+                        claimed_normalization_attempt__isnull=True,
+                    )
+                    | models.Q(
+                        kind="engine",
+                        claimed_at__isnull=False,
+                        claimed_attempt__isnull=False,
+                        claimed_normalization_attempt__isnull=True,
+                    )
+                    | models.Q(
+                        kind="normalization",
+                        claimed_at__isnull=False,
+                        claimed_attempt__isnull=True,
+                        claimed_normalization_attempt__isnull=False,
+                    )
+                ),
+                name="scan_dispatch_claim_metadata",
+            ),
         ]
 
 

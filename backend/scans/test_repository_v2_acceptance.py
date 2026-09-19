@@ -88,6 +88,8 @@ class RepositoryV2AcceptanceTests(TestCase):
         self.assertEqual(ScanExecution.objects.filter(analysis_run=run).count(), 1)
         self.assertEqual(first.scope_root, ".")
         self.assertEqual(first.discovered_supported, 31)
+        self.assertEqual(len(first.ruleset_digest), 64)
+        self.assertEqual(len(first.options_digest), 64)
         self.assertEqual(first.dispatch_outboxes.count(), 1)
 
         legacy = self.create_run(sequence=2, pipeline="chunk_v1")
@@ -123,6 +125,34 @@ class RepositoryV2AcceptanceTests(TestCase):
                     _publish_artifact(attempt, stale)
             self.assertFalse(ScanArtifact.objects.filter(execution=execution).exists())
             self.assertFalse((run_root / "semgrep-attempt-1.json").exists())
+
+    def test_artifact_publication_atomically_enqueues_normalization(self):
+        run = self.create_run(status=AnalysisRun.Status.RUNNING)
+        execution, attempt = self.create_attempt(run)
+        with TemporaryDirectory() as directory:
+            run_root = Path(directory)
+            temporary = run_root / ".semgrep-result"
+            temporary.write_text(json.dumps({"results": []}), encoding="utf-8")
+            with patch(
+                "scans.services.repository_runtime.get_analysis_workspace_run_root",
+                return_value=run_root,
+            ):
+                artifact = _publish_artifact(attempt, temporary)
+
+        attempt.refresh_from_db()
+        execution.refresh_from_db()
+        self.assertEqual(artifact.state, ScanArtifact.State.READY)
+        self.assertEqual(attempt.status, ScanAttempt.Status.COMPLETED)
+        self.assertEqual(
+            execution.status,
+            ScanExecution.Status.NORMALIZATION_PENDING,
+        )
+        self.assertEqual(
+            list(
+                execution.dispatch_outboxes.values_list("kind", flat=True)
+            ),
+            [ScanDispatchOutbox.Kind.NORMALIZATION],
+        )
 
     def test_invalid_lifecycle_rows_and_identity_collisions_fail_closed(self):
         run = self.create_run(status=AnalysisRun.Status.RUNNING)
@@ -202,6 +232,38 @@ class RepositoryV2AcceptanceTests(TestCase):
                 kind=ScanDispatchOutbox.Kind.ENGINE,
                 dispatch_no=2,
                 task_name="test.engine.duplicate",
+            )
+
+    def test_outbox_state_metadata_constraints_fail_closed(self):
+        run = self.create_run(status=AnalysisRun.Status.RUNNING)
+        execution, _attempt = self.create_attempt(run)
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ScanDispatchOutbox.objects.create(
+                execution=execution,
+                kind=ScanDispatchOutbox.Kind.ENGINE,
+                dispatch_no=1,
+                task_name="test.pending",
+                published_at=timezone.now(),
+            )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ScanDispatchOutbox.objects.create(
+                execution=execution,
+                kind=ScanDispatchOutbox.Kind.ENGINE,
+                dispatch_no=2,
+                task_name="test.published",
+                status=ScanDispatchOutbox.Status.PUBLISHED,
+            )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            ScanDispatchOutbox.objects.create(
+                execution=execution,
+                kind=ScanDispatchOutbox.Kind.ENGINE,
+                dispatch_no=3,
+                task_name="test.claimed-without-attempt",
+                status=ScanDispatchOutbox.Status.PUBLISHED,
+                published_at=timezone.now(),
+                claim_deadline_at=timezone.now() + timedelta(minutes=1),
+                claimed_at=timezone.now(),
             )
 
 

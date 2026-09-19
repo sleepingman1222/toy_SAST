@@ -50,6 +50,8 @@ celerybeat.pid
 
 # Local tooling and editors
 .omx/
+/.omx-state-locks/
+/.omx-state-locks.identity.json
 .idea/
 .vscode/
 *.suo

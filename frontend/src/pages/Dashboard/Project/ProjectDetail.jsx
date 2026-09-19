@@ -2606,6 +2606,19 @@ function ProjectDetail({
                                   재시도 {selectedAnalysisProgress.retryCount}회
                                 </span>
 
+                                {
+                                  selectedAnalysisProgress.pipelineVersion === "repository_v2" && (
+                                    <span>
+                                      {selectedAnalysisProgress.executions[0]?.capabilities?.engine_mode
+                                        ? `엔진 모드 ${selectedAnalysisProgress.executions[0].capabilities.engine_mode}`
+                                        : "엔진 모드 알 수 없음"}
+                                      {selectedAnalysisProgress.executions[0]?.capabilities?.interfile_dataflow === false
+                                        ? " · interfile 미지원"
+                                        : ""}
+                                    </span>
+                                  )
+                                }
+
                               </div>
 
 
@@ -2677,22 +2690,31 @@ function ProjectDetail({
 
 
                                               <p>
-                                                완료 {languageProgress.completed}
-                                                {" · "}
-                                                실행 {languageProgress.running}
-                                                {" · "}
-                                                대기 {waitingCount}
-                                                {" · "}
-                                                재시도 {languageProgress.retryPending}
                                                 {
-                                                  languageProgress.failed > 0
-                                                    ? ` · 실패 ${languageProgress.failed}`
-                                                    : ""
-                                                }
-                                                {
-                                                  languageProgress.skipped > 0
-                                                    ? ` · 건너뜀 ${languageProgress.skipped}`
-                                                    : ""
+                                                  languageProgress.coverage
+                                                    ? (
+                                                      `스캔 ${languageProgress.coverage.scanned}`
+                                                      + ` · 정책 제외 ${languageProgress.coverage.ignoredByPolicy}`
+                                                      + ` · Semgrep 제외 ${languageProgress.coverage.ignoredBySemgrep}`
+                                                      + ` · 초과 ${languageProgress.coverage.oversized}`
+                                                      + ` · 엔진 오류 ${languageProgress.coverage.engineError}`
+                                                      + ` · 미보고 ${languageProgress.coverage.missingFromEngineReport}`
+                                                      + (languageProgress.coverage.coverageComplete
+                                                        ? " · coverage 완료"
+                                                        : " · coverage 미완료")
+                                                    )
+                                                    : (
+                                                      `완료 ${languageProgress.completed}`
+                                                      + ` · 실행 ${languageProgress.running}`
+                                                      + ` · 대기 ${waitingCount}`
+                                                      + ` · 재시도 ${languageProgress.retryPending}`
+                                                      + (languageProgress.failed > 0
+                                                        ? ` · 실패 ${languageProgress.failed}`
+                                                        : "")
+                                                      + (languageProgress.skipped > 0
+                                                        ? ` · 건너뜀 ${languageProgress.skipped}`
+                                                        : "")
+                                                    )
                                                 }
                                               </p>
 

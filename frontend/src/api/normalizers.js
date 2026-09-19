@@ -408,6 +408,54 @@ export function normalizeAnalysisLanguageProgress(
   language
 ) {
 
+  const rawCoverage =
+    language.coverage && typeof language.coverage === "object"
+      ? language.coverage
+      : null;
+
+  const coverage = rawCoverage
+    ? {
+        discoveredSupported:
+          rawCoverage.discovered_supported ??
+          rawCoverage.discoveredSupported ??
+          language.file_count ??
+          language.fileCount ??
+          0,
+        scanned: rawCoverage.scanned ?? 0,
+        ignoredByPolicy:
+          rawCoverage.ignored_by_policy ?? rawCoverage.ignoredByPolicy ?? 0,
+        ignoredBySemgrep:
+          rawCoverage.ignored_by_semgrep ?? rawCoverage.ignoredBySemgrep ?? 0,
+        oversized: rawCoverage.oversized ?? 0,
+        engineError:
+          rawCoverage.engine_error ?? rawCoverage.engineError ?? 0,
+        missingFromEngineReport:
+          rawCoverage.missing_from_engine_report ??
+          rawCoverage.missingFromEngineReport ??
+          0,
+        unaccounted: rawCoverage.unaccounted ?? 0,
+        coverageComplete:
+          rawCoverage.coverage_complete ??
+          rawCoverage.coverageComplete ??
+          false,
+      }
+    : null;
+
+  const fileCount =
+    language.file_count ??
+    language.fileCount ??
+    coverage?.discoveredSupported ??
+    0;
+
+  const coveredFileCount = coverage
+    ? Math.max(
+        fileCount -
+          coverage.missingFromEngineReport -
+          coverage.unaccounted,
+        0
+      )
+    : 0;
+
   return {
 
     language:
@@ -416,11 +464,11 @@ export function normalizeAnalysisLanguageProgress(
 
     total:
       language.total ??
-      0,
+      fileCount,
 
     terminal:
       language.terminal ??
-      0,
+      coveredFileCount,
 
     active:
       language.active ??
@@ -472,7 +520,13 @@ export function normalizeAnalysisLanguageProgress(
     progressPercent:
       language.progress_percent ??
       language.progressPercent ??
-      0,
+      (fileCount > 0
+        ? Math.round((coveredFileCount / fileCount) * 100)
+        : 0),
+
+    fileCount,
+
+    coverage,
   };
 }
 
@@ -586,12 +640,26 @@ export function normalizeAnalysisProgress(
       progress.coverageComplete ??
       null,
 
+    capabilities:
+      progress.capabilities ||
+      null,
+
     executions:
       progress.executions || [],
 
     retryCount:
       progress.retry_count ??
       progress.retryCount ??
+      0,
+
+    engineRetryCount:
+      progress.engine_retry_count ??
+      progress.engineRetryCount ??
+      0,
+
+    normalizationRetryCount:
+      progress.normalization_retry_count ??
+      progress.normalizationRetryCount ??
       0,
 
     languages:

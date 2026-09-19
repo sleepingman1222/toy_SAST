@@ -32,7 +32,25 @@ test("normalizes repository v2 mixed progress and incomplete coverage", () => {
     result_count: 3,
     raw_occurrence_count: 5,
     coverage_complete: false,
+    retry_count: 3,
+    engine_retry_count: 2,
+    normalization_retry_count: 1,
     executions: [{ scope_kind: "repository", coverage_complete: false }],
+    languages: [{
+      language: "python",
+      file_count: 2,
+      coverage: {
+        discovered_supported: 2,
+        scanned: 1,
+        ignored_by_policy: 0,
+        ignored_by_semgrep: 0,
+        oversized: 0,
+        engine_error: 0,
+        missing_from_engine_report: 1,
+        unaccounted: 0,
+        coverage_complete: false,
+      },
+    }],
     chunks: [{ sequence: 1, language: "mixed", status: "running", result_count: 3 }],
   });
 
@@ -41,6 +59,15 @@ test("normalizes repository v2 mixed progress and incomplete coverage", () => {
   assert.equal(progress.resultCount, 3);
   assert.equal(progress.rawOccurrenceCount, 5);
   assert.equal(progress.coverageComplete, false);
+  assert.equal(progress.retryCount, 3);
+  assert.equal(progress.engineRetryCount, 2);
+  assert.equal(progress.normalizationRetryCount, 1);
   assert.equal(progress.executions[0].coverage_complete, false);
+  assert.equal(progress.languages[0].fileCount, 2);
+  assert.equal(progress.languages[0].total, 2);
+  assert.equal(progress.languages[0].terminal, 1);
+  assert.equal(progress.languages[0].progressPercent, 50);
+  assert.equal(progress.languages[0].coverage.scanned, 1);
+  assert.equal(progress.languages[0].coverage.coverageComplete, false);
   assert.equal(Number.isNaN(progress.progressPercent), false);
 });
