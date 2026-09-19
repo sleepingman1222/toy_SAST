@@ -25,15 +25,28 @@ flowchart LR
     API --> DB[(PostgreSQL)]
     API -->|analysis request| OUTBOX[Dispatch outbox]
     OUTBOX --> REDIS[(Redis)]
-    REDIS --> WORKER[Celery worker]
-    WORKER --> SEMGREP[Semgrep rules]
-    WORKER --> DB
+    REDIS --> ENGINE[Engine worker]
+    ENGINE --> SEMGREP[Semgrep rules]
+    ENGINE --> ARTIFACT[Verified raw artifact]
+    ARTIFACT --> NORMALIZER[Normalization worker]
+    NORMALIZER --> DB
     BEAT[Celery beat] -->|recovery cycle| DB
 ```
 
 분석 요청은 DB에 실행 계획과 outbox를 먼저 기록합니다. Worker는 chunk를 claim한 뒤 lease가 유효한 동안 Semgrep을 실행하며, Beat 작업은 유실된 worker와 미발행 outbox를 주기적으로 복구합니다.
 
 `repository_v2`는 분석 생성 시 선택한 pipeline version을 고정하고, 불변 snapshot root 하나를 대상으로 실행한 raw 결과를 artifact로 게시한 뒤 별도 normalization 단계에서 finding을 생성합니다. release-1 범위, capability 제한, 활성화/롤백 및 검증 절차는 [Repository-scope SAST 운영 가이드](docs/repository-scope-sast.md)를 참고하세요.
+
+### Repository-scope SAST 실행 모델
+
+- 분석 생성 시 `chunk_v1` 또는 `repository_v2`를 저장하며, 실행 중 설정이 변경되어도 경로가 바뀌지 않습니다.
+- `repository_v2`는 Java, JavaScript, Python 파일이 섞인 불변 snapshot 전체를 하나의 repository execution으로 검사합니다.
+- Semgrep 원본 결과는 크기와 SHA-256을 검증한 뒤 canonical artifact로 게시됩니다.
+- Finding 생성은 별도 normalization outbox와 lease를 사용합니다. normalization 재시도는 Semgrep을 다시 실행하지 않습니다.
+- Engine과 normalization outbox는 각 attempt의 claim 소유권을 기록해 중복 worker와 stale claim을 차단합니다.
+- Worker 유실, published-but-unclaimed outbox, 만료된 lease, 손상된 artifact는 recovery cycle에서 재검증하거나 실패 상태로 수렴합니다.
+- timeout 또는 취소 시 등록된 process session과 시작 시각을 확인한 뒤 소유한 process group만 종료합니다.
+- 기존 API와 대시보드는 synthetic chunk와 호환 진행률을 통해 `chunk_v1` 및 `repository_v2`를 함께 표시합니다.
 
 ## 기술 스택
 
@@ -75,6 +88,12 @@ cp .env.example .env
 
 `.env`의 `DJANGO_SECRET_KEY`와 `POSTGRES_PASSWORD`를 로컬 값으로 변경한 다음 서비스를 시작합니다.
 
+새 분석에 repository pipeline을 사용하려면 `.env`에 다음 값을 설정합니다. 기본값은 `False`이며, 이미 생성된 분석의 pipeline version에는 영향을 주지 않습니다.
+
+```dotenv
+REPOSITORY_SAST_V2_ENABLED=True
+```
+
 ```bash
 docker compose up -d --build
 docker compose exec backend python manage.py migrate
@@ -97,12 +116,24 @@ docker compose down
 ```bash
 # Backend configuration
 docker compose exec backend python manage.py check
+docker compose exec backend python manage.py makemigrations --check --dry-run
+
+# Repository-v2 contract, acceptance, normalization/recovery, E2E
+docker compose exec backend python manage.py test \
+  scans.test_repository_v2_contract \
+  scans.test_repository_v2_acceptance \
+  scans.test_repository_v2_normalization \
+  scans.test_repository_v2_e2e
+
+# Repository-v2 limits, schema, capabilities and Semgrep pin
+docker compose exec backend python manage.py check_repository_scan_pipeline
 
 # KISA rule catalog
 docker compose exec backend \
   python manage.py check_kisa_rule_catalog --full-coverage
 
 # Frontend
+docker compose exec frontend npm test
 docker compose exec frontend npm run lint
 docker compose exec frontend npm run build
 
@@ -111,6 +142,8 @@ python3 scripts/check_frontend_api_boundaries.py
 python3 scripts/code_structure_audit.py
 python3 scripts/project_cleanup_audit.py
 ```
+
+현재 repository-v2 검증 묶음은 65개 테스트로 snapshot 무결성, outbox claim과 재처리, artifact 게시와 정리, normalization 재시도, coverage, 진행률/API 호환, timeout·취소 및 process-group 복구를 확인합니다. 마지막 최소 기능 점검에서는 백엔드 65개 테스트와 Django check, migration check, 프런트 테스트·lint·production build가 모두 통과했습니다.
 
 ## 보안 관련 안내
 
