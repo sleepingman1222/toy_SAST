@@ -12,8 +12,10 @@ rules:
       kisa_name: "서버사이드 요청 위조"
       confidence: HIGH
       recommendation: >-
-        외부 입력 URL을 그대로 요청하지 말고 scheme/host/IP를 허용목록으로 검증하고 내부·메타데이터 주소를 차단하세요.
-      rule_version: "1.0.0"
+        외부 입력 URL을 그대로 요청하지 말고 http/https scheme과 목적지 host를 허용목록으로 검증하세요.
+        DNS 해석 결과와 redirect 대상에도 동일한 정책을 적용하고 loopback, link-local, 사설망 및
+        cloud metadata 주소를 차단하세요.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
       automation_level: implemented
       cwe:
@@ -21,21 +23,29 @@ rules:
       technology:
         - "java"
         - "http"
+        - "java-net-http"
+        - "spring"
+        - "apache-httpclient"
 
     mode: taint
+
     pattern-sources:
       - pattern-either:
-              - pattern: >-
-                  $REQ.getParameter(...)
-              - pattern: >-
-                  $REQ.getHeader(...)
-              - pattern: >-
-                  $REQ.getQueryString()
+          - pattern: $REQ.getParameter(...)
+          - pattern: $REQ.getParameterValues(...)
+          - pattern: $REQ.getHeader(...)
+          - pattern: $REQ.getQueryString()
+
     pattern-sinks:
       - pattern-either:
-              - pattern: >-
-                  new URL($URL)
-              - pattern: >-
-                  $CLIENT.send($REQUEST, ...)
-              - pattern: >-
-                  HttpRequest.newBuilder(URI.create($URL))
+          - pattern: new URL($URL).openConnection(...)
+          - pattern: new URL($URL).openStream(...)
+          - pattern: HttpRequest.newBuilder(URI.create($URL))
+          - pattern: HttpRequest.newBuilder(new URI($URL))
+          - pattern: $REST.getForObject($URL, ...)
+          - pattern: $REST.getForEntity($URL, ...)
+          - pattern: $REST.postForObject($URL, ...)
+          - pattern: $REST.postForEntity($URL, ...)
+          - pattern: $REST.exchange($URL, ...)
+          - pattern: new HttpGet($URL)
+          - pattern: new HttpPost($URL)

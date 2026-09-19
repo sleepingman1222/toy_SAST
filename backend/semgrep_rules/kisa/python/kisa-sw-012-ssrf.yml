@@ -12,8 +12,10 @@ rules:
       kisa_name: "서버사이드 요청 위조"
       confidence: HIGH
       recommendation: >-
-        외부 입력 URL을 그대로 요청하지 말고 scheme/host/IP를 허용목록으로 검증하고 내부·메타데이터 주소를 차단하세요.
-      rule_version: "1.0.0"
+        외부 입력 URL을 그대로 요청하지 말고 http/https scheme과 목적지 host를 허용목록으로 검증하세요.
+        DNS 해석 결과와 redirect 대상에도 동일한 정책을 적용하고 loopback, link-local, 사설망 및
+        cloud metadata 주소를 차단하세요.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
       automation_level: implemented
       cwe:
@@ -21,27 +23,46 @@ rules:
       technology:
         - "python"
         - "http"
+        - "requests"
+        - "httpx"
+        - "urllib"
 
     mode: taint
+
     pattern-sources:
       - pattern-either:
-              - pattern: >-
-                  input(...)
-              - pattern: >-
-                  $REQ.GET.get(...)
-              - pattern: >-
-                  $REQ.POST.get(...)
-              - pattern: >-
-                  $REQ.args.get(...)
-              - pattern: >-
-                  $REQ.form.get(...)
-              - pattern: >-
-                  $REQ.json.get(...)
+          - pattern: input(...)
+          - pattern: sys.argv[$INDEX]
+          - pattern: $REQ.GET.get(...)
+          - pattern: $REQ.GET[$KEY]
+          - pattern: $REQ.POST.get(...)
+          - pattern: $REQ.POST[$KEY]
+          - pattern: $REQ.headers.get(...)
+          - pattern: $REQ.headers[$KEY]
+          - pattern: $REQ.args.get(...)
+          - pattern: $REQ.args[$KEY]
+          - pattern: $REQ.form.get(...)
+          - pattern: $REQ.form[$KEY]
+          - pattern: $REQ.values.get(...)
+          - pattern: $REQ.values[$KEY]
+          - pattern: $REQ.json.get(...)
+          - pattern: $REQ.json[$KEY]
+          - pattern: $REQ.get_json().get(...)
+
     pattern-sinks:
       - pattern-either:
-              - pattern: >-
-                  requests.get($URL, ...)
-              - pattern: >-
-                  requests.post($URL, ...)
-              - pattern: >-
-                  urllib.request.urlopen($URL, ...)
+          - pattern: requests.request($METHOD, $URL, ...)
+          - pattern: requests.get($URL, ...)
+          - pattern: requests.post($URL, ...)
+          - pattern: requests.put($URL, ...)
+          - pattern: requests.patch($URL, ...)
+          - pattern: requests.delete($URL, ...)
+          - pattern: requests.head($URL, ...)
+          - pattern: requests.options($URL, ...)
+          - pattern: httpx.request($METHOD, $URL, ...)
+          - pattern: httpx.get($URL, ...)
+          - pattern: httpx.post($URL, ...)
+          - pattern: httpx.put($URL, ...)
+          - pattern: httpx.patch($URL, ...)
+          - pattern: httpx.delete($URL, ...)
+          - pattern: urllib.request.urlopen($URL, ...)

@@ -12,8 +12,10 @@ rules:
       kisa_name: "서버사이드 요청 위조"
       confidence: HIGH
       recommendation: >-
-        외부 입력 URL을 그대로 요청하지 말고 scheme/host/IP를 허용목록으로 검증하고 내부·메타데이터 주소를 차단하세요.
-      rule_version: "1.0.0"
+        외부 입력 URL을 그대로 요청하지 말고 http/https protocol과 목적지 hostname을 허용목록으로 검증하세요.
+        DNS 해석 결과와 redirect 대상에도 동일한 정책을 적용하고 loopback, link-local, 사설망 및
+        cloud metadata 주소를 차단하세요.
+      rule_version: "1.1.0"
       kisa_guide_version: "2021.12.29"
       automation_level: implemented
       cwe:
@@ -22,25 +24,51 @@ rules:
         - "javascript"
         - "nodejs"
         - "http"
+        - "axios"
+        - "undici"
 
     mode: taint
+
     pattern-sources:
       - pattern-either:
-              - pattern: >-
-                  $REQ.query.$KEY
-              - pattern: >-
-                  $REQ.body.$KEY
-              - pattern: >-
-                  $REQ.params.$KEY
-              - pattern: >-
-                  $REQ.headers[$KEY]
+          - pattern: $REQ.query.$KEY
+          - pattern: $REQ.query[$KEY]
+          - pattern: $REQ.body.$KEY
+          - pattern: $REQ.body[$KEY]
+          - pattern: $REQ.params.$KEY
+          - pattern: $REQ.params[$KEY]
+          - pattern: $REQ.headers[$KEY]
+          - patterns:
+              - pattern: $REQ.get(...)
+              - metavariable-regex:
+                  metavariable: $REQ
+                  regex: (?i)req(uest)?
+          - patterns:
+              - pattern: $REQ.header(...)
+              - metavariable-regex:
+                  metavariable: $REQ
+                  regex: (?i)req(uest)?
+
     pattern-sinks:
       - pattern-either:
-              - pattern: >-
-                  axios.get($URL, ...)
-              - pattern: >-
-                  fetch($URL, ...)
-              - pattern: >-
-                  http.get($URL, ...)
-              - pattern: >-
-                  https.get($URL, ...)
+          - pattern: axios($URL, ...)
+          - pattern: axios.request($URL, ...)
+          - pattern: axios.get($URL, ...)
+          - pattern: axios.post($URL, ...)
+          - pattern: axios.put($URL, ...)
+          - pattern: axios.patch($URL, ...)
+          - pattern: axios.delete($URL, ...)
+          - pattern: axios.head($URL, ...)
+          - pattern: axios.options($URL, ...)
+          - pattern: fetch($URL, ...)
+          - pattern: http.get($URL, ...)
+          - pattern: http.request($URL, ...)
+          - pattern: https.get($URL, ...)
+          - pattern: https.request($URL, ...)
+          - pattern: undici.fetch($URL, ...)
+          - pattern: undici.request($URL, ...)
+          - pattern: got($URL, ...)
+          - pattern: got.get($URL, ...)
+          - pattern: got.post($URL, ...)
+          - pattern: superagent.get($URL, ...)
+          - pattern: superagent.post($URL, ...)
